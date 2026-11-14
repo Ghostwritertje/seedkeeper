@@ -5,8 +5,8 @@ and every tracker's hit-and-run rule is met. It treats cross-seeded torrents as 
 another torrent still uses. It is a small web app with a scheduled run, a UI that shows what it will do and why, and a
 read-only JSON API.
 
-**Status: under construction.** This repository holds the skeleton only; see [SPEC.md](SPEC.md) for what is being
-built and in which order.
+**Status: under construction.** This repository holds the skeleton only; see the
+[spec](https://github.com/Ghostwritertje/seedkeeper/issues/5) for what is being built and in which order.
 
 ## Build and test
 
