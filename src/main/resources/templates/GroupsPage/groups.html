@@ -1,0 +1,23 @@
+{#include layout.html}
+{#title}Groups{/title}
+<h1>Groups</h1>
+{#if unavailable}
+<p role="alert">{unavailable}</p>
+{#else if groups.isEmpty}
+<p>Transmission has no torrents.</p>
+{#else}
+<p>What seedkeeper would decide right now. Nothing is removed yet.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Tracker</th><th>Seed time / minimum</th><th>Status</th><th>Library links</th><th>Verdict</th><th>Reason</th></tr>
+</thead>
+<tbody>
+{#for group in groups}
+{#for member in group.members}
+<tr><td>{member.name}</td><td>{member.tracker}</td><td>{member.seedTime}</td><td>{member.status}</td>{#if member_isFirst}<td rowspan="{group.members.size}">{group.libraryLinks}</td><td rowspan="{group.members.size}">{group.verdict}</td><td rowspan="{group.members.size}">{group.reason}</td>{/if}</tr>
+{/for}
+{/for}
+</tbody>
+</table>
+{/if}
+{/include}

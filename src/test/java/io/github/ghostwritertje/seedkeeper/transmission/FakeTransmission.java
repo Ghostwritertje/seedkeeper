@@ -44,6 +44,9 @@ public final class FakeTransmission implements AutoCloseable {
     private final List<Request> requests = new CopyOnWriteArrayList<>();
     private volatile Behaviour behaviour = Behaviour.JSON_RPC;
     private volatile String version = DEFAULT_VERSION;
+    private volatile String incompleteDir = "/incomplete";
+    private volatile boolean incompleteDirEnabled = false;
+    private volatile String torrents = "[]";
     private volatile int sessionCounter = 1;
 
     public FakeTransmission() {
@@ -70,10 +73,26 @@ public final class FakeTransmission implements AutoCloseable {
         return this;
     }
 
-    /** Back to a healthy Transmission 4.1 with no recorded requests. */
+    /** What {@code session_get} says about the incomplete dir. */
+    public FakeTransmission incompleteDir(String incompleteDir, boolean enabled) {
+        this.incompleteDir = incompleteDir;
+        this.incompleteDirEnabled = enabled;
+        return this;
+    }
+
+    /** The JSON array {@code torrent_get} answers with, in Transmission's own field names. */
+    public FakeTransmission torrents(String json) {
+        this.torrents = json;
+        return this;
+    }
+
+    /** Back to a healthy Transmission 4.1 with no torrents and no recorded requests. */
     public void reset() {
         behaviour = Behaviour.JSON_RPC;
         version = DEFAULT_VERSION;
+        incompleteDir = "/incomplete";
+        incompleteDirEnabled = false;
+        torrents = "[]";
         requests.clear();
     }
 
@@ -122,9 +141,17 @@ public final class FakeTransmission implements AutoCloseable {
                         "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32601,\"message\":\"Method not found\"},\"id\":1}");
                 case GARBAGE -> respond(exchange, 200, "text/html", "<html>not transmission</html>");
                 default -> respond(exchange, 200, "application/json",
-                        "{\"jsonrpc\":\"2.0\",\"result\":{\"version\":\"" + version + "\"},\"id\":1}");
+                        "{\"jsonrpc\":\"2.0\",\"result\":" + result(body) + ",\"id\":1}");
             }
         }
+    }
+
+    private String result(String request) {
+        if (request.contains("\"method\":\"torrent_get\"")) {
+            return "{\"torrents\":" + torrents + "}";
+        }
+        return "{\"version\":\"" + version + "\",\"incomplete_dir\":\"" + incompleteDir
+                + "\",\"incomplete_dir_enabled\":" + incompleteDirEnabled + "}";
     }
 
     private static void respond(HttpExchange exchange, int status, String contentType, String body) throws IOException {

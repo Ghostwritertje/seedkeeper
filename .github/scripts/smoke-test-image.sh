@@ -14,6 +14,15 @@ cat > "$config/seedkeeper.yaml" <<'YAML'
 seedkeeper:
   transmission:
     url: http://127.0.0.1:9/transmission/rpc
+  library-roots: [/library/movies, /library/tv]
+  trackers:
+    tracker-a:
+      hosts: [tracker-a.example]
+    tracker-b:
+      hosts: [tracker-b.example, tracker-b.example.org]
+      minimum-seed-time: 14d
+  public:
+    minimum-seed-time: 1d
 YAML
 chmod 644 "$config/seedkeeper.yaml"
 

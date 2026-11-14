@@ -8,8 +8,11 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
@@ -21,6 +24,9 @@ public class TransmissionClient implements Transmission {
 
     private static final Pattern MAJOR_MINOR = Pattern.compile("(\\d+)\\.(\\d+)");
     private static final String TOO_OLD = "older than 4.1, the oldest version seedkeeper works with";
+    private static final List<String> TORRENT_FIELDS = List.of("hash_string", "name", "status", "percent_done",
+            "error", "error_string", "seconds_seeding", "is_private", "download_dir", "trackers", "files",
+            "file_stats");
 
     private final URI url;
     private final TransmissionRpc rpc;
@@ -43,12 +49,54 @@ public class TransmissionClient implements Transmission {
 
     @Override
     public TransmissionSession session() {
-        JsonNode result = call("session_get", Map.of("fields", List.of("version")));
+        JsonNode result = call("session_get",
+                Map.of("fields", List.of("version", "incomplete_dir", "incomplete_dir_enabled")));
         String version = result.path("version").asText("");
         if (!isSupported(version)) {
             throw TransmissionException.unsupported("Transmission " + version + " is " + TOO_OLD, version);
         }
-        return new TransmissionSession(version);
+        Optional<Path> incompleteDir = result.path("incomplete_dir_enabled").asBoolean(false)
+                ? Optional.of(Path.of(result.path("incomplete_dir").asText()))
+                : Optional.empty();
+        return new TransmissionSession(version, incompleteDir);
+    }
+
+    @Override
+    public List<Torrent> torrents() {
+        JsonNode torrents = call("torrent_get", Map.of("fields", TORRENT_FIELDS)).path("torrents");
+        if (!torrents.isArray()) {
+            throw notJsonRpc(null);
+        }
+        List<Torrent> result = new ArrayList<>();
+        for (JsonNode torrent : torrents) {
+            result.add(torrent(torrent));
+        }
+        return result;
+    }
+
+    private Torrent torrent(JsonNode torrent) {
+        List<String> trackers = new ArrayList<>();
+        for (JsonNode tracker : torrent.path("trackers")) {
+            trackers.add(tracker.path("announce").asText());
+        }
+        List<Torrent.File> files = new ArrayList<>();
+        JsonNode fileStats = torrent.path("file_stats");
+        int index = 0;
+        for (JsonNode file : torrent.path("files")) {
+            // A file Transmission says nothing about counts as wanted: the careful side, it can only keep a torrent.
+            boolean wanted = fileStats.path(index++).path("wanted").asBoolean(true);
+            files.add(new Torrent.File(file.path("name").asText(), file.path("length").asLong(), wanted));
+        }
+        Torrent.Status status;
+        try {
+            status = Torrent.Status.of(torrent.path("status").asInt(-1));
+        } catch (IllegalArgumentException e) {
+            throw notJsonRpc(e);
+        }
+        return new Torrent(torrent.path("hash_string").asText(), torrent.path("name").asText(), status,
+                torrent.path("percent_done").asDouble(), torrent.path("error").asInt(),
+                torrent.path("error_string").asText(), torrent.path("seconds_seeding").asLong(),
+                torrent.path("is_private").asBoolean(), torrent.path("download_dir").asText(), trackers, files);
     }
 
     /** True for 4.1 and newer. The version looks like "4.1.0 (5e6a9e0a3d)"; one that can't be read is not supported. */
