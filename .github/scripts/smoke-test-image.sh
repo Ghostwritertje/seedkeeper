@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Starts the image as an arbitrary non-root uid:gid, with a seedkeeper.yaml mounted the way the README says and the
 # secrets in the environment. There is no Transmission here, so it waits for liveness (readiness stays down) and
-# then checks that the API reports the Transmission URL from the mounted file as unreachable.
+# then checks that the API (with the API key) reports the Transmission URL from the mounted file as unreachable.
 # Usage: smoke-test-image.sh <image>
 set -euo pipefail
 
@@ -30,7 +30,7 @@ trap 'docker logs "$name" || true; docker rm -f "$name" >/dev/null; rm -rf "$con
 for _ in $(seq 1 30); do
   if curl -fsS http://127.0.0.1:8080/q/health/live | grep -q '"status": *"UP"'; then
     echo "liveness is UP"
-    system="$(curl -fsS http://127.0.0.1:8080/api/v1/system)"
+    system="$(curl -fsS -H 'X-Api-Key: smoke' http://127.0.0.1:8080/api/v1/system)"
     echo "$system"
     if echo "$system" | grep -q 'Transmission at http://127.0.0.1:9/transmission/rpc does not answer'; then
       echo "the mounted seedkeeper.yaml was read"

@@ -13,6 +13,11 @@
 <nav>
 <a href="/system">System</a>
 </nav>
+{! Every form needs this hidden field: a POST without the CSRF token is rejected. !}
+<form method="post" action="/logout">
+<input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<button type="submit">Log out</button>
+</form>
 </header>
 <main>
 {#insert}{/}
