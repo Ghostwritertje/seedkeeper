@@ -1,6 +1,7 @@
 package io.github.ghostwritertje.seedkeeper;
 
 import io.smallrye.config.ConfigMapping;
+import io.smallrye.config.WithDefault;
 import java.net.URI;
 
 /**
@@ -30,6 +31,10 @@ public interface SeedkeeperConfig {
     }
 
     interface Auth {
+
+        /** The name of the one user that can log in. */
+        @WithDefault("admin")
+        String username();
 
         /** Secret, env {@code SEEDKEEPER_AUTH_PASSWORD}. */
         String password();

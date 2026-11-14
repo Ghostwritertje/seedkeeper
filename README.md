@@ -6,7 +6,7 @@ another torrent still uses. It is a small web app with a scheduled run, a UI tha
 read-only JSON API.
 
 **Status: under construction.** So far seedkeeper only connects to Transmission and shows on its System page whether
-that works; see the [spec](https://github.com/Ghostwritertje/seedkeeper/issues/5) for what is being built and in which
+that works, behind a login and an API key; see the [spec](https://github.com/Ghostwritertje/seedkeeper/issues/5) for what is being built and in which
 order.
 
 ## Configuration
@@ -19,11 +19,14 @@ Settings that are safe to commit go in `seedkeeper.yaml`, mounted in the contain
 seedkeeper:
   transmission:
     url: http://transmission:9091/transmission/rpc   # Transmission's RPC endpoint
+  auth:
+    username: admin                                  # the password comes from the environment
 ```
 
 | Key | Required | Meaning |
 |---|---|---|
 | `seedkeeper.transmission.url` | yes | URL of Transmission's RPC endpoint. |
+| `seedkeeper.auth.username` | no | Username of seedkeeper's login. Default `admin`. |
 
 Secrets come from the environment only. seedkeeper doesn't start when one is missing:
 
@@ -31,12 +34,24 @@ Secrets come from the environment only. seedkeeper doesn't start when one is mis
 |---|---|
 | `SEEDKEEPER_TRANSMISSION_USERNAME` | Transmission's RPC username. |
 | `SEEDKEEPER_TRANSMISSION_PASSWORD` | Transmission's RPC password. |
-| `SEEDKEEPER_AUTH_PASSWORD` | Password of seedkeeper's own login (the login itself is not built yet). |
-| `SEEDKEEPER_API_KEY` | Key for the JSON API (not checked yet). |
+| `SEEDKEEPER_AUTH_PASSWORD` | Password of seedkeeper's own [login](#login). |
+| `SEEDKEEPER_API_KEY` | [Key for the JSON API](#api-key). Pick a long random one, for example `openssl rand -hex 32`. |
 | `QUARKUS_HTTP_AUTH_SESSION_ENCRYPTION_KEY` | Encrypts the session cookie; at least 16 characters. Keep it the same across restarts, so logins survive them. |
 
 An environment variable also overrides a key of the file: `SEEDKEEPER_TRANSMISSION_URL` wins over
 `seedkeeper.transmission.url`.
+
+## Login
+
+Every page needs a login. There is one user: the username is `seedkeeper.auth.username` (default `admin`), the
+password is `SEEDKEEPER_AUTH_PASSWORD`. Without a login a page redirects to the form at `/login`; **Log out** is at
+the top of every page.
+
+A login is kept in a cookie encrypted with `QUARKUS_HTTP_AUTH_SESSION_ENCRYPTION_KEY`, so it survives a restart of
+seedkeeper as long as that key stays the same. It ends after 30 minutes without a request. Changing the key logs
+everyone out.
+
+Every form carries a CSRF token; a form POST without it is rejected with 400.
 
 ## Pages
 
@@ -47,6 +62,20 @@ An environment variable also overrides a key of the file: `SEEDKEEPER_TRANSMISSI
 ## JSON API
 
 Read-only, under `/api/v1`.
+
+### API key
+
+Every request under `/api/` needs the API key (`SEEDKEEPER_API_KEY`), in the `X-Api-Key` header or in the `apikey`
+query parameter:
+
+```sh
+curl -H "X-Api-Key: $SEEDKEEPER_API_KEY" http://localhost:8080/api/v1/system
+curl "http://localhost:8080/api/v1/system?apikey=$SEEDKEEPER_API_KEY"
+```
+
+Without a key, or with a wrong one, the answer is `401`. Prefer the header: a query parameter ends up in access logs
+and browser history. The key only opens `/api/`, not the pages. Someone who is logged in can also open the API in
+the same browser without a key.
 
 ### `GET /api/v1/system`
 
@@ -73,7 +102,8 @@ The same data as the System page. Always answers 200, also when Transmission is 
 ## Health
 
 `/q/health/live` is up whenever seedkeeper runs. `/q/health/ready` (and so `/q/health`) is down while Transmission
-doesn't answer, with the reason in the check named `Transmission`. Neither needs a login.
+doesn't answer, with the reason in the check named `Transmission`. `/q/health` and `/q/metrics` need no login and no
+API key.
 
 ## Build and test
 
