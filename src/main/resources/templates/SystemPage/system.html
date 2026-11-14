@@ -1,0 +1,24 @@
+{#include layout.html}
+{#title}System{/title}
+<h1>System</h1>
+<section id="seedkeeper">
+<h2>seedkeeper</h2>
+<dl>
+<dt>Version</dt>
+<dd>{status.version}</dd>
+</dl>
+</section>
+{! Asks Transmission again every 30 s and swaps in this section of the fresh page. !}
+<section id="transmission" hx-get="/system" hx-select="#transmission" hx-trigger="every 30s" hx-swap="outerHTML">
+<h2>Transmission</h2>
+<dl>
+<dt>Status</dt>
+<dd>{#if status.transmission.usable}Reachable{#else if status.transmission.reachable}Reachable, not usable{#else}Unreachable{/if}</dd>
+<dt>Version</dt>
+<dd>{status.transmission.version ?: 'unknown'}</dd>
+</dl>
+{#if status.transmission.reason}
+<p role="alert">{status.transmission.reason}</p>
+{/if}
+</section>
+{/include}
