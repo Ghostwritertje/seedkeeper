@@ -1,0 +1,15 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  # Base image of the runtime image only.
+  - package-ecosystem: docker
+    directory: /src/main/docker
+    schedule:
+      interval: monthly

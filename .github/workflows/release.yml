@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/ghostwritertje/seedkeeper
+
+jobs:
+  release:
+    name: Build and publish the image
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - name: Take the version from the tag
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag '$TAG' is not vX.Y.Z" >&2
+            exit 1
+          fi
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+      - name: Set the project version (not committed)
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./mvnw -B versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false
+      - name: Build native and run the integration tests
+        run: ./mvnw -B verify -Dnative
+      - name: Build the image
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          docker build --platform linux/amd64 \
+            -f src/main/docker/Dockerfile.native-micro \
+            --label "org.opencontainers.image.title=seedkeeper" \
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.version=${VERSION}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            -t "${IMAGE}:${VERSION}" .
+      - name: Run the image as an arbitrary non-root user
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: .github/scripts/smoke-test-image.sh "${IMAGE}:${VERSION}"
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Only the exact version is pushed. There is no `latest`: consumers pin a version.
+      - name: Push the image
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: docker push "${IMAGE}:${VERSION}"
