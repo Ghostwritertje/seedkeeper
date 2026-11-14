@@ -255,8 +255,8 @@ Decided in [ADR 0004](https://github.com/Ghostwritertje/homelab/blob/main/docs/a
   - groups, library links, deletion and space freed in `@TempDir` with real symlinks and hardlinks;
   - one `@QuarkusTest` end to end.
 - **CI** (GitHub Actions): `verify` on every PR, the native build and `@QuarkusIntegrationTest` too. A tag `vX.Y.Z`
-  publishes `ghcr.io/ghostwritertje/seedkeeper:X.Y.Z`. Dependabot monthly (Maven, Actions). Every PR is merged by a
-  human after CI passes.
+  publishes `ghcr.io/ghostwritertje/seedkeeper:X.Y.Z`. Dependabot monthly (Maven, Actions). A PR is merged only
+  after CI passes.
 
 ## 12. Build order
 
