@@ -129,11 +129,11 @@
                 <quarkus.native.enabled>true</quarkus.native.enabled>
                 <!--
                   Built inside the Mandrel builder container, so the binary is linked against the same
-                  glibc (UBI 8) as the runtime image in src/main/docker/Dockerfile.native-micro.
+                  glibc (UBI 9) as the runtime image in src/main/docker/Dockerfile.native-micro.
                   Keep the two on the same UBI major.
                 -->
                 <quarkus.native.container-build>true</quarkus.native.container-build>
-                <quarkus.native.builder-image>quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-25</quarkus.native.builder-image>
+                <quarkus.native.builder-image>quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-25</quarkus.native.builder-image>
             </properties>
         </profile>
     </profiles>

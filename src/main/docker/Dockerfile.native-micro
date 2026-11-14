@@ -11,14 +11,14 @@
 #   docker build -f src/main/docker/Dockerfile.native-micro -t seedkeeper .
 #   docker run --rm -p 8080:8080 seedkeeper
 #
-# `quay.io/quarkus/quarkus-micro-image:2.0` is based on UBI 8. The builder image in pom.xml
-# (`ubi-quarkus-mandrel-builder-image`) is UBI 8 too; keep both on the same UBI major, or the
+# `quay.io/quarkus/ubi9-quarkus-micro-image:2.0` is based on UBI 9. The builder image in pom.xml
+# (`ubi9-quarkus-mandrel-builder-image`) is UBI 9 too; keep both on the same UBI major, or the
 # executable is linked against a newer glibc than the image has.
 #
 # The image must work as any non-root uid:gid (`docker run --user 1029:65536`): the executable is
 # world-readable and world-executable, and the application writes nothing under /work.
 ###
-FROM quay.io/quarkus/quarkus-micro-image:2.0
+FROM quay.io/quarkus/ubi9-quarkus-micro-image:2.0
 WORKDIR /work/
 RUN chown 1001 /work \
     && chmod "g+rwX" /work \

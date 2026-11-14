@@ -244,7 +244,10 @@ Decided in [ADR 0004](https://github.com/Ghostwritertje/homelab/blob/main/docs/a
 - Transmission: a Quarkus REST Client for JSON-RPC 2.0 behind our own interface. A filter handles the
   `X-Transmission-Session-Id` 409 handshake (one retry).
 - Filesystem: `java.nio.file`, `unix:dev` / `unix:ino` / `unix:nlink` attributes.
-- Native `linux/amd64` with Mandrel; image on `quay.io/quarkus/quarkus-micro-image`.
+- Native `linux/amd64` with Mandrel (`ubi9-quarkus-mandrel-builder-image:jdk-25`); image on
+  `quay.io/quarkus/ubi9-quarkus-micro-image` (the ubi8 `quarkus-micro-image` has too old a glibc for a ubi9 build).
+- `seedkeeper.yaml` is mounted as `/work/config/application.yaml` (the working dir's `config/`), so env vars still
+  override a key. A file named in `quarkus.config.locations` outranks env vars.
 - **Tests**, run with `./mvnw verify` on a plain JDK (no Docker, no Dev Services):
   - `Decide` built test-first with JUnit 5 parameterized tables: one row per rule, per edge case in §3.5 and per
     classifier pattern;
@@ -252,14 +255,15 @@ Decided in [ADR 0004](https://github.com/Ghostwritertje/homelab/blob/main/docs/a
   - groups, library links, deletion and space freed in `@TempDir` with real symlinks and hardlinks;
   - one `@QuarkusTest` end to end.
 - **CI** (GitHub Actions): `verify` on every PR, the native build and `@QuarkusIntegrationTest` too. A tag `vX.Y.Z`
-  publishes `ghcr.io/ghostwritertje/seedkeeper:X.Y.Z`. Dependabot monthly (Maven, Actions). Every PR is merged by a
-  human after CI passes.
+  publishes `ghcr.io/ghostwritertje/seedkeeper:X.Y.Z`. Dependabot monthly (Maven, Actions). A PR is merged only
+  after CI passes.
 
 ## 12. Build order
 
 0. **Native spike**, before anything else: a tiny native binary, run on the target NAS, proves the SQLite driver,
    `unix:ino`, Jackson YAML and symlink resolution work in a native image. A part that fails gets a fallback (for
-   example `stat` for inodes), nothing more.
+   example `stat` for inodes), nothing more. **Done:** every part works natively on Quarkus 3.40 / Mandrel 25 with
+   Quarkiverse `quarkus-jdbc-sqlite` 3.0.11 and Flyway; no fallback needed.
 1. Repo skeleton, CI (JVM + native), release workflow, Dependabot.
 2. Domain model and `Decide` with its table tests (no I/O).
 3. Snapshot: Transmission client, path resolution, library index, groups.
