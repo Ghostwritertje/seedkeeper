@@ -7,7 +7,7 @@ read-only JSON API.
 
 **Status: under construction.** So far seedkeeper connects to Transmission, behind a login and an API key. It
 shows, per cross-seed group, the verdict it would give and when a group kept for its minimum seed time may leave. It
-removes nothing yet, and it doesn't know unregistered torrents or keep overrides yet; see the
+removes nothing yet, and it doesn't know keep overrides yet; see the
 [spec](https://github.com/Ghostwritertje/seedkeeper/issues/5) for what is being built and in which order.
 
 ## Configuration
@@ -79,6 +79,7 @@ order.
 
 | Verdict | Reason | Code | Holds when |
 |---|---|---|---|
+| Remove (one member) | Unregistered | `unregistered` | The torrent is [unregistered](#unregistered-torrents) and is not being verified. It leaves its group and is a group of its own with this verdict; the rest of its group is judged without it. |
 | Left alone | Unmanaged | `unmanaged` | A member belongs to no tracker of the config. |
 | Left alone | Missing data (n of m files) | `missing-data` | A wanted file of a finished member is nowhere on disk. A member that isn't finished is never missing data: its files may not exist yet. |
 | Left alone | Local error | `local-error` | Transmission reports a local error on a member (its `error` is 3), for example files it can't read. |
@@ -88,16 +89,38 @@ order.
 | Keep | Minimum not reached | `minimum-not-reached` | A member's seed time is below its tracker's minimum. |
 | Remove | All met | `all-met` | None of the above. |
 
-Two more reasons are in the spec and not built yet: `unregistered` (remove one member the tracker has deleted) and
-`keep-override` (keep, by hand).
+One more reason is in the spec and not built yet: `keep-override` (keep, by hand).
 
-These play no part: a paused member (its seed time just stands still), a tracker warning or tracker error (`error` 1
-or 2), and data that was moved or renamed (groups are rebuilt from the disk every time). The same torrents and files
+These play no part: a paused member (its seed time just stands still), a tracker warning or a tracker error that is
+not unregistered (they are only shown), and data that was moved or renamed (groups are rebuilt from the disk every time). The same torrents and files
 always give the same verdicts: nothing seedkeeper remembers is an input.
 
 A group kept because a minimum is not reached has a **forecast**: now plus the longest seed time any member still has
 to go, which is when the group may leave if it keeps seeding. When the member with the longest time to go is paused
 there is no date: its clock is stopped.
+
+### Unregistered torrents
+
+A torrent is **unregistered** when its tracker has deleted it for good: Transmission reports a tracker error (`error`
+is 2) and the tracker message, lower-cased, contains one of these:
+
+`not registered`, `unregistered`, `torrent not found`, `torrent is not found`, `torrent does not exist`,
+`infohash not found`, `unknown torrent`, `torrent has been deleted`, `torrent deleted`,
+`torrent is not authorized for use on this tracker`, `torrent banned`, `specifically banned`, `trumped`, `nuked`,
+`dupe`, `torrent existiert nicht`, `torrent nicht gefunden`, `torrent introuvable`,
+`i'm sorry dave, i can't do that`.
+
+A message with `passkey` in it is never unregistered: `Passkey does not exist!` is a problem with the account, not
+with the torrent. The list is built in; adding a pattern is a pull request.
+
+An unregistered torrent gets the verdict Remove straight away, whatever its seed time, its library links or its
+tracker (also one that is in no tracker of the config). This is the one case where one member leaves its
+cross-seed group: the unregistered torrent is listed as a group of its own with reason `unregistered`, and the other
+members are grouped and judged as if it wasn't there. While the torrent is being verified (status `check-wait` or
+`checking`) it stays in its group, which is kept for `verifying`.
+
+Any other tracker error, and any tracker warning (`error` is 1), has no effect on the verdict. The Groups page and
+the API show it with the tracker message.
 
 Transmission's paths must be the same inside seedkeeper's container: mount the downloads at the same path as in
 Transmission's container, and the library on the same filesystem as the downloads, or no library link is seen.
@@ -109,7 +132,8 @@ runs at a time, and Run now during a run answers "A run is already running." A r
 first: when Transmission doesn't answer or is older than 4.1, or a library root can't be read, the run ends `failed`
 with that one reason and removes nothing.
 
-Otherwise every group with the verdict **Remove** leaves:
+Otherwise every group with the verdict **Remove** leaves. An [unregistered](#unregistered-torrents) torrent is such
+a group of one: it leaves on its own, and what the rest of its cross-seed group still uses stays on disk.
 
 1. Each member is removed from Transmission, which is told to leave the data alone. When one removal fails, the rest
    of that group is skipped and none of its files is deleted; the error is shown with the last run, and the next run
@@ -161,7 +185,7 @@ Every form carries a CSRF token; a form POST without it is rejected with 400.
 
 | Page | Shows |
 |---|---|
-| `/groups` | Every [cross-seed group](#cross-seed-groups) with its members (name, tracker, seed time and minimum, status), its library links, the verdict seedkeeper would give it right now with the [reason and the secondary reasons](#verdicts-and-reasons), and the forecast: a date in the configured time zone, or "clock stopped (paused)". The list can be filtered by verdict and by reason (`/groups?verdict=keep&reason=library-link`). Read from Transmission and the disk on every load. |
+| `/groups` | Every [cross-seed group](#cross-seed-groups) with its members (name, tracker, seed time and minimum, status, and the tracker message when the tracker reports an [error](#unregistered-torrents): "Unregistered: …", "Tracker error: …" or "Tracker warning: …"), its library links, the verdict seedkeeper would give it right now with the [reason and the secondary reasons](#verdicts-and-reasons), and the forecast: a date in the configured time zone, or "clock stopped (paused)". The list can be filtered by verdict and by reason (`/groups?verdict=keep&reason=library-link`). Read from Transmission and the disk on every load. |
 | `/orphans` | The **orphans**: what is under the downloads root that no torrent references, as two lists, files and dangling symlinks, each with path, size, age (time since it was last modified) and a total. seedkeeper only shows them and never deletes them. |
 | `/settings` | The configuration seedkeeper runs with, read-only: every key of the [configuration](#configuration) with its default filled in, each tracker with its hosts and the minimum seed time that applies to it (marked "(default)" when it sets none of its own), and for each secret only whether it is set or missing, never its value. |
 | `/system` | seedkeeper's version; whether a run is running and the outcome of the last [run](#runs-removing-and-deleting) (succeeded or failed with the reason, start and end, torrents and groups removed, files deleted, space freed, and the removals that went wrong); the **Run now** button; and whether Transmission is reachable, its version and, when seedkeeper can't work with it, the reason. |
@@ -233,7 +257,8 @@ Run now is not in the API: it is a button on the System page only.
 ### `GET /api/v1/groups`
 
 The same data as the Groups page: every [cross-seed group](#cross-seed-groups) with the verdict seedkeeper would
-give it right now. Groups are in the order of their first member in Transmission.
+give it right now. Groups are in the order of their first member in Transmission. An
+[unregistered](#unregistered-torrents) torrent is a group of its own, with verdict `remove` and reason `unregistered`.
 
 | Query parameter | Meaning |
 |---|---|
@@ -263,7 +288,9 @@ filter. A code that doesn't exist answers 400 with `{"reason": "…"}`.
         "tracker": "tracker-a",
         "status": "seeding",
         "seedTimeSeconds": 1728000,
-        "minimumSeedTimeSeconds": 2592000
+        "minimumSeedTimeSeconds": 2592000,
+        "trackerError": null,
+        "trackerMessage": null
       },
       {
         "hash": "89abcdef0123456789abcdef0123456789abcdef",
@@ -271,7 +298,9 @@ filter. A code that doesn't exist answers 400 with `{"reason": "…"}`.
         "tracker": "tracker-b",
         "status": "stopped",
         "seedTimeSeconds": 1123200,
-        "minimumSeedTimeSeconds": 1209600
+        "minimumSeedTimeSeconds": 1209600,
+        "trackerError": "tracker-error",
+        "trackerMessage": "Passkey does not exist!"
       }
     ]
   }
@@ -281,7 +310,7 @@ filter. A code that doesn't exist answers 400 with `{"reason": "…"}`.
 | Field | Meaning |
 |---|---|
 | `verdict` | `remove`, `left-alone` or `keep`. |
-| `reason` | Why: the code of the first [rule](#verdicts-and-reasons) that holds: `unmanaged`, `missing-data`, `local-error`, `verifying`, `not-finished`, `library-link`, `minimum-not-reached` or `all-met`. |
+| `reason` | Why: the code of the first [rule](#verdicts-and-reasons) that holds: `unregistered`, `unmanaged`, `missing-data`, `local-error`, `verifying`, `not-finished`, `library-link`, `minimum-not-reached` or `all-met`. |
 | `secondaryReasons` | The codes of every other rule that holds too, in the same order; empty when there is none. |
 | `libraryLinks` | How many of the group's wanted files have a library link. |
 | `missingFiles` | How many wanted files of finished members are nowhere on disk; more than 0 means `missing-data` holds. |
@@ -294,6 +323,8 @@ filter. A code that doesn't exist answers 400 with `{"reason": "…"}`.
 | `members[].status` | Transmission's status: `stopped`, `check-wait`, `checking`, `download-wait`, `downloading`, `seed-wait` or `seeding`. |
 | `members[].seedTimeSeconds` | The seed time, in seconds. |
 | `members[].minimumSeedTimeSeconds` | The tracker's minimum seed time, in seconds; `null` when the torrent is unmanaged. |
+| `members[].trackerError` | What the tracker reports: `unregistered`, `tracker-error` (any other tracker error), `tracker-warning`, or `null` when nothing is wrong. Only `unregistered` has an effect, see [unregistered torrents](#unregistered-torrents). |
+| `members[].trackerMessage` | The tracker's message as Transmission reports it; `null` when `trackerError` is `null`. |
 
 Answers 503 with `{"reason": "…"}` when there are no verdicts: Transmission doesn't answer or is older than 4.1, or a
 library root can't be read.
