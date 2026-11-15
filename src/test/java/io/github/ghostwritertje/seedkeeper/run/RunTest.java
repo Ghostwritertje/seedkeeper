@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.ghostwritertje.seedkeeper.decide.Reason;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules.ManagedTracker;
+import io.github.ghostwritertje.seedkeeper.overrides.OverrideStore;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Removal;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Status;
 import io.github.ghostwritertje.seedkeeper.transmission.StubTransmission;
@@ -206,8 +207,69 @@ class RunTest {
         assertEquals(4, next.removals().getFirst().deleted().spaceFreed());
     }
 
+    @Test
+    void aKeepOverrideInTheFileKeepsAGroupThatIsDue() throws IOException {
+        Path kept = file(downloads.resolve("Kept/movie.mkv"));
+        Path due = file(downloads.resolve("Due/movie.mkv"));
+        transmission.add(torrent("kept", 30 * DAY, "Kept/movie.mkv"), torrent("due", 30 * DAY, "Due/movie.mkv"));
+        overrides("overrides:\n  - id: one\n    hashes: [kept]\n    until: 2999-12-31\n");
+
+        RunOutcome outcome = run();
+
+        assertEquals(Status.SUCCEEDED, outcome.status());
+        assertEquals(List.of(Reason.KEEP_OVERRIDE, Reason.ALL_MET),
+                outcome.verdicts().stream().map(verdict -> verdict.reason()).toList());
+        assertEquals(List.of("due"), transmission.removed());
+        assertTrue(Files.exists(kept), "the file of a group with a keep override was deleted");
+        assertGone(due);
+    }
+
+    @Test
+    void theOverridesFileIsReadAtTheStartOfEveryRun() throws IOException {
+        Path file = file(downloads.resolve("Kept/movie.mkv"));
+        transmission.add(torrent("kept", 30 * DAY, "Kept/movie.mkv"));
+        Run run = run(new OverrideStore(overridesFile()));
+        overrides("overrides:\n  - id: one\n    hashes: [kept]\n");
+
+        assertEquals(List.of(), run.execute().removals(), "an override added after the start was not read");
+
+        overrides("overrides:\n  - id: one\n    hashes: [kept]\n    until: 2020-01-01\n");
+        run.execute();
+
+        assertEquals(List.of("kept"), transmission.removed());
+        assertGone(file);
+    }
+
+    @Test
+    void endsFailedAndRemovesNothingWhenTheOverridesFileCannotBeRead() throws IOException {
+        Path due = file(downloads.resolve("Due/movie.mkv"));
+        transmission.add(torrent("due", 30 * DAY, "Due/movie.mkv"));
+        overrides("overrides: [\n");
+
+        RunOutcome outcome = run();
+
+        assertEquals(Status.FAILED, outcome.status());
+        assertTrue(outcome.error().orElseThrow().startsWith("The overrides file " + overridesFile()
+                + " can't be read: "), outcome.error().orElseThrow());
+        assertEquals(List.of(), outcome.verdicts());
+        assertEquals(List.of(), transmission.removed());
+        assertTrue(Files.exists(due));
+    }
+
+    private Path overridesFile() {
+        return root.resolve("overrides.yaml");
+    }
+
+    private void overrides(String yaml) throws IOException {
+        Files.writeString(overridesFile(), yaml);
+    }
+
     private RunOutcome run() {
-        return new Run(transmission, TRACKERS, downloads, List.of(library), ZONE).execute();
+        return run(new OverrideStore(overridesFile())).execute();
+    }
+
+    private Run run(OverrideStore overrides) {
+        return new Run(transmission, TRACKERS, downloads, List.of(library), ZONE, overrides);
     }
 
     /** A finished, seeding torrent of tracker-a in the downloads root. */

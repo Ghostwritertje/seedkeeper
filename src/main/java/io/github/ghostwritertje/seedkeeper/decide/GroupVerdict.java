@@ -10,7 +10,8 @@ import java.util.Optional;
  *
  * @param libraryLinks how many wanted files of the group have a library link
  * @param files        how many wanted files the group has; a file that several members share counts once
- * @param forecast     present only when the reason is <em>minimum not reached</em>
+ * @param forecast     present when the reason is <em>minimum not reached</em>, or <em>keep override</em> with an
+ *                     end date
  * @param secondaryReasons every other reason that holds too, in the order of precedence
  * @param missingFiles how many wanted files of finished members resolve to nothing on disk
  */

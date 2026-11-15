@@ -7,7 +7,7 @@ read-only JSON API.
 
 **Status: under construction.** So far seedkeeper connects to Transmission, behind a login and an API key. It
 shows, per cross-seed group, the verdict it would give and when a group kept for its minimum seed time may leave. It
-removes nothing yet, and it doesn't know unregistered torrents or keep overrides yet; see the
+removes nothing yet, and it doesn't know unregistered torrents yet; see the
 [spec](https://github.com/Ghostwritertje/seedkeeper/issues/5) for what is being built and in which order.
 
 ## Configuration
@@ -50,7 +50,7 @@ seedkeeper:
 | `seedkeeper.trackers.<name>.minimum-seed-time` | no | The seed time the tracker requires before a torrent may leave; the default when absent. |
 | `seedkeeper.public.minimum-seed-time` | no | Adds the tracker `public`: every torrent that is not private and belongs to no single managed tracker gets it, with this minimum. Without the `public` entry such torrents are unmanaged. |
 | `seedkeeper.auth.username` | no, `admin` | Username of seedkeeper's login. |
-| `seedkeeper.data-dir` | no, `/data` | The directory seedkeeper keeps its own files in. Not used yet. |
+| `seedkeeper.data-dir` | no, `/data` | The directory seedkeeper keeps its own files in: [`overrides.yaml`](#keep-overrides). Mount a directory seedkeeper can write to; it is created when it isn't there, and seedkeeper doesn't start when it can't be. |
 
 The [Settings page](#pages) shows the value of every key seedkeeper runs with, defaults included.
 
@@ -84,12 +84,12 @@ order.
 | Left alone | Local error | `local-error` | Transmission reports a local error on a member (its `error` is 3), for example files it can't read. |
 | Keep | Verifying | `verifying` | A member is being verified or is queued for it (status `check-wait` or `checking`). |
 | Keep | Not finished | `not-finished` | A member's download isn't complete. |
+| Keep | Keep override | `keep-override` | A [keep override](#keep-overrides) matches the group and has not expired. |
 | Keep | Library link (n of m files) | `library-link` | A wanted file of a member has a library link. |
 | Keep | Minimum not reached | `minimum-not-reached` | A member's seed time is below its tracker's minimum. |
 | Remove | All met | `all-met` | None of the above. |
 
-Two more reasons are in the spec and not built yet: `unregistered` (remove one member the tracker has deleted) and
-`keep-override` (keep, by hand).
+One more reason is in the spec and not built yet: `unregistered` (remove one member the tracker has deleted).
 
 These play no part: a paused member (its seed time just stands still), a tracker warning or tracker error (`error` 1
 or 2), and data that was moved or renamed (groups are rebuilt from the disk every time). The same torrents and files
@@ -97,17 +97,56 @@ always give the same verdicts: nothing seedkeeper remembers is an input.
 
 A group kept because a minimum is not reached has a **forecast**: now plus the longest seed time any member still has
 to go, which is when the group may leave if it keeps seeding. When the member with the longest time to go is paused
-there is no date: its clock is stopped.
+there is no date: its clock is stopped. A group kept by a keep override with an end date shows that date instead
+("until 2027-03-01").
 
 Transmission's paths must be the same inside seedkeeper's container: mount the downloads at the same path as in
 Transmission's container, and the library on the same filesystem as the downloads, or no library link is seen.
+
+## Keep overrides
+
+A **keep override** is a manual instruction never to remove a group, with a note and an optional end date. It can
+only prevent a removal: a group that is left alone, verifying or not finished keeps that verdict, and an override
+never causes one. They are kept in `<data-dir>/overrides.yaml`, which you edit by hand for now:
+
+```yaml
+overrides:
+  - id: 7f3c                           # any text, unique in the file
+    hashes: [0123456789abcdef0123456789abcdef01234567, 89abcdef0123456789abcdef0123456789abcdef]
+    note: "Rewatching this season"     # optional
+    until: 2027-03-01                  # optional, inclusive, in seedkeeper.time-zone
+    created: 2026-11-20T10:12:00+01:00 # optional
+```
+
+| Key | Required | Meaning |
+|---|---|---|
+| `id` | yes | Names the override; no two may have the same. |
+| `hashes` | yes, at least one | Info hashes of the torrents to keep, as Transmission shows them (upper or lower case). |
+| `note` | no | Why. |
+| `until` | no | The end date, `yyyy-mm-dd`. The override still holds on that day, in `seedkeeper.time-zone`, and has expired the day after. Without it the override never ends. |
+| `created` | no | When it was set: an ISO 8601 date and time with an offset. |
+
+- An override **matches** every current group that has at least one of its hashes, and keeps the whole group.
+- An **expired** override is past its end date; a **stale** one has no hash that is a torrent any more. Neither has
+  any effect, and seedkeeper never deletes them: they stay, marked, until you remove them from the file.
+- Each [run](#runs-removing-and-deleting) adds to an override the hashes of the members its groups gained since (a
+  new cross-seed). Hashes are never removed, so an override survives the torrent it was set on.
+- The file is read at the start of every run, and again whenever it changes: a hand edit shows on the pages without a
+  restart. No file is the same as no overrides.
+- When seedkeeper adds hashes it writes the whole file anew, to a temporary file in the same directory that then
+  replaces the old one in one rename, so the file is never half written. **Comments and keys seedkeeper doesn't know
+  are lost** then, and every text comes back in double quotes.
+- A file seedkeeper can't read (not YAML, an override without `id` or `hashes`, a date that isn't one) never counts
+  as "no overrides": while it is broken there are no verdicts, the Groups and Overrides pages say what is wrong with
+  it, and a run ends `failed` and removes nothing.
 
 ## Runs: removing and deleting
 
 A **run** carries out the verdicts. For now it starts only from the **Run now** button on the System page; one run
 runs at a time, and Run now during a run answers "A run is already running." A run asks Transmission for its session
-first: when Transmission doesn't answer or is older than 4.1, or a library root can't be read, the run ends `failed`
-with that one reason and removes nothing.
+first: when Transmission doesn't answer or is older than 4.1, or a library root or the
+[overrides file](#keep-overrides) can't be read, the run ends `failed` with that one reason and removes nothing.
+After the removals a run adds the hashes of new group members to the keep overrides.
 
 Otherwise every group with the verdict **Remove** leaves:
 
@@ -162,6 +201,7 @@ Every form carries a CSRF token; a form POST without it is rejected with 400.
 | Page | Shows |
 |---|---|
 | `/groups` | Every [cross-seed group](#cross-seed-groups) with its members (name, tracker, seed time and minimum, status), its library links, the verdict seedkeeper would give it right now with the [reason and the secondary reasons](#verdicts-and-reasons), and the forecast: a date in the configured time zone, or "clock stopped (paused)". The list can be filtered by verdict and by reason (`/groups?verdict=keep&reason=library-link`). Read from Transmission and the disk on every load. |
+| `/overrides` | Every [keep override](#keep-overrides) of the overrides file, read-only: its status (active, expired, stale, or expired and stale), note, end date, when it was created (in the configured time zone), the members of the group or groups it matches, its hashes and its id. |
 | `/orphans` | The **orphans**: what is under the downloads root that no torrent references, as two lists, files and dangling symlinks, each with path, size, age (time since it was last modified) and a total. seedkeeper only shows them and never deletes them. |
 | `/settings` | The configuration seedkeeper runs with, read-only: every key of the [configuration](#configuration) with its default filled in, each tracker with its hosts and the minimum seed time that applies to it (marked "(default)" when it sets none of its own), and for each secret only whether it is set or missing, never its value. |
 | `/system` | seedkeeper's version; whether a run is running and the outcome of the last [run](#runs-removing-and-deleting) (succeeded or failed with the reason, start and end, torrents and groups removed, files deleted, space freed, and the removals that went wrong); the **Run now** button; and whether Transmission is reachable, its version and, when seedkeeper can't work with it, the reason. |
@@ -281,14 +321,15 @@ filter. A code that doesn't exist answers 400 with `{"reason": "…"}`.
 | Field | Meaning |
 |---|---|
 | `verdict` | `remove`, `left-alone` or `keep`. |
-| `reason` | Why: the code of the first [rule](#verdicts-and-reasons) that holds: `unmanaged`, `missing-data`, `local-error`, `verifying`, `not-finished`, `library-link`, `minimum-not-reached` or `all-met`. |
+| `reason` | Why: the code of the first [rule](#verdicts-and-reasons) that holds: `unmanaged`, `missing-data`, `local-error`, `verifying`, `not-finished`, `keep-override`, `library-link`, `minimum-not-reached` or `all-met`. |
 | `secondaryReasons` | The codes of every other rule that holds too, in the same order; empty when there is none. |
 | `libraryLinks` | How many of the group's wanted files have a library link. |
 | `missingFiles` | How many wanted files of finished members are nowhere on disk; more than 0 means `missing-data` holds. |
 | `files` | How many wanted files the group has. A file that several members share counts once. Files deselected in Transmission are not counted anywhere. |
-| `forecast` | `null` unless the reason is `minimum-not-reached`. |
+| `forecast` | `null` unless the reason is `minimum-not-reached`, or `keep-override` with an end date. |
 | `forecast.date` | When every member is expected to have met its minimum if the group keeps seeding: ISO 8601, to the second, with the offset of `seedkeeper.time-zone`. `null` when the clock is stopped. |
 | `forecast.clockStopped` | `true` when the member with the longest seed time to go is paused, so there is no date. |
+| `forecast.until` | For `keep-override`: the end date (inclusive) of the override that keeps the group, the latest when several do, as `yyyy-mm-dd`; `date` is then `null` and `clockStopped` `false`. `null` otherwise. |
 | `members[].hash`, `members[].name` | The torrent's info hash and name. |
 | `members[].tracker` | The name of the tracker from the config, `public`, or `null` when the torrent is unmanaged. |
 | `members[].status` | Transmission's status: `stopped`, `check-wait`, `checking`, `download-wait`, `downloading`, `seed-wait` or `seeding`. |
@@ -296,7 +337,47 @@ filter. A code that doesn't exist answers 400 with `{"reason": "…"}`.
 | `members[].minimumSeedTimeSeconds` | The tracker's minimum seed time, in seconds; `null` when the torrent is unmanaged. |
 
 Answers 503 with `{"reason": "…"}` when there are no verdicts: Transmission doesn't answer or is older than 4.1, or a
-library root can't be read.
+library root or the [overrides file](#keep-overrides) can't be read.
+
+### `GET /api/v1/overrides`
+
+The same data as the Overrides page: every [keep override](#keep-overrides) of the overrides file, in the order of
+the file, against the groups as they are right now.
+
+```json
+[
+  {
+    "id": "7f3c",
+    "hashes": ["0123456789abcdef0123456789abcdef01234567"],
+    "note": "Rewatching this season",
+    "until": "2027-03-01",
+    "created": "2026-11-20T10:12:00+01:00",
+    "active": true,
+    "expired": false,
+    "stale": false,
+    "groups": [
+      [
+        {"hash": "0123456789abcdef0123456789abcdef01234567", "name": "Some.Show.S01"},
+        {"hash": "89abcdef0123456789abcdef0123456789abcdef", "name": "Some.Show.S01.1080p"}
+      ]
+    ]
+  }
+]
+```
+
+| Field | Meaning |
+|---|---|
+| `id`, `hashes`, `note` | As in the file; hashes in lower case, `note` empty when there is none. |
+| `until` | The end date (inclusive, in `seedkeeper.time-zone`), `yyyy-mm-dd`; `null` when the override never ends. |
+| `created` | As in the file: ISO 8601 with its offset; `null` when the file doesn't say. |
+| `active` | `true` when the override keeps a group: it is neither expired nor stale. |
+| `expired` | `true` when today, in `seedkeeper.time-zone`, is after `until`. |
+| `stale` | `true` when none of its hashes is a torrent in Transmission any more. An override can be both expired and stale. |
+| `groups` | Every current group the override matches, each as the hash and name of all its members (also the ones the override doesn't list yet). Empty when stale. |
+
+Answers 503 with `{"reason": "…"}` when the overrides file can't be read, or when the groups can't be known:
+Transmission doesn't answer or is older than 4.1, or a library root can't be read. Overrides can't be changed through
+the API.
 
 ### `GET /api/v1/orphans`
 
@@ -360,12 +441,14 @@ an amd64 Linux host (CI does this on every pull request):
 docker build -f src/main/docker/Dockerfile.native-micro -t seedkeeper .
 docker run --rm -p 8080:8080 --user 1029:65536 \
   -v "$PWD/seedkeeper.yaml:/work/config/application.yaml:ro" \
+  -v "$PWD/data:/data" \
   --env-file seedkeeper.env \
   seedkeeper
 ```
 
 The image listens on port 8080 and runs as any non-root uid:gid. `seedkeeper.env` holds the secrets
-(see [Configuration](#configuration)).
+(see [Configuration](#configuration)). `/data` is the data dir: mount a directory that uid:gid can write to, or
+seedkeeper doesn't start.
 
 ## Continuous integration
 

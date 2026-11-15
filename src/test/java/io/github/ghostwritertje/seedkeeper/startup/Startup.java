@@ -17,6 +17,7 @@ final class Startup {
                 .addAsResource("templates/SystemPage/system.html")
                 .addAsResource("templates/GroupsPage/groups.html")
                 .addAsResource("templates/OrphansPage/orphans.html")
+                .addAsResource("templates/OverridesPage/overrides.html")
                 .addAsResource("templates/SettingsPage/settings.html");
     }
 

@@ -136,7 +136,7 @@ class GroupsFilterTest {
                 .then()
                 .statusCode(400)
                 .body("reason", is("Unknown reason 'libary-link': use unmanaged, missing-data, local-error,"
-                        + " verifying, not-finished, library-link, minimum-not-reached or all-met"));
+                        + " verifying, not-finished, keep-override, library-link, minimum-not-reached or all-met"));
     }
 
     @Test
@@ -199,9 +199,11 @@ class GroupsFilterTest {
                 .body(options("verdict", "@value"), contains("", "remove", "left-alone", "keep"))
                 .body(options("verdict", "text()"), contains("Any verdict", "Remove", "Left alone", "Keep"))
                 .body(options("reason", "@value"), contains("", "unmanaged", "missing-data", "local-error",
-                        "verifying", "not-finished", "library-link", "minimum-not-reached", "all-met"))
+                        "verifying", "not-finished", "keep-override", "library-link", "minimum-not-reached",
+                        "all-met"))
                 .body(options("reason", "text()"), contains("Any reason", "Unmanaged", "Missing data", "Local error",
-                        "Verifying", "Not finished", "Library link", "Minimum not reached", "All met"))
+                        "Verifying", "Not finished", "Keep override", "Library link", "Minimum not reached",
+                        "All met"))
                 .body(selected("verdict"), is(""))
                 .body(selected("reason"), is(""));
     }
