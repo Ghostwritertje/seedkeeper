@@ -26,8 +26,8 @@ gate turns on a squash auto-merge with the workflow's own token, and the `main` 
   itself. The reviewer still judges what a path list can't: dependencies, security, Removal behaviour.
 - **The workflow's token merges, not an App.** The reviewer App's contents are read-only, so it can't merge even if
   its allowlist failed, and the implementer App never decides on its own work. The gate job uses the workflow's own
-  token, as `dependabot-auto-merge.yml` does, in a job of its own, so the agent's job never holds a token that can
-  write contents.
+  token, as `.github/workflows/dependabot-auto-merge.yml` does, in a job of its own, so the agent's job never holds a
+  token that can write contents.
 - **Only implementer pull requests.** The maintainer merges their own; the reviewer gets the tools to approve and add
   `auto-merge` only on the implementer's pull requests, and the gate checks the author again.
 
