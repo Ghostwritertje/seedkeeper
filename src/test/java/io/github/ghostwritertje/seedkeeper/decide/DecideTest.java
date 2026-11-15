@@ -57,6 +57,7 @@ class DecideTest {
         private List<FileId> wanted = List.of(DOWNLOAD_ONLY);
         private int missing = 0;
         private int error = 0;
+        private String errorString = "";
 
         Case hash(String hash) {
             this.hash = hash;
@@ -106,6 +107,18 @@ class DecideTest {
             return this;
         }
 
+        /** A tracker error (error 2) with this tracker message. */
+        Case trackerError(String message) {
+            this.error = 2;
+            this.errorString = message;
+            return this;
+        }
+
+        /** The tracker has deleted the torrent. */
+        Case unregistered() {
+            return trackerError("Unregistered torrent");
+        }
+
         Case status(Status status) {
             this.status = status;
             return this;
@@ -123,7 +136,7 @@ class DecideTest {
             for (int i = 0; i < missing; i++) {
                 files.add(new WantedFile("missing-" + i, Optional.empty()));
             }
-            Torrent torrent = new Torrent(hash, "Torrent 1", status, percentDone, error, "", secondsSeeding, isPrivate,
+            Torrent torrent = new Torrent(hash, "Torrent 1", status, percentDone, error, errorString, secondsSeeding, isPrivate,
                     "/downloads", List.of(announce), List.of());
             return new SnapshotTorrent(torrent, files);
         }
@@ -416,6 +429,131 @@ class DecideTest {
         assertEquals(first, second);
     }
 
+    static Stream<Arguments> unregistered() {
+        return Stream.of(
+                argumentSet("unregistered: remove, whatever its seed time",
+                        torrent().unregistered().seeded(0),
+                        Verdict.REMOVE, Reason.UNREGISTERED, List.of(Reason.MINIMUM_NOT_REACHED)),
+                argumentSet("unregistered with a library link: remove",
+                        torrent().unregistered().seeded(400 * DAY).wanted(IN_LIBRARY),
+                        Verdict.REMOVE, Reason.UNREGISTERED, List.of(Reason.LIBRARY_LINK)),
+                argumentSet("unregistered comes before unmanaged, missing data and not finished",
+                        torrent().unregistered().announce(UNKNOWN).missing(1).percentDone(0.5, Status.STOPPED),
+                        Verdict.REMOVE, Reason.UNREGISTERED, List.of(Reason.UNMANAGED, Reason.NOT_FINISHED)),
+                argumentSet("unregistered but verifying: keep until the check is over",
+                        torrent().unregistered().seeded(400 * DAY).status(Status.CHECKING),
+                        Verdict.KEEP, Reason.VERIFYING, List.of()),
+                argumentSet("unregistered but queued to verify: keep until the check is over",
+                        torrent().unregistered().seeded(400 * DAY).status(Status.CHECK_WAIT),
+                        Verdict.KEEP, Reason.VERIFYING, List.of()),
+                argumentSet("unregistered and paused: remove",
+                        torrent().unregistered().seeded(400 * DAY).paused(),
+                        Verdict.REMOVE, Reason.UNREGISTERED, List.of()),
+                argumentSet("a passkey problem is a tracker error: not an input",
+                        torrent().trackerError("Passkey does not exist!").seeded(30 * DAY),
+                        Verdict.REMOVE, Reason.ALL_MET, List.of()),
+                argumentSet("a tracker error that matches no pattern: not an input",
+                        torrent().trackerError("Connection timed out").seeded(30 * DAY),
+                        Verdict.REMOVE, Reason.ALL_MET, List.of()));
+    }
+
+    @ParameterizedTest
+    @MethodSource("unregistered")
+    void anUnregisteredTorrentIsRemovedStraightAway(Case given, Verdict verdict, Reason reason,
+            List<Reason> secondary) {
+        List<GroupVerdict> verdicts = Decide.decide(given.snapshot(), RULES, NOW);
+
+        assertEquals(1, verdicts.size());
+        assertEquals(verdict, verdicts.get(0).verdict());
+        assertEquals(reason, verdicts.get(0).reason());
+        assertEquals(secondary, verdicts.get(0).secondaryReasons());
+        assertEquals(NO_FORECAST, verdicts.get(0).forecast());
+    }
+
+    /** What one verdict says, short enough to compare a whole list: its members' hashes, verdict and reason. */
+    private record Said(List<String> members, Verdict verdict, Reason reason) {
+    }
+
+    private static Said said(Verdict verdict, Reason reason, String... members) {
+        return new Said(List.of(members), verdict, reason);
+    }
+
+    static Stream<Arguments> unregisteredMembers() {
+        Case bridge = torrent().hash("u").wanted(SHARED, DOWNLOAD_ONLY);
+        Case c = torrent().hash("c").wanted(DOWNLOAD_ONLY);
+        return Stream.of(
+                argumentSet("the unregistered member leaves; the rest has not met its minimum: keep",
+                        List.of(a().unregistered().seeded(400 * DAY), b().seeded(14 * DAY - 1)),
+                        List.of(said(Verdict.REMOVE, Reason.UNREGISTERED, "a"),
+                                said(Verdict.KEEP, Reason.MINIMUM_NOT_REACHED, "b"))),
+                argumentSet("the unregistered member leaves; the rest has met its minimum: remove",
+                        List.of(a().seeded(30 * DAY), b().unregistered().seeded(0)),
+                        List.of(said(Verdict.REMOVE, Reason.ALL_MET, "a"),
+                                said(Verdict.REMOVE, Reason.UNREGISTERED, "b"))),
+                argumentSet("what holds for the unregistered member only does not count for the rest",
+                        List.of(a().unregistered().announce(UNKNOWN).percentDone(0.5, Status.STOPPED),
+                                b().seeded(14 * DAY)),
+                        List.of(said(Verdict.REMOVE, Reason.UNREGISTERED, "a"),
+                                said(Verdict.REMOVE, Reason.ALL_MET, "b"))),
+                argumentSet("the rest is kept for its library link, the unregistered member still leaves",
+                        List.of(a().unregistered().wanted(IN_LIBRARY), b().seeded(14 * DAY).wanted(IN_LIBRARY)),
+                        List.of(said(Verdict.REMOVE, Reason.UNREGISTERED, "a"),
+                                said(Verdict.KEEP, Reason.LIBRARY_LINK, "b"))),
+                argumentSet("an unregistered member that is verifying stays, and keeps the group",
+                        List.of(a().unregistered().seeded(400 * DAY).status(Status.CHECKING), b().seeded(14 * DAY)),
+                        List.of(said(Verdict.KEEP, Reason.VERIFYING, "a", "b"))),
+                argumentSet("every member unregistered: each leaves on its own",
+                        List.of(a().unregistered(), b().unregistered()),
+                        List.of(said(Verdict.REMOVE, Reason.UNREGISTERED, "a"),
+                                said(Verdict.REMOVE, Reason.UNREGISTERED, "b"))),
+                argumentSet("a member with a tracker error that is not unregistered stays in its group",
+                        List.of(a().trackerError("Passkey does not exist!").seeded(30 * DAY), b().seeded(14 * DAY)),
+                        List.of(said(Verdict.REMOVE, Reason.ALL_MET, "a", "b"))),
+                argumentSet("members that only the unregistered member held together are two groups without it",
+                        List.of(a().seeded(30 * DAY), bridge.unregistered(), c.seeded(0)),
+                        List.of(said(Verdict.REMOVE, Reason.ALL_MET, "a"),
+                                said(Verdict.REMOVE, Reason.UNREGISTERED, "u"),
+                                said(Verdict.KEEP, Reason.MINIMUM_NOT_REACHED, "c"))));
+    }
+
+    @ParameterizedTest
+    @MethodSource("unregisteredMembers")
+    void anUnregisteredMemberLeavesItsGroupAndTheRestIsJudgedWithoutIt(List<Case> members, List<Said> said) {
+        List<GroupVerdict> verdicts = Decide.decide(snapshot(members), RULES, NOW);
+
+        assertEquals(said, verdicts.stream()
+                .map(group -> new Said(group.members().stream().map(Member::hash).toList(), group.verdict(),
+                        group.reason()))
+                .toList());
+    }
+
+    @Test
+    void theRestOfTheGroupIsForecastWithoutTheUnregisteredMember() {
+        List<GroupVerdict> verdicts = Decide.decide(
+                snapshot(List.of(a().unregistered().seeded(0), b().seeded(10 * DAY))), RULES, NOW);
+
+        assertEquals(List.of(NO_FORECAST, on("2026-11-19T10:00:00+01:00[Europe/Brussels]")),
+                verdicts.stream().map(GroupVerdict::forecast).toList());
+    }
+
+    @Test
+    void aMemberCarriesWhatItsTrackerReports() {
+        List<GroupVerdict> verdicts = Decide.decide(snapshot(List.of(
+                a().unregistered().status(Status.CHECKING),
+                b().trackerError("Passkey does not exist!"),
+                torrent().hash("c").wanted(SHARED).error(1),
+                torrent().hash("d").wanted(SHARED).error(3),
+                torrent().hash("e").wanted(SHARED))), RULES, NOW);
+
+        assertEquals(List.of(
+                Optional.of(new TrackerError(TrackerError.Kind.UNREGISTERED, "Unregistered torrent")),
+                Optional.of(new TrackerError(TrackerError.Kind.TRACKER_ERROR, "Passkey does not exist!")),
+                Optional.of(new TrackerError(TrackerError.Kind.TRACKER_WARNING, "")),
+                Optional.empty(),
+                Optional.empty()),
+                verdicts.get(0).members().stream().map(Member::trackerError).toList());
+    }
+
     private static final Optional<Forecast> CLOCK_STOPPED = Optional.of(new Forecast(Optional.empty()));
     private static final Optional<Forecast> NO_FORECAST = Optional.empty();
 
@@ -510,7 +648,7 @@ class DecideTest {
     @Test
     void verdictsAndReasonsHaveKebabCaseCodes() {
         assertEquals(List.of("remove", "left-alone", "keep"), Stream.of(Verdict.values()).map(Verdict::code).toList());
-        assertEquals(List.of("unmanaged", "missing-data", "local-error", "verifying", "not-finished", "library-link",
+        assertEquals(List.of("unregistered", "unmanaged", "missing-data", "local-error", "verifying", "not-finished", "library-link",
                 "minimum-not-reached", "all-met"),
                 Stream.of(Reason.values()).map(Reason::code).toList());
     }
