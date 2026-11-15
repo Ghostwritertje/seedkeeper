@@ -148,6 +148,7 @@ jobs:
         timeout-minutes: 18
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: true # TEMP: diagnose the failing first API call; revert
           github_token: ${{ steps.app-token.outputs.token }}
           allowed_bots: ${{ vars.IMPLEMENTER_APP_SLUG }}[bot]
           prompt: |
