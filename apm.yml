@@ -1,0 +1,23 @@
+name: seedkeeper
+version: 1.0.0
+target: claude
+
+dependencies:
+  apm:
+    - mattpocock/skills/skills/engineering/code-review#v1.3.2
+    - mattpocock/skills/skills/engineering/domain-modeling#v1.3.2
+    - mattpocock/skills/skills/engineering/grill-with-docs#v1.3.2
+    - mattpocock/skills/skills/engineering/implement#v1.3.2
+    - mattpocock/skills/skills/engineering/implement-spec#v1.3.2
+    - mattpocock/skills/skills/engineering/pr#v1.3.2
+    - mattpocock/skills/skills/engineering/prototype#v1.3.2
+    - mattpocock/skills/skills/engineering/research#v1.3.2
+    - mattpocock/skills/skills/engineering/retro#v1.3.2
+    - mattpocock/skills/skills/engineering/tdd#v1.3.2
+    - mattpocock/skills/skills/engineering/to-spec#v1.3.2
+    - mattpocock/skills/skills/engineering/to-tickets#v1.3.2
+    - mattpocock/skills/skills/engineering/wayfinder#v1.3.2
+    - mattpocock/skills/skills/productivity/grill-me#v1.3.2
+    - mattpocock/skills/skills/productivity/grilling#v1.3.2
+    - mattpocock/skills/skills/productivity/teach#v1.3.2
+    - mattpocock/skills/skills/productivity/writing-for-agents#v1.3.2

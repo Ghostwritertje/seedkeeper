@@ -45,3 +45,12 @@ jobs:
         run: docker build --platform linux/amd64 -f src/main/docker/Dockerfile.native-micro -t seedkeeper:ci .
       - name: Run the image as an arbitrary non-root user
         run: .github/scripts/smoke-test-image.sh seedkeeper:ci
+
+  scripts:
+    name: Test the CI scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      # Each .github/scripts/*.test.sh is a table-driven shell test. They need only bash and jq: no Docker, no Maven.
+      - run: for test in .github/scripts/*.test.sh; do "$test"; done

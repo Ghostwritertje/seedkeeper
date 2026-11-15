@@ -1,0 +1,18 @@
+// Renovate keeps the APM skill pins in apm.yml current and regenerates apm.lock.yaml and .claude/skills.
+// Dependabot handles Maven, GitHub Actions and the Docker base image (see dependabot.yml), so Renovate runs
+// only the APM manager. Its pull requests change the agents' skills, so the maintainer always merges them.
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  enabledManagers: ['apm'],
+  extends: ['schedule:monthly'],
+  timezone: 'Europe/Brussels',
+  dependencyDashboard: { enabled: true },
+  automerge: false,
+  packageRules: [
+    {
+      // Every skill comes from mattpocock/skills at the same tag: one pull request per release.
+      matchManagers: ['apm'],
+      groupName: 'skills',
+    },
+  ],
+}

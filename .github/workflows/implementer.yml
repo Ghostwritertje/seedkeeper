@@ -1,0 +1,127 @@
+name: Implementer
+
+# The implementer agent turns an issue labelled `ready-for-agent` into a pull request, as the implementer App. It
+# starts when the label is added, and when an issue closes, for each issue it was blocking that still carries the
+# label and no longer has an open blocker. Either way the issue goes through the same pick-up path,
+# implement-issue.yml. `ready-for-agent` on a pull request makes it address that pull request's review feedback on
+# the same branch, through address-review.yml. The label lifecycle: docs/agents/issue-tracker.md. Setting up the
+# App and the secrets: docs/agents/github-apps.md. Why it runs this way: docs/adr/0001-agent-runner.md.
+#
+# Only a user with write access starts it: the one who labelled the issue or pull request, and for a dependent also
+# the one who closed its blocker. The one bot that may start it is the reviewer App's, `vars.REVIEWER_APP_SLUG` +
+# `[bot]`, by labelling a pull request: that is the review/fix loop. Only `pull_request`, never
+# `pull_request_target`: pull requests from forks get no secrets. The concurrency groups, one per issue or pull
+# request, are on the jobs in implement-issue.yml and address-review.yml.
+
+on:
+  issues:
+    types: [labeled, closed]
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+# bash -eo pipefail, not the default bash -e: a failed fetch at the head of a pipe fails the step.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  labelled:
+    name: Labelled
+    if: >-
+      github.event_name == 'issues' && github.event.action == 'labeled'
+      && github.event.label.name == 'ready-for-agent' && github.event.sender.type == 'User'
+    uses: ./.github/workflows/implement-issue.yml
+    with:
+      issue: ${{ github.event.issue.number }}
+      labeller: ${{ github.event.sender.login }}
+    secrets:
+      IMPLEMENTER_APP_ID: ${{ secrets.IMPLEMENTER_APP_ID }}
+      IMPLEMENTER_APP_KEY: ${{ secrets.IMPLEMENTER_APP_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+  # The issues the closed one was blocking that are open, labelled `ready-for-agent` and have no open blocker left,
+  # each with the user who last added the label. Still-blocked and unlabelled dependents are left alone.
+  dependents:
+    name: Find unblocked dependents
+    if: >-
+      github.event_name == 'issues' && github.event.action == 'closed' && github.event.sender.type == 'User'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      dependents: ${{ steps.find.outputs.dependents }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      - name: Mint the implementer App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
+          private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          permission-issues: read
+
+      - name: Find them
+        id: find
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+          CLOSER: ${{ github.event.sender.login }}
+        run: |
+          dependents='[]'
+          if [ "$(gh api "repos/$GH_REPO/collaborators/$CLOSER/permission" | .github/scripts/write-access.sh)" = true ]; then
+            unblocked="$(gh api --paginate "repos/$GH_REPO/issues/$ISSUE/dependencies/blocking" \
+              | .github/scripts/unblocked-dependents.sh)"
+            for dependent in $unblocked; do
+              labeller="$(gh api --paginate "repos/$GH_REPO/issues/$dependent/events" \
+                | .github/scripts/ready-for-agent-labeller.sh)"
+              dependents="$(jq -c --argjson issue "$dependent" --arg labeller "$labeller" \
+                '. + [{issue: $issue, labeller: $labeller}]' <<<"$dependents")"
+            done
+          else
+            echo "::notice::$CLOSER doesn't have write access: starting no dependents."
+          fi
+          echo "Unblocked dependents of #$ISSUE: $dependents"
+          echo "dependents=$dependents" >> "$GITHUB_OUTPUT"
+
+  unblocked:
+    name: Unblocked #${{ matrix.issue }}
+    needs: dependents
+    if: needs.dependents.outputs.dependents != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.dependents.outputs.dependents) }}
+    uses: ./.github/workflows/implement-issue.yml
+    with:
+      issue: ${{ matrix.issue }}
+      labeller: ${{ matrix.labeller }}
+    secrets:
+      IMPLEMENTER_APP_ID: ${{ secrets.IMPLEMENTER_APP_ID }}
+      IMPLEMENTER_APP_KEY: ${{ secrets.IMPLEMENTER_APP_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+  # The pull request's own branch, not a new one. Drafts are included: a draft implementer pull request is where a
+  # run that couldn't get verify green left its work.
+  pull-request-labelled:
+    name: Pull request labelled
+    if: >-
+      github.event_name == 'pull_request' && github.event.label.name == 'ready-for-agent'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+      && (github.event.sender.type == 'User'
+        || github.event.sender.login == format('{0}[bot]', vars.REVIEWER_APP_SLUG))
+    uses: ./.github/workflows/address-review.yml
+    with:
+      pull_request: ${{ github.event.pull_request.number }}
+      labeller: ${{ github.event.sender.login }}
+    secrets:
+      IMPLEMENTER_APP_ID: ${{ secrets.IMPLEMENTER_APP_ID }}
+      IMPLEMENTER_APP_KEY: ${{ secrets.IMPLEMENTER_APP_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
