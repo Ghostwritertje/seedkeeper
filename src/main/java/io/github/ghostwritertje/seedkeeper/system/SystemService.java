@@ -1,14 +1,17 @@
 package io.github.ghostwritertje.seedkeeper.system;
 
+import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Removal;
 import io.github.ghostwritertje.seedkeeper.run.RunService;
+import io.github.ghostwritertje.seedkeeper.run.ScheduledRun;
 import io.github.ghostwritertje.seedkeeper.system.SystemStatus.LastRun;
 import io.github.ghostwritertje.seedkeeper.system.SystemStatus.TransmissionStatus;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
 import io.github.ghostwritertje.seedkeeper.transmission.Transmission;
 import io.github.ghostwritertje.seedkeeper.transmission.TransmissionException;
 import jakarta.enterprise.context.ApplicationScoped;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -23,18 +26,23 @@ public class SystemService {
 
     private final Transmission transmission;
     private final RunService runs;
+    private final ScheduledRun schedule;
+    private final ZoneId timeZone;
     private final String version;
 
-    SystemService(Transmission transmission, RunService runs,
+    SystemService(Transmission transmission, RunService runs, ScheduledRun schedule, SeedkeeperConfig config,
             @ConfigProperty(name = "quarkus.application.version") String version) {
         this.transmission = transmission;
         this.runs = runs;
+        this.schedule = schedule;
+        this.timeZone = config.timeZone();
         this.version = version;
     }
 
     public SystemStatus status() {
         return new SystemStatus(version, transmission(), runs.running(),
-                runs.lastRun().map(SystemService::lastRun).orElse(null));
+                runs.lastRun().map(SystemService::lastRun).orElse(null),
+                schedule.next().map(next -> iso(next.atZone(timeZone))).orElse(null));
     }
 
     /** Asks Transmission now; never throws. */

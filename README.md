@@ -40,8 +40,8 @@ seedkeeper:
 
 | Key | Required | Meaning |
 |---|---|---|
-| `seedkeeper.schedule` | no, `0 0 6 * * ?` | When the scheduled run starts: a Quarkus cron expression (seconds, minutes, hours, day of month, month, day of week), in the time zone below. Not used yet: nothing runs on a schedule so far. |
-| `seedkeeper.time-zone` | no, `UTC` | The time zone of the schedule and of the dates seedkeeper shows, as a tz database name, for example `Europe/Brussels`. seedkeeper doesn't start with a name that doesn't exist. |
+| `seedkeeper.schedule` | no, `0 0 6 * * ?` | When the scheduled run starts: a Quarkus cron expression (seconds, minutes, hours, day of month, month, day of week), in the time zone below. The default is every day at 06:00; `0 30 3 ? * MON` is every Monday at 03:30. seedkeeper doesn't start with an expression that isn't valid. |
+| `seedkeeper.time-zone` | no, `UTC` | The time zone the schedule is read in and of the dates seedkeeper shows, as a tz database name, for example `Europe/Brussels`. seedkeeper doesn't start with a name that doesn't exist. |
 | `seedkeeper.transmission.url` | yes | URL of Transmission's RPC endpoint. |
 | `seedkeeper.downloads-root` | no, `/downloads` | The directory Transmission downloads into. [Orphans](#get-apiv1orphans) are looked for under it. |
 | `seedkeeper.library-roots` | yes | The directories of the media library. A downloaded file that has a hardlink under one of them has a **library link**, which keeps its torrent. Symlinks under a library root don't count and are not followed. When a root can't be read there are no verdicts at all. |
@@ -127,8 +127,10 @@ Transmission's container, and the library on the same filesystem as the download
 
 ## Runs: removing and deleting
 
-A **run** carries out the verdicts. For now it starts only from the **Run now** button on the System page; one run
-runs at a time, and Run now during a run answers "A run is already running." A run asks Transmission for its session
+A **run** carries out the verdicts. It starts by itself on the cron expression of `seedkeeper.schedule`, read in
+`seedkeeper.time-zone`, and from the **Run now** button on the System page. One run runs at a time: a scheduled run
+that comes due while another run is running is skipped, not queued, and Run now during a run answers "A run is
+already running." A run asks Transmission for its session
 first: when Transmission doesn't answer or is older than 4.1, or a library root can't be read, the run ends `failed`
 with that one reason and removes nothing.
 
@@ -188,7 +190,7 @@ Every form carries a CSRF token; a form POST without it is rejected with 400.
 | `/groups` | Every [cross-seed group](#cross-seed-groups) with its members (name, tracker, seed time and minimum, status, and the tracker message when the tracker reports an [error](#unregistered-torrents): "Unregistered: …", "Tracker error: …" or "Tracker warning: …"), its library links, the verdict seedkeeper would give it right now with the [reason and the secondary reasons](#verdicts-and-reasons), and the forecast: a date in the configured time zone, or "clock stopped (paused)". The list can be filtered by verdict and by reason (`/groups?verdict=keep&reason=library-link`). Read from Transmission and the disk on every load. |
 | `/orphans` | The **orphans**: what is under the downloads root that no torrent references, as two lists, files and dangling symlinks, each with path, size, age (time since it was last modified) and a total. seedkeeper only shows them and never deletes them. |
 | `/settings` | The configuration seedkeeper runs with, read-only: every key of the [configuration](#configuration) with its default filled in, each tracker with its hosts and the minimum seed time that applies to it (marked "(default)" when it sets none of its own), and for each secret only whether it is set or missing, never its value. |
-| `/system` | seedkeeper's version; whether a run is running and the outcome of the last [run](#runs-removing-and-deleting) (succeeded or failed with the reason, start and end, torrents and groups removed, files deleted, space freed, and the removals that went wrong); the **Run now** button; and whether Transmission is reachable, its version and, when seedkeeper can't work with it, the reason. |
+| `/system` | seedkeeper's version; whether a run is running, the outcome of the last [run](#runs-removing-and-deleting) (succeeded or failed with the reason, start and end, torrents and groups removed, files deleted, space freed, and the removals that went wrong) and when the next scheduled run starts; the **Run now** button; and whether Transmission is reachable, its version and, when seedkeeper can't work with it, the reason. |
 
 ## JSON API
 
@@ -231,7 +233,8 @@ The same data as the System page. Always answers 200, also when Transmission is 
     "filesDeleted": 2,
     "spaceFreedBytes": 1610612736,
     "removalErrors": []
-  }
+  },
+  "nextRun": "2026-11-21T06:00:00+01:00"
 }
 ```
 
@@ -251,6 +254,7 @@ The same data as the System page. Always answers 200, also when Transmission is 
 | `lastRun.filesDeleted` | The files and symlinks deleted. |
 | `lastRun.spaceFreedBytes` | The space freed, in bytes. |
 | `lastRun.removalErrors` | One line per group whose removal failed (none of its files was deleted) or that left paths seedkeeper refused to delete. |
+| `nextRun` | When the next scheduled run starts: ISO 8601, to the second, with the offset of `seedkeeper.time-zone`. |
 
 Run now is not in the API: it is a button on the System page only.
 
