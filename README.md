@@ -631,8 +631,10 @@ Requires JDK 25. Maven comes with the wrapper.
 
 `quarkus:dev` needs the configuration too: export the environment variables above and `SEEDKEEPER_TRANSMISSION_URL`.
 
-The native executable is built for `linux/amd64` with Mandrel, inside the builder container, so this needs Docker on
-an amd64 Linux host (CI does this on every pull request):
+The native executable is built for `linux/amd64` with Mandrel, inside the builder container. CI runs these steps on
+every pull request, and on any branch with `gh workflow run ci.yml --ref <branch>`. On a dev machine, leave them to
+CI: they need Docker on an amd64 Linux host, and on an Apple Silicon Mac the build runs emulated and takes all the
+resources of the Docker VM, starving any other containers in it.
 
 ```sh
 ./mvnw verify -Dnative   # build the executable and run the integration tests against it
