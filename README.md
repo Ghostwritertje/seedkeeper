@@ -5,11 +5,6 @@ and every tracker's hit-and-run rule is met. It treats cross-seeded torrents as 
 another torrent still uses. It is a small web app with a scheduled run, a UI that shows what it will do and why, and a
 read-only JSON API.
 
-**Status: under construction.** So far seedkeeper connects to Transmission, behind a login and an API key. It
-shows, per cross-seed group, the verdict it would give and when a group kept for its minimum seed time may leave. It
-removes nothing yet; see the
-[spec](https://github.com/Ghostwritertje/seedkeeper/issues/5) for what is being built and in which order.
-
 ## Configuration
 
 seedkeeper needs Transmission 4.1 or newer (it speaks JSON-RPC 2.0, which older versions don't).
