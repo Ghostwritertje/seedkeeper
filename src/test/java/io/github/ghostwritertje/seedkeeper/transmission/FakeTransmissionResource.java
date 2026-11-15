@@ -6,14 +6,18 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.ZoneId;
 import java.util.Map;
 
 /**
  * Starts a {@link FakeTransmission} and points the application at it, with every secret set, a downloads directory
  * and a library root in a temporary directory, and these trackers: {@code tracker-a} (default minimum),
- * {@code tracker-b} (14 days) and {@code public} (1 day).
+ * {@code tracker-b} (14 days) and {@code public} (1 day). The time zone is {@link #TIME_ZONE}.
  */
 public class FakeTransmissionResource implements QuarkusTestResourceLifecycleManager {
+
+    /** The time zone of the application under test: always UTC+05:30, and not the zone of whoever runs the tests. */
+    public static final ZoneId TIME_ZONE = ZoneId.of("Asia/Kolkata");
 
     private static volatile FakeTransmission fake;
     private static volatile Path downloads;
@@ -46,6 +50,7 @@ public class FakeTransmissionResource implements QuarkusTestResourceLifecycleMan
         }
         Map<String, String> config = TestSecrets.with("seedkeeper.transmission.url", fake.url().toString());
         config.put("seedkeeper.library-roots", library.toString());
+        config.put("seedkeeper.time-zone", TIME_ZONE.getId());
         config.put("seedkeeper.trackers.tracker-a.hosts", "tracker-a.example");
         config.put("seedkeeper.trackers.tracker-b.hosts", "tracker-b.example,tracker-b.example.org");
         config.put("seedkeeper.trackers.tracker-b.minimum-seed-time", "14d");

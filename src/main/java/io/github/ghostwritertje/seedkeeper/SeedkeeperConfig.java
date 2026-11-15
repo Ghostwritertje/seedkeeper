@@ -24,6 +24,10 @@ public interface SeedkeeperConfig {
     /** Secret, env {@code SEEDKEEPER_API_KEY}. */
     String apiKey();
 
+    /** The time zone dates are shown in, as a tz database name; {@link TimeZoneCheck} refuses an unknown one. */
+    @WithDefault("Europe/Brussels")
+    String timeZone();
+
     /** The roots of the media library. A downloaded file that is also linked under one of them has a library link. */
     List<Path> libraryRoots();
 

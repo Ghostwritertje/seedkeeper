@@ -6,15 +6,17 @@
 {#else if groups.isEmpty}
 <p>Transmission has no torrents.</p>
 {#else}
-<p>What seedkeeper would decide right now. Nothing is removed yet.</p>
+<p>What seedkeeper would decide right now. Nothing is removed yet. Torrents that share files (cross-seeds) are one
+group, with one verdict. The forecast is when a group kept for its minimum seed time is expected to have met it, if it
+keeps seeding.</p>
 <table>
 <thead>
-<tr><th>Name</th><th>Tracker</th><th>Seed time / minimum</th><th>Status</th><th>Library links</th><th>Verdict</th><th>Reason</th></tr>
+<tr><th>Name</th><th>Tracker</th><th>Seed time / minimum</th><th>Status</th><th>Library links</th><th>Verdict</th><th>Reason</th><th>Forecast</th></tr>
 </thead>
 <tbody>
 {#for group in groups}
 {#for member in group.members}
-<tr><td>{member.name}</td><td>{member.tracker}</td><td>{member.seedTime}</td><td>{member.status}</td>{#if member_isFirst}<td rowspan="{group.members.size}">{group.libraryLinks}</td><td rowspan="{group.members.size}">{group.verdict}</td><td rowspan="{group.members.size}">{group.reason}</td>{/if}</tr>
+<tr><td>{member.name}</td><td>{member.tracker}</td><td>{member.seedTime}</td><td>{member.status}</td>{#if member_isFirst}<td rowspan="{group.members.size}">{group.libraryLinks}</td><td rowspan="{group.members.size}">{group.verdict}</td><td rowspan="{group.members.size}">{group.reason}</td><td rowspan="{group.members.size}">{group.forecast}</td>{/if}</tr>
 {/for}
 {/for}
 </tbody>

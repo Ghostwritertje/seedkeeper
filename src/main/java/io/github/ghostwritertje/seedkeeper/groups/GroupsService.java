@@ -11,6 +11,8 @@ import io.github.ghostwritertje.seedkeeper.transmission.Transmission;
 import io.github.ghostwritertje.seedkeeper.transmission.TransmissionException;
 import io.github.ghostwritertje.seedkeeper.transmission.TransmissionSession;
 import jakarta.enterprise.context.ApplicationScoped;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 /** The groups and the verdict seedkeeper would give each right now; behind the Groups view and the API. */
@@ -35,7 +37,7 @@ public class GroupsService {
             TransmissionSession session = transmission.session();
             Snapshot snapshot = SnapshotBuilder.build(transmission.torrents(), session.incompleteDir(),
                     config.libraryRoots());
-            return Decide.decide(snapshot, TrackerRules.of(config));
+            return Decide.decide(snapshot, TrackerRules.of(config), ZonedDateTime.now(ZoneId.of(config.timeZone())));
         } catch (TransmissionException | SnapshotException e) {
             throw new GroupsUnavailable(e.getMessage(), e);
         }

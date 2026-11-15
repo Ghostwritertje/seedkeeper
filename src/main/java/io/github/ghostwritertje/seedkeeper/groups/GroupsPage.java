@@ -11,6 +11,7 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /** The Groups view. */
@@ -26,8 +27,14 @@ public class GroupsPage {
         static native TemplateInstance groups(List<Group> groups, String unavailable);
     }
 
-    /** One group, as text ready to show. */
-    public record Group(String verdict, String reason, String libraryLinks, List<Member> members) {
+    private static final DateTimeFormatter FORECAST_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+    /**
+     * One group, as text ready to show.
+     *
+     * @param forecast "2026-11-25 10:00" in the configured time zone, "clock stopped (paused)", or empty
+     */
+    public record Group(String verdict, String reason, String libraryLinks, String forecast, List<Member> members) {
     }
 
     /**
@@ -59,7 +66,10 @@ public class GroupsPage {
         String reason = group.reason() == Reason.LIBRARY_LINK
                 ? group.reason().label() + " (" + libraryLinks + ")"
                 : group.reason().label();
-        return new Group(group.verdict().label(), reason, libraryLinks,
+        String forecast = group.forecast()
+                .map(f -> f.date().map(FORECAST_DATE::format).orElse("clock stopped (paused)"))
+                .orElse("");
+        return new Group(group.verdict().label(), reason, libraryLinks, forecast,
                 group.members().stream().map(GroupsPage::member).toList());
     }
 

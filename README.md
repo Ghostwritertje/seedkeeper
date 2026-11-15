@@ -5,10 +5,10 @@ and every tracker's hit-and-run rule is met. It treats cross-seeded torrents as 
 another torrent still uses. It is a small web app with a scheduled run, a UI that shows what it will do and why, and a
 read-only JSON API.
 
-**Status: under construction.** So far seedkeeper connects to Transmission and shows, per torrent, the verdict it would
-give, behind a login and an API key. It removes nothing yet, and it doesn't know cross-seed groups, missing data,
-unregistered torrents or keep overrides yet; see the [spec](https://github.com/Ghostwritertje/seedkeeper/issues/5) for
-what is being built and in which order.
+**Status: under construction.** So far seedkeeper connects to Transmission, behind a login and an API key. It
+shows, per cross-seed group, the verdict it would give and when a group kept for its minimum seed time may leave. It
+removes nothing yet, and it doesn't know missing data, unregistered torrents or keep overrides yet; see the
+[spec](https://github.com/Ghostwritertje/seedkeeper/issues/5) for what is being built and in which order.
 
 ## Configuration
 
@@ -18,6 +18,7 @@ Settings that are safe to commit go in `seedkeeper.yaml`, mounted in the contain
 
 ```yaml
 seedkeeper:
+  time-zone: Europe/Brussels                         # optional
   transmission:
     url: http://transmission:9091/transmission/rpc   # Transmission's RPC endpoint
   library-roots: [/library/movies, /library/tv]
@@ -37,6 +38,7 @@ seedkeeper:
 | Key | Required | Meaning |
 |---|---|---|
 | `seedkeeper.transmission.url` | yes | URL of Transmission's RPC endpoint. |
+| `seedkeeper.time-zone` | no, `Europe/Brussels` | The time zone dates are shown in, as a tz database name. seedkeeper doesn't start with a name that doesn't exist. |
 | `seedkeeper.library-roots` | yes | The directories of the media library. A downloaded file that has a hardlink under one of them has a **library link**, which keeps its torrent. Symlinks under a library root don't count and are not followed. When a root can't be read there are no verdicts at all. |
 | `seedkeeper.default-minimum-seed-time` | no, `30d` | The minimum seed time of a tracker that doesn't set its own. |
 | `seedkeeper.trackers.<name>.hosts` | yes, per tracker | The hosts of the tracker's announce URLs, matched exactly (a subdomain is another host). A torrent belongs to the tracker when every one of its announce hosts is in this list. |
@@ -49,6 +51,20 @@ A duration is a number with a unit: `30d`, `12h`, `90m`; a bare number is second
 A torrent that belongs to no tracker (none of its hosts is listed, or its hosts are of two trackers) is **unmanaged**:
 seedkeeper leaves it alone. Seed time is Transmission's `secondsSeeding`: time actually spent seeding, so it stands
 still while a torrent is paused.
+
+## Cross-seed groups
+
+Torrents that share data are one **cross-seed group**: two torrents are in one group when a wanted file of the one is
+the same file on disk as a wanted file of the other, through a symlink or a hardlink, directly or through a third
+torrent. A file deselected in Transmission joins no group. A torrent whose files are nowhere on disk is a group of
+its own.
+
+A group gets one verdict. It is removed only when **every** member has met the minimum seed time of its own tracker,
+and a library link on a file of any member keeps the whole group. One unmanaged member leaves the whole group alone.
+
+A group kept because a minimum is not reached has a **forecast**: now plus the longest seed time any member still has
+to go, which is when the group may leave if it keeps seeding. When the member with the longest time to go is paused
+there is no date: its clock is stopped.
 
 Transmission's paths must be the same inside seedkeeper's container: mount the downloads at the same path as in
 Transmission's container, and the library on the same filesystem as the downloads, or no library link is seen.
@@ -82,7 +98,7 @@ Every form carries a CSRF token; a form POST without it is rejected with 400.
 
 | Page | Shows |
 |---|---|
-| `/groups` | Every torrent with its name, tracker, seed time and minimum, status, library links, and the verdict seedkeeper would give it right now with the reason. Read from Transmission and the disk on every load. |
+| `/groups` | Every [cross-seed group](#cross-seed-groups) with its members (name, tracker, seed time and minimum, status), its library links, the verdict seedkeeper would give it right now with the reason, and the forecast: a date in the configured time zone, or "clock stopped (paused)". Read from Transmission and the disk on every load. |
 | `/system` | seedkeeper's version, and whether Transmission is reachable, its version and, when seedkeeper can't work with it, the reason. |
 
 ## JSON API
@@ -127,24 +143,36 @@ The same data as the System page. Always answers 200, also when Transmission is 
 
 ### `GET /api/v1/groups`
 
-The same data as the Groups page: every group with the verdict seedkeeper would give it right now. For now every
-torrent is a group of its own, so `members` has one entry.
+The same data as the Groups page: every [cross-seed group](#cross-seed-groups) with the verdict seedkeeper would
+give it right now. Groups are in the order of their first member in Transmission.
 
 ```json
 [
   {
     "verdict": "keep",
-    "reason": "library-link",
-    "libraryLinks": 1,
+    "reason": "minimum-not-reached",
+    "libraryLinks": 0,
     "files": 2,
+    "forecast": {
+      "date": "2026-11-25T10:00:00+01:00",
+      "clockStopped": false
+    },
     "members": [
       {
         "hash": "0123456789abcdef0123456789abcdef01234567",
         "name": "Some.Show.S01",
         "tracker": "tracker-a",
         "status": "seeding",
-        "seedTimeSeconds": 3456000,
+        "seedTimeSeconds": 1728000,
         "minimumSeedTimeSeconds": 2592000
+      },
+      {
+        "hash": "89abcdef0123456789abcdef0123456789abcdef",
+        "name": "Some.Show.S01.1080p",
+        "tracker": "tracker-b",
+        "status": "stopped",
+        "seedTimeSeconds": 1123200,
+        "minimumSeedTimeSeconds": 1209600
       }
     ]
   }
@@ -154,9 +182,12 @@ torrent is a group of its own, so `members` has one entry.
 | Field | Meaning |
 |---|---|
 | `verdict` | `remove`, `left-alone` or `keep`. |
-| `reason` | Why; the first of these that holds: `unmanaged` (left alone: a member belongs to no tracker), `not-finished` (keep: the download isn't complete), `library-link` (keep: a file has a library link), `minimum-not-reached` (keep: the seed time is below the tracker's minimum), `all-met` (remove). |
+| `reason` | Why; the first of these that holds: `unmanaged` (left alone: a member belongs to no tracker), `not-finished` (keep: a member's download isn't complete), `library-link` (keep: a file has a library link), `minimum-not-reached` (keep: a member's seed time is below its tracker's minimum), `all-met` (remove). |
 | `libraryLinks` | How many of the group's wanted files have a library link. |
-| `files` | How many wanted files the group has. Files deselected in Transmission are not counted anywhere. |
+| `files` | How many wanted files the group has. A file that several members share counts once. Files deselected in Transmission are not counted anywhere. |
+| `forecast` | `null` unless the reason is `minimum-not-reached`. |
+| `forecast.date` | When every member is expected to have met its minimum if the group keeps seeding: ISO 8601, to the second, with the offset of `seedkeeper.time-zone`. `null` when the clock is stopped. |
+| `forecast.clockStopped` | `true` when the member with the longest seed time to go is paused, so there is no date. |
 | `members[].hash`, `members[].name` | The torrent's info hash and name. |
 | `members[].tracker` | The name of the tracker from the config, `public`, or `null` when the torrent is unmanaged. |
 | `members[].status` | Transmission's status: `stopped`, `check-wait`, `checking`, `download-wait`, `downloading`, `seed-wait` or `seeding`. |
