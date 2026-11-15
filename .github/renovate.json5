@@ -6,7 +6,7 @@
   enabledManagers: ['apm'],
   extends: ['schedule:monthly'],
   timezone: 'Europe/Brussels',
-  dependencyDashboard: { enabled: true },
+  dependencyDashboard: true,
   automerge: false,
   packageRules: [
     {
