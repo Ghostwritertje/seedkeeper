@@ -10,6 +10,8 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 /** {@code GET /api/v1/groups}: the same data as the Groups view. */
@@ -21,9 +23,20 @@ public class GroupsApi {
      * @param reason       the kebab-case code of the reason that decided the verdict
      * @param libraryLinks how many wanted files of the members have a library link
      * @param files        how many wanted files the members have
+     * @param forecast     null unless the reason is {@code minimum-not-reached}
      */
     @RegisterForReflection
-    public record Group(String verdict, String reason, int libraryLinks, int files, List<Member> members) {
+    public record Group(String verdict, String reason, int libraryLinks, int files, Forecast forecast,
+            List<Member> members) {
+    }
+
+    /**
+     * @param date         when every member is expected to have met its minimum, as an ISO 8601 date and time with
+     *                     the offset of the configured time zone; null when the clock is stopped
+     * @param clockStopped true when the member that sets the date is paused
+     */
+    @RegisterForReflection
+    public record Forecast(String date, boolean clockStopped) {
     }
 
     /**
@@ -60,7 +73,14 @@ public class GroupsApi {
 
     private static Group group(GroupVerdict group) {
         return new Group(group.verdict().code(), group.reason().code(), group.libraryLinks(), group.files(),
+                group.forecast().map(GroupsApi::forecast).orElse(null),
                 group.members().stream().map(GroupsApi::member).toList());
+    }
+
+    private static Forecast forecast(io.github.ghostwritertje.seedkeeper.decide.Forecast forecast) {
+        return new Forecast(forecast.date()
+                .map(date -> date.truncatedTo(ChronoUnit.SECONDS).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+                .orElse(null), forecast.clockStopped());
     }
 
     private static Member member(GroupVerdict.Member member) {

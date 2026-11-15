@@ -30,7 +30,7 @@ class SettingsTest {
                 .contentType(containsString("text/html"))
                 .body("html.head.title", is("Settings · seedkeeper"))
                 .body(section("run") + ".dl.dt", contains("Schedule", "Time zone"))
-                .body(section("run") + ".dl.dd", contains("0 0 6 * * ?", "UTC"))
+                .body(section("run") + ".dl.dd", contains("0 0 6 * * ?", "Asia/Kolkata"))
                 .body(section("transmission") + ".dl.dt", is("URL"))
                 .body(section("transmission") + ".dl.dd", is(FakeTransmissionResource.fake().url().toString()))
                 .body(section("paths") + ".dl.dt", contains("Downloads root", "Library roots", "Data dir"))

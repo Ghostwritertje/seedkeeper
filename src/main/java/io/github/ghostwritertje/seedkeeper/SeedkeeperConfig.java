@@ -22,7 +22,7 @@ public interface SeedkeeperConfig {
     @WithDefault("0 0 6 * * ?")
     String schedule();
 
-    /** The time zone of the schedule and of the end dates of keep overrides. */
+    /** The time zone of the schedule, of the forecast and of the end dates of keep overrides. */
     @WithDefault("UTC")
     ZoneId timeZone();
 
