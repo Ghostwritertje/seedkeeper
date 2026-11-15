@@ -196,24 +196,23 @@ jobs:
           REVIEWER: ${{ needs.review.outputs.reviewer }}
           IMPLEMENTER: ${{ vars.IMPLEMENTER_APP_SLUG }}[bot]
         run: |
-          gate=.github/scripts/auto-merge-gate.sh
-          if [ ! -f "$gate" ]; then
+          gate=.github/scripts/auto-merge-gate.sh inputs=.github/scripts/auto-merge-inputs.sh
+          if [ ! -f "$gate" ] || [ ! -f "$inputs" ]; then
             echo "::notice::Not merging: the base branch has no auto-merge gate."
             exit 0
           fi
 
-          pr="$(gh api "repos/$GH_REPO/pulls/$PR")"
+          gh api "repos/$GH_REPO/pulls/$PR" > "$RUNNER_TEMP/pr.json"
+          pr="$(cat "$RUNNER_TEMP/pr.json")"
           head="$(jq -r .head.sha <<<"$pr")"
           labels="$(jq -r '.labels[].name' <<<"$pr")"
-          implementer=false
-          if [ "$(jq -r '.user.login | ascii_downcase' <<<"$pr")" = "$(tr '[:upper:]' '[:lower:]' <<<"$IMPLEMENTER")" ]; then
-            implementer=true
-          fi
 
-          # The reviewer App's latest review, and only if it approves the head as it is now.
-          approves="$(gh api --paginate "repos/$GH_REPO/pulls/$PR/reviews" | jq -n --arg reviewer "$REVIEWER" --arg head "$head" '
-            [inputs[] | select((.user.login // "" | ascii_downcase) == ($reviewer | ascii_downcase))] | last
-            | . != null and .state == "APPROVED" and .commit_id == $head')"
+          # Whether the implementer opened it, and whether the reviewer App's latest review approves the head as it
+          # is now.
+          facts="$(gh api --paginate "repos/$GH_REPO/pulls/$PR/reviews" \
+            | "$inputs" "$RUNNER_TEMP/pr.json" "$IMPLEMENTER" "$REVIEWER")"
+          implementer="$(sed -n 's/^implementer=//p' <<<"$facts")"
+          approves="$(sed -n 's/^approves=//p' <<<"$facts")"
 
           # Both sides of a rename count. GitHub lists at most 3000 files; past that the paths aren't all known.
           files="$(gh api --paginate "repos/$GH_REPO/pulls/$PR/files")"
@@ -247,6 +246,8 @@ jobs:
         with:
           app-id: ${{ secrets.REVIEWER_APP_ID }}
           private-key: ${{ secrets.REVIEWER_APP_KEY }}
+          permission-issues: write
+          permission-pull-requests: write
       - name: Label the pull request agent:blocked and link the run
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
