@@ -189,7 +189,9 @@ tracker in the config is such a group of one: it leaves on its own, and what the
 1. Each member is removed from Transmission, which is told to leave the data alone. When one removal fails, the rest
    of that group is skipped and none of its files is deleted; the error is shown with the last run, and the next run
    finds the rest still due.
-2. The torrent list is read again. Then, for each path of each removed torrent (in its download dir or, when enabled,
+2. The torrent list is read again, up to 4 times with a short wait in between when Transmission doesn't answer.
+   When it still can't be read, nothing of that group is deleted: the error is shown with the last run and logged,
+   and what the removed torrents leave behind becomes an [orphan](#get-apiv1orphans). Otherwise, for each path of each removed torrent (in its download dir or, when enabled,
    the incomplete dir, with or without `.part`; only its wanted files, never one deselected in Transmission):
    - a symlink is deleted, unless a remaining torrent has that exact path. What it leads to is never deleted;
    - a regular file is deleted, unless a remaining torrent still uses that file under any path (a hardlink, or

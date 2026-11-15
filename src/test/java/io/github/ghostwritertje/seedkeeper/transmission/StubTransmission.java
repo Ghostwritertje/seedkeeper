@@ -19,6 +19,8 @@ public final class StubTransmission implements Transmission {
     private Optional<Path> incompleteDir = Optional.empty();
     private TransmissionException sessionFailure;
     private Runnable onSession = () -> { };
+    private int failingReadsAfterRemoval;
+    private int failingReadsLeft;
 
     public synchronized StubTransmission add(Torrent... added) {
         torrents.addAll(List.of(added));
@@ -50,6 +52,12 @@ public final class StubTransmission implements Transmission {
 
     public synchronized StubTransmission allowRemovalOf(String hash) {
         refusedRemovals.remove(hash);
+        return this;
+    }
+
+    /** After each {@code torrent_remove}, the next {@code times} reads of the torrent list fail. */
+    public synchronized StubTransmission failReadsAfterRemoval(int times) {
+        failingReadsAfterRemoval = times;
         return this;
     }
 
@@ -85,6 +93,10 @@ public final class StubTransmission implements Transmission {
 
     @Override
     public synchronized List<Torrent> torrents() {
+        if (failingReadsLeft > 0) {
+            failingReadsLeft--;
+            throw TransmissionException.unreachable("Transmission does not answer torrent_get", null);
+        }
         return List.copyOf(torrents);
     }
 
@@ -95,5 +107,6 @@ public final class StubTransmission implements Transmission {
         }
         torrents.removeIf(torrent -> torrent.hash().equals(hash));
         removed.add(hash);
+        failingReadsLeft = failingReadsAfterRemoval;
     }
 }
