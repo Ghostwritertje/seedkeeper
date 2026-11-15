@@ -24,7 +24,9 @@ public class OrphansPage {
         /**
          * @param unavailable why the orphans can't be listed right now; null when they can
          */
-        static native TemplateInstance orphans(Listing files, Listing danglingSymlinks, String unavailable);
+        /** @param unreadable what could not be read and was skipped, as one line; null when everything was read */
+        static native TemplateInstance orphans(Listing files, Listing danglingSymlinks, String unavailable,
+                String unreadable);
     }
 
     /**
@@ -57,10 +59,20 @@ public class OrphansPage {
             Orphans found = orphans.orphans();
             Instant now = Instant.now();
             return Templates.orphans(listing(found.files(), "file", "files", now),
-                    listing(found.danglingSymlinks(), "dangling symlink", "dangling symlinks", now), null);
+                    listing(found.danglingSymlinks(), "dangling symlink", "dangling symlinks", now), null,
+                    unreadable(found.unreadable()));
         } catch (OrphansUnavailable e) {
-            return Templates.orphans(null, null, e.getMessage());
+            return Templates.orphans(null, null, e.getMessage(), null);
         }
+    }
+
+    private static String unreadable(List<java.nio.file.Path> paths) {
+        if (paths.isEmpty()) {
+            return null;
+        }
+        return paths.size() + (paths.size() == 1 ? " path" : " paths") + " under the downloads root could not be read"
+                + " and " + (paths.size() == 1 ? "was" : "were") + " skipped, such as " + paths.getFirst()
+                + ". What is in there is not listed.";
     }
 
     private static Listing listing(List<Orphans.Orphan> orphans, String one, String many, Instant now) {

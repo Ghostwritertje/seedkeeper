@@ -5,6 +5,9 @@
 <p role="alert">{unavailable}</p>
 {#else}
 <p>What is under the downloads root that no torrent references. seedkeeper only shows it and never deletes it.</p>
+{#if unreadable}
+<p role="alert" id="unreadable">{unreadable}</p>
+{/if}
 <section id="files">
 <h2>Files</h2>
 {#if files.rows.isEmpty}

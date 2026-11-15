@@ -9,12 +9,15 @@ import java.util.List;
  *
  * @param files            regular files no torrent resolves to, by path
  * @param danglingSymlinks symlinks that lead nowhere and that no torrent has as a path, by path
+ * @param unreadable       files and directories under the downloads root that could not be read, and were skipped,
+ *                         by path
  */
-public record Orphans(List<Orphan> files, List<Orphan> danglingSymlinks) {
+public record Orphans(List<Orphan> files, List<Orphan> danglingSymlinks, List<Path> unreadable) {
 
     public Orphans {
         files = List.copyOf(files);
         danglingSymlinks = List.copyOf(danglingSymlinks);
+        unreadable = List.copyOf(unreadable);
     }
 
     /**
