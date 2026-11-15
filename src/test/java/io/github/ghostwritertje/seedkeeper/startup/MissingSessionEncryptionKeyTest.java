@@ -14,7 +14,6 @@ class MissingSessionEncryptionKeyTest {
     static final QuarkusUnitTest app = new QuarkusUnitTest()
             .withApplicationRoot(Startup::application)
             .overrideConfigKey("seedkeeper.transmission.url", "http://127.0.0.1:9091/transmission/rpc")
-            .overrideConfigKey("seedkeeper.downloads-root", "/downloads")
             .overrideConfigKey("seedkeeper.library-roots", "/library")
             .overrideConfigKey("seedkeeper.transmission.username", "transmission-user")
             .overrideConfigKey("seedkeeper.transmission.password", "transmission-password")

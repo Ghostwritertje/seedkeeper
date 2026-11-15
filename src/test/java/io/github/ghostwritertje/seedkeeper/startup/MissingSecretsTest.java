@@ -14,7 +14,6 @@ class MissingSecretsTest {
     static final QuarkusUnitTest app = new QuarkusUnitTest()
             .withApplicationRoot(Startup::application)
             .overrideConfigKey("seedkeeper.transmission.url", "http://127.0.0.1:9091/transmission/rpc")
-            .overrideConfigKey("seedkeeper.downloads-root", "/downloads")
             .overrideConfigKey("seedkeeper.library-roots", "/library")
             .overrideConfigKey("quarkus.http.auth.session.encryption-key", "a-session-encryption-key-for-tests")
             .assertException(failure -> {

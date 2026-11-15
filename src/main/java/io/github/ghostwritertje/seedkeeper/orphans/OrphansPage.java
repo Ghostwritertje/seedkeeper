@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.orphans;
 
+import io.github.ghostwritertje.seedkeeper.groups.StatusText;
 import io.github.ghostwritertje.seedkeeper.orphans.OrphansService.OrphansUnavailable;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
@@ -86,20 +87,8 @@ public class OrphansPage {
         return String.format(Locale.ROOT, "%.1f %s", value, units[unit]);
     }
 
-    /** An age in its two largest units, rounded down: "40d", "3d 2h", "5h 3m", "0m". */
-    static String age(Duration age) {
-        if (age.isNegative()) {
-            return "0m";
-        }
-        long days = age.toDays();
-        int hours = age.toHoursPart();
-        int minutes = age.toMinutesPart();
-        if (days > 0) {
-            return days + "d" + (hours > 0 ? " " + hours + "h" : "");
-        }
-        if (hours > 0) {
-            return hours + "h" + (minutes > 0 ? " " + minutes + "m" : "");
-        }
-        return minutes + "m";
+    /** An age in its two largest units: "3d 2h". A file modified in the future has no age yet: "0m". */
+    private static String age(Duration age) {
+        return StatusText.duration(age.isNegative() ? Duration.ZERO : age);
     }
 }
