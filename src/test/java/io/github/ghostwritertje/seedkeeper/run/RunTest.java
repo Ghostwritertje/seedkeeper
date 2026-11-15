@@ -206,6 +206,76 @@ class RunTest {
         assertEquals(4, next.removals().getFirst().deleted().spaceFreed());
     }
 
+    @Test
+    void anUnregisteredMemberLeavesAloneAndTheRestOfItsGroupStaysWithItsData() throws IOException {
+        Path original = file(downloads.resolve("Original/movie.mkv"));
+        Path link = downloads.resolve("cross-seed/movie.mkv");
+        Files.createDirectories(link.getParent());
+        Files.createSymbolicLink(link, original);
+        transmission.add(torrent("original", 29 * DAY, "Original/movie.mkv"),
+                unregistered(torrent("cross-seed", DAY, "cross-seed/movie.mkv")));
+
+        RunOutcome outcome = run();
+
+        assertEquals(List.of("cross-seed"), transmission.removed());
+        assertEquals(List.of("original"), transmission.hashes());
+        assertGone(link, link.getParent());
+        assertTrue(Files.exists(original), "the data of the member that stays was deleted");
+        assertEquals(List.of(Reason.MINIMUM_NOT_REACHED, Reason.UNREGISTERED),
+                outcome.verdicts().stream().map(verdict -> verdict.reason()).toList());
+        assertEquals(1, outcome.removals().size());
+        Removal removal = outcome.removals().getFirst();
+        assertEquals(Reason.UNREGISTERED, removal.reason());
+        assertEquals(List.of("cross-seed"), removal.removed().stream().map(Torrent::hash).toList());
+        assertEquals(0, removal.deleted().spaceFreed());
+    }
+
+    @Test
+    void anUnregisteredOriginalLeavesButItsDataStaysForTheMemberThatLinksToIt() throws IOException {
+        Path original = file(downloads.resolve("Original/movie.mkv"));
+        Path link = downloads.resolve("cross-seed/movie.mkv");
+        Files.createDirectories(link.getParent());
+        Files.createSymbolicLink(link, original);
+        transmission.add(unregistered(torrent("original", DAY, "Original/movie.mkv")),
+                torrent("cross-seed", 29 * DAY, "cross-seed/movie.mkv"));
+
+        RunOutcome outcome = run();
+
+        assertEquals(List.of("original"), transmission.removed());
+        assertEquals(List.of("cross-seed"), transmission.hashes());
+        assertTrue(Files.exists(original), "the data the remaining member links to was deleted");
+        assertTrue(Files.isSymbolicLink(link));
+        assertEquals(List.of(), outcome.removals().getFirst().deleted().files());
+    }
+
+    @Test
+    void anUnregisteredMemberAndTheRestOfItsGroupThatIsDueLeaveInOneRun() throws IOException {
+        Path original = file(downloads.resolve("Original/movie.mkv"));
+        Path link = downloads.resolve("cross-seed/movie.mkv");
+        Files.createDirectories(link.getParent());
+        Files.createSymbolicLink(link, original);
+        transmission.add(unregistered(torrent("original", DAY, "Original/movie.mkv")),
+                torrent("cross-seed", 30 * DAY, "cross-seed/movie.mkv"));
+
+        RunOutcome outcome = run();
+
+        assertEquals(List.of("original", "cross-seed"), transmission.removed());
+        assertGone(link);
+        assertEquals(List.of(Reason.UNREGISTERED, Reason.ALL_MET),
+                outcome.removals().stream().map(Removal::reason).toList());
+        // Two removals: the data was still in use when its own torrent left, and the second removal deletes only
+        // the paths of its own torrent. The data stays behind as an orphan.
+        assertTrue(Files.exists(original));
+        assertEquals(0, outcome.spaceFreed());
+    }
+
+    /** The same torrent, with the tracker error of a torrent its tracker has deleted. */
+    private static Torrent unregistered(Torrent torrent) {
+        return new Torrent(torrent.hash(), torrent.name(), torrent.status(), torrent.percentDone(), 2,
+                "Unregistered torrent", torrent.secondsSeeding(), torrent.isPrivate(), torrent.downloadDir(),
+                torrent.trackers(), torrent.files());
+    }
+
     private RunOutcome run() {
         return new Run(transmission, TRACKERS, downloads, List.of(library), ZONE).execute();
     }

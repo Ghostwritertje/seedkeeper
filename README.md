@@ -7,7 +7,7 @@ read-only JSON API.
 
 **Status: under construction.** So far seedkeeper connects to Transmission, behind a login and an API key. It
 shows, per cross-seed group, the verdict it would give and when a group kept for its minimum seed time may leave. It
-removes nothing yet, and it doesn't know unregistered torrents or keep overrides yet; see the
+removes nothing yet, and it doesn't know keep overrides yet; see the
 [spec](https://github.com/Ghostwritertje/seedkeeper/issues/5) for what is being built and in which order.
 
 ## Configuration
@@ -132,7 +132,8 @@ runs at a time, and Run now during a run answers "A run is already running." A r
 first: when Transmission doesn't answer or is older than 4.1, or a library root can't be read, the run ends `failed`
 with that one reason and removes nothing.
 
-Otherwise every group with the verdict **Remove** leaves:
+Otherwise every group with the verdict **Remove** leaves. An [unregistered](#unregistered-torrents) torrent is such
+a group of one: it leaves on its own, and what the rest of its cross-seed group still uses stays on disk.
 
 1. Each member is removed from Transmission, which is told to leave the data alone. When one removal fails, the rest
    of that group is skipped and none of its files is deleted; the error is shown with the last run, and the next run
