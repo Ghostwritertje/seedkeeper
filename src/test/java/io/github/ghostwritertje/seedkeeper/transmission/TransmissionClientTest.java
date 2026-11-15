@@ -107,6 +107,18 @@ class TransmissionClientTest {
     }
 
     @Test
+    void aPasswordInTheUrlIsNeverInAReason() {
+        java.net.URI url = fake.url();
+        java.net.URI withPassword = java.net.URI.create(url.getScheme() + "://someone:url-secret@" + url.getHost()
+                + ":" + url.getPort() + url.getPath());
+        transmission = new TransmissionClient(withPassword, FakeTransmission.USERNAME, "wrong");
+
+        TransmissionException refused = assertThrows(TransmissionException.class, transmission::session);
+
+        assertEquals("Transmission at " + url + " rejected the username or password (HTTP 401)", refused.reason());
+    }
+
+    @Test
     void saysWhenTransmissionDoesNotAnswer() {
         fake.close();
 

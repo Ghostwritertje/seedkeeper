@@ -63,7 +63,8 @@ public class SettingsPage {
     @Produces(MediaType.TEXT_HTML)
     public TemplateInstance settings() {
         return Templates.settings(new Settings(config.schedule(), config.timeZone().getId(),
-                config.transmission().url().toString(), config.downloadsRoot().toString(),
+                io.github.ghostwritertje.seedkeeper.transmission.TransmissionClient
+                        .withoutUserInfo(config.transmission().url()).toString(), config.downloadsRoot().toString(),
                 config.libraryRoots().stream().map(Object::toString).toList(), config.dataDir().toString(),
                 StatusText.duration(config.defaultMinimumSeedTime()), trackers(),
                 config.publicTracker().isPresent(), config.auth().username(), secrets()));

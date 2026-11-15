@@ -37,7 +37,8 @@ public class TransmissionClient implements Transmission {
     }
 
     public TransmissionClient(URI url, String username, String password) {
-        this.url = url;
+        // The URL goes into reasons, which are shown and logged: never with a password in it.
+        this.url = withoutUserInfo(url);
         this.rpc = QuarkusRestClientBuilder.newBuilder()
                 .baseUri(url)
                 .connectTimeout(5, TimeUnit.SECONDS)
@@ -168,6 +169,19 @@ public class TransmissionClient implements Transmission {
     private TransmissionException notJsonRpc(Throwable cause) {
         return TransmissionException.unreachable(here() + " gave an answer that is not JSON-RPC; is the URL right?",
                 cause);
+    }
+
+    /** The URL without a {@code user:password@} part, fit to show. */
+    public static URI withoutUserInfo(URI url) {
+        if (url.getRawUserInfo() == null) {
+            return url;
+        }
+        try {
+            return new URI(url.getScheme(), null, url.getHost(), url.getPort(), url.getPath(), url.getQuery(),
+                    url.getFragment());
+        } catch (java.net.URISyntaxException e) {
+            return URI.create(url.getScheme() + "://" + url.getHost());
+        }
     }
 
     private String here() {
