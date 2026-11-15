@@ -56,6 +56,7 @@ jobs:
         with:
           app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
           private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          permission-issues: write
 
       - name: Check the issue can be started
         id: check
@@ -243,6 +244,7 @@ jobs:
         with:
           app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
           private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          permission-issues: write
       - name: Label the issue agent:blocked and link the run
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}

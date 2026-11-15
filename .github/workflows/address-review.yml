@@ -57,6 +57,8 @@ jobs:
         with:
           app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
           private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          permission-issues: write
+          permission-pull-requests: write
 
       - name: Check the pull request can be worked on
         id: check
@@ -273,6 +275,8 @@ jobs:
         with:
           app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
           private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          permission-issues: write
+          permission-pull-requests: write
       - name: Label the pull request agent:blocked and link the run
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
