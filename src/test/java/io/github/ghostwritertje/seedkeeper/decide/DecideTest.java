@@ -439,9 +439,15 @@ class DecideTest {
                 argumentSet("unregistered with a library link: remove",
                         torrent().unregistered().seeded(400 * DAY).wanted(IN_LIBRARY),
                         Verdict.REMOVE, Reason.UNREGISTERED, List.of(Reason.LIBRARY_LINK)),
-                argumentSet("unregistered comes before unmanaged, missing data and not finished",
+                argumentSet("unregistered comes before missing data and not finished",
+                        torrent().unregistered().missing(1).percentDone(0.5, Status.STOPPED),
+                        Verdict.REMOVE, Reason.UNREGISTERED, List.of(Reason.NOT_FINISHED, Reason.MINIMUM_NOT_REACHED)),
+                argumentSet("unregistered but unmanaged: left alone, and unregistered stays visible",
                         torrent().unregistered().announce(UNKNOWN).missing(1).percentDone(0.5, Status.STOPPED),
-                        Verdict.REMOVE, Reason.UNREGISTERED, List.of(Reason.UNMANAGED, Reason.NOT_FINISHED)),
+                        Verdict.LEFT_ALONE, Reason.UNMANAGED, List.of(Reason.UNREGISTERED, Reason.NOT_FINISHED)),
+                argumentSet("unregistered on public: remove",
+                        torrent().unregistered().announce(UNKNOWN).notPrivate().seeded(0),
+                        Verdict.REMOVE, Reason.UNREGISTERED, List.of(Reason.MINIMUM_NOT_REACHED)),
                 argumentSet("unregistered but verifying: keep until the check is over",
                         torrent().unregistered().seeded(400 * DAY).status(Status.CHECKING),
                         Verdict.KEEP, Reason.VERIFYING, List.of()),
@@ -461,7 +467,7 @@ class DecideTest {
 
     @ParameterizedTest
     @MethodSource("unregistered")
-    void anUnregisteredTorrentIsRemovedStraightAway(Case given, Verdict verdict, Reason reason,
+    void anUnregisteredTorrentOfAManagedTrackerIsRemovedStraightAway(Case given, Verdict verdict, Reason reason,
             List<Reason> secondary) {
         List<GroupVerdict> verdicts = Decide.decide(given.snapshot(), RULES, NOW);
 
@@ -493,10 +499,12 @@ class DecideTest {
                         List.of(said(Verdict.REMOVE, Reason.ALL_MET, "a"),
                                 said(Verdict.REMOVE, Reason.UNREGISTERED, "b"))),
                 argumentSet("what holds for the unregistered member only does not count for the rest",
-                        List.of(a().unregistered().announce(UNKNOWN).percentDone(0.5, Status.STOPPED),
-                                b().seeded(14 * DAY)),
+                        List.of(a().unregistered().percentDone(0.5, Status.STOPPED), b().seeded(14 * DAY)),
                         List.of(said(Verdict.REMOVE, Reason.UNREGISTERED, "a"),
                                 said(Verdict.REMOVE, Reason.ALL_MET, "b"))),
+                argumentSet("an unregistered member that is unmanaged stays, and the group is left alone",
+                        List.of(a().unregistered().announce(UNKNOWN).seeded(400 * DAY), b().seeded(14 * DAY)),
+                        List.of(said(Verdict.LEFT_ALONE, Reason.UNMANAGED, "a", "b"))),
                 argumentSet("the rest is kept for its library link, the unregistered member still leaves",
                         List.of(a().unregistered().wanted(IN_LIBRARY), b().seeded(14 * DAY).wanted(IN_LIBRARY)),
                         List.of(said(Verdict.REMOVE, Reason.UNREGISTERED, "a"),
