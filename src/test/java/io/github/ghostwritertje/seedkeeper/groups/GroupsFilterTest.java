@@ -146,7 +146,7 @@ class GroupsFilterTest {
                 .then()
                 .statusCode(200)
                 .body("html.body.main.table.thead.tr.th", contains("Name", "Tracker", "Seed time / minimum",
-                        "Status", "Tracker message", "Library links", "Verdict", "Reason", "Secondary reasons", "Forecast"))
+                        "Status", "Tracker message", "Library links", "Verdict", "Reason", "Secondary reasons", "Forecast", "Keep override"))
                 .body(cells(0), contains("Half.Gone", "tracker-a", "400d / 30d", "Seeding", "", "0 of 2 files",
                         "Left alone", "Missing data (1 of 2 files)", "", ""))
                 .body(cells(1), contains("Broken.Movie", "tracker-a", "1d / 30d", "Seeding", "", "0 of 1 files",
@@ -230,9 +230,9 @@ class GroupsFilterTest {
                 .body(selected("verdict"), is(""));
     }
 
-    /** The text of every cell of a row of the table. */
+    /** The text of every cell of a row of the table, up to the form that sets a keep override. */
     private static String cells(int row) {
-        return "html.body.main.table.tbody.tr[" + row + "].td.collect { it.text() }";
+        return "html.body.main.table.tbody.tr[" + row + "].td.take(10).collect { it.text() }";
     }
 
     /** The value of the selected option of a filter. */

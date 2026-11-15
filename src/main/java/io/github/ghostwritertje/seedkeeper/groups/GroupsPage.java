@@ -7,20 +7,29 @@ import io.github.ghostwritertje.seedkeeper.decide.TrackerError;
 import io.github.ghostwritertje.seedkeeper.decide.Verdict;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsFilter.UnknownFilter;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsService.GroupsUnavailable;
-import jakarta.ws.rs.QueryParam;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import io.github.ghostwritertje.seedkeeper.overrides.OverridesException;
+import io.github.ghostwritertje.seedkeeper.overrides.OverridesPage;
+import io.github.ghostwritertje.seedkeeper.overrides.OverridesService;
+import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.InvalidOverride;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import java.net.URI;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.jboss.resteasy.reactive.RestForm;
 
-/** The Groups view. */
+/** The Groups view, with its form to set a keep override on a group. */
 @Path("/groups")
 public class GroupsPage {
 
@@ -31,8 +40,9 @@ public class GroupsPage {
          * @param groups      the groups that match the filter
          * @param unavailable why there are no verdicts right now, or what is wrong with the filter; null when all
          *                    is well
+         * @param notice      why the keep override that was just set was not; null when there is nothing to tell
          */
-        static native TemplateInstance groups(List<Group> groups, Filter filter, String unavailable);
+        static native TemplateInstance groups(List<Group> groups, Filter filter, String unavailable, String notice);
     }
 
     private static final DateTimeFormatter FORECAST_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -44,9 +54,10 @@ public class GroupsPage {
      * @param secondaryReasons every other reason that holds, written like the reason and separated by commas
      * @param forecast         "2026-11-25 10:00" in the configured time zone, "clock stopped (paused)", "until 2027-03-01" (the
      *                         end date of a keep override), or empty
+     * @param hashes           the info hashes of the members, for the form that sets a keep override
      */
     public record Group(String verdict, String reason, String secondaryReasons, String libraryLinks, String forecast,
-            List<Member> members) {
+            List<Member> members, List<String> hashes) {
     }
 
     /**
@@ -79,26 +90,56 @@ public class GroupsPage {
     }
 
     private final GroupsService groups;
+    private final OverridesService overrides;
 
-    GroupsPage(GroupsService groups) {
+    GroupsPage(GroupsService groups, OverridesService overrides) {
         this.groups = groups;
+        this.overrides = overrides;
     }
 
     @GET
     @Produces(MediaType.TEXT_HTML)
     @RunOnVirtualThread
     public TemplateInstance groups(@QueryParam("verdict") String verdict, @QueryParam("reason") String reason) {
+        return page(verdict, reason, null);
+    }
+
+    /**
+     * Set a keep override: adds one with the info hashes of every member of a group, then sends the browser to the
+     * Groups view. A form post, so it needs the CSRF token of the page, and a login: it is not in the API.
+     *
+     * @param hash  the info hash of each member, one field per member
+     * @param until "2027-03-01", or empty for no end date
+     */
+    @POST
+    @Path("/keep")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    @Produces(MediaType.TEXT_HTML)
+    @RunOnVirtualThread
+    public Response keep(@RestForm List<String> hash, @RestForm String note, @RestForm String until) {
+        try {
+            overrides.add(hash == null ? List.of() : hash, note, OverridesPage.date(until));
+            return Response.seeOther(URI.create("/groups")).build();
+        } catch (InvalidOverride e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(page(null, null, e.getMessage())).build();
+        } catch (OverridesException e) {
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(page(null, null, e.getMessage()))
+                    .build();
+        }
+    }
+
+    private TemplateInstance page(String verdict, String reason, String notice) {
         GroupsFilter filter;
         try {
             filter = GroupsFilter.parse(verdict, reason);
         } catch (UnknownFilter e) {
-            return Templates.groups(List.of(), filter(GroupsFilter.NONE), e.getMessage());
+            return Templates.groups(List.of(), filter(GroupsFilter.NONE), e.getMessage(), notice);
         }
         try {
             return Templates.groups(groups.groups().stream().filter(filter::matches).map(GroupsPage::group).toList(),
-                    filter(filter), null);
+                    filter(filter), null, notice);
         } catch (GroupsUnavailable e) {
-            return Templates.groups(List.of(), filter(filter), e.getMessage());
+            return Templates.groups(List.of(), filter(filter), e.getMessage(), notice);
         }
     }
 
@@ -121,7 +162,8 @@ public class GroupsPage {
                 .orElse("");
         return new Group(group.verdict().label(), reason(group.reason(), group),
                 group.secondaryReasons().stream().map(r -> reason(r, group)).collect(Collectors.joining(", ")),
-                libraryLinks, forecast, group.members().stream().map(GroupsPage::member).toList());
+                libraryLinks, forecast, group.members().stream().map(GroupsPage::member).toList(),
+                group.members().stream().map(GroupVerdict.Member::hash).toList());
     }
 
     /** The label of a reason, with its count of the group's files when it has one. */

@@ -133,7 +133,8 @@ Transmission's container, and the library on the same filesystem as the download
 
 A **keep override** is a manual instruction never to remove a group, with a note and an optional end date. It can
 only prevent a removal: a group that is left alone, verifying or not finished keeps that verdict, and an override
-never causes one. They are kept in `<data-dir>/overrides.yaml`, which you edit by hand for now:
+never causes one. Set them in the UI (the Overrides page, or "Set a keep override" on a group of the Groups page), or
+by hand in `<data-dir>/overrides.yaml`:
 
 ```yaml
 overrides:
@@ -154,13 +155,17 @@ overrides:
 
 - An override **matches** every current group that has at least one of its hashes, and keeps the whole group.
 - An **expired** override is past its end date; a **stale** one has no hash that is a torrent any more. Neither has
-  any effect, and seedkeeper never deletes them: they stay, marked, until you remove them from the file.
+  any effect, and seedkeeper never deletes them: they stay, marked, until you delete them on the Overrides page
+  or from the file.
 - Each [run](#runs-removing-and-deleting) adds to an override the hashes of the members its groups gained since (a
   new cross-seed). Hashes are never removed, so an override survives the torrent it was set on.
 - The file is read at the start of every run, and again whenever it changes: a hand edit shows on the pages without a
   restart. No file is the same as no overrides.
-- When seedkeeper adds hashes it writes the whole file anew, to a temporary file in the same directory that then
-  replaces the old one in one rename, so the file is never half written. **Comments and keys seedkeeper doesn't know
+- An override set in the UI gets a generated id (a UUID) and `created` set to now in `seedkeeper.time-zone`.
+  Editing one in the UI changes only its note and end date. Every change takes effect right away: the verdicts on the
+  pages follow it, and the next run reads it.
+- When seedkeeper changes an override or adds hashes it writes the whole file anew, to a temporary file in the same
+  directory that then replaces the old one in one rename, so the file is never half written. **Comments and keys seedkeeper doesn't know
   are lost** then, and every text comes back in double quotes.
 - A file seedkeeper can't read (not YAML, an override without `id` or `hashes`, a date that isn't one) never counts
   as "no overrides": while it is broken there are no verdicts, the Groups and Overrides pages say what is wrong with
@@ -250,9 +255,9 @@ Every form carries a CSRF token; a form POST without it is rejected with 400.
 
 | Page | Shows |
 |---|---|
-| `/groups` | Every [cross-seed group](#cross-seed-groups) with its members (name, tracker, seed time and minimum, status, and the tracker message when the tracker reports an [error](#unregistered-torrents): "Unregistered: …", "Tracker error: …" or "Tracker warning: …"), its library links, the verdict seedkeeper would give it right now with the [reason and the secondary reasons](#verdicts-and-reasons), and the forecast: a date in the configured time zone, "clock stopped (paused)", or the end date of a keep override ("until 2027-03-01"). The list can be filtered by verdict and by reason (`/groups?verdict=keep&reason=library-link`). Read from Transmission and the disk on every load. |
+| `/groups` | Every [cross-seed group](#cross-seed-groups) with its members (name, tracker, seed time and minimum, status, and the tracker message when the tracker reports an [error](#unregistered-torrents): "Unregistered: …", "Tracker error: …" or "Tracker warning: …"), its library links, the verdict seedkeeper would give it right now with the [reason and the secondary reasons](#verdicts-and-reasons), and the forecast: a date in the configured time zone, "clock stopped (paused)", or the end date of a keep override ("until 2027-03-01"). The list can be filtered by verdict and by reason (`/groups?verdict=keep&reason=library-link`). Read from Transmission and the disk on every load. Each group has a **Set a keep override** form (note, optional end date) that adds a [keep override](#keep-overrides) with the info hash of every member. |
 | `/activity` | The [run history](#run-history): every run of the last year, the newest first, with its start and end, whether it succeeded or failed and the reason, the torrents and groups it removed, the files deleted and the space freed; and per removal its torrents (with their tracker, and "not finished", what the tracker said and "not removed" where that applies), the reason, the files deleted, the space freed and what went wrong. |
-| `/overrides` | Every [keep override](#keep-overrides) of the overrides file, read-only: its status (active, expired, stale, or expired and stale), note, end date, when it was created (in the configured time zone), the members of the group or groups it matches, its hashes and its id. |
+| `/overrides` | Every [keep override](#keep-overrides) of the overrides file: its status (active, expired, stale, or expired and stale), note, end date, when it was created (in the configured time zone), the members of the group or groups it matches, its hashes and its id. Each can be edited (note and end date) or deleted, and a form adds one from info hashes. |
 | `/orphans` | The **orphans**: what is under the downloads root that no torrent references, as two lists, files and dangling symlinks, each with path, size, age (time since it was last modified) and a total. seedkeeper only shows them and never deletes them. |
 | `/settings` | The configuration seedkeeper runs with, read-only: every key of the [configuration](#configuration) with its default filled in, each tracker with its hosts and the minimum seed time that applies to it (marked "(default)" when it sets none of its own), and for each secret only whether it is set or missing, never its value. |
 | `/system` | seedkeeper's version; whether a run is running, the outcome of the last [run](#runs-removing-and-deleting) (succeeded or failed with the reason, start and end, torrents and groups removed, files deleted, space freed, and the removals that went wrong) and when the next scheduled run starts; the **Run now** button; and whether Transmission is reachable, its version and, when seedkeeper can't work with it, the reason. |
@@ -405,7 +410,8 @@ library root or the [overrides file](#keep-overrides) can't be read.
 ### `GET /api/v1/overrides`
 
 The same data as the Overrides page: every [keep override](#keep-overrides) of the overrides file, in the order of
-the file, against the groups as they are right now.
+the file, against the groups as they are right now. The API can't change overrides: adding,
+editing and deleting are on the Overrides and Groups pages only.
 
 ```json
 [
