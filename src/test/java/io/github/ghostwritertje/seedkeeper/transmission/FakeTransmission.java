@@ -15,6 +15,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -55,6 +59,7 @@ public final class FakeTransmission implements AutoCloseable {
     private volatile String torrents = "[]";
     private volatile int sessionCounter = 1;
     private final Set<String> refusedRemovals = ConcurrentHashMap.newKeySet();
+    private final AtomicReference<Hold> nextSessionGet = new AtomicReference<>();
 
     public FakeTransmission() {
         try {
@@ -62,6 +67,12 @@ public final class FakeTransmission implements AutoCloseable {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+        // A thread per request, so a request that is held up doesn't hold up the others.
+        server.setExecutor(Executors.newCachedThreadPool(runnable -> {
+            Thread thread = new Thread(runnable, "fake-transmission");
+            thread.setDaemon(true);
+            return thread;
+        }));
         server.createContext("/transmission/rpc", this::handle);
         server.start();
     }
@@ -93,6 +104,30 @@ public final class FakeTransmission implements AutoCloseable {
         return this;
     }
 
+    /** A request that is kept waiting; see {@link #holdNextSessionGet()}. */
+    public static final class Hold {
+
+        private final CountDownLatch reached = new CountDownLatch(1);
+        private final CountDownLatch released = new CountDownLatch(1);
+
+        /** Waits until the request has arrived; false when it didn't in time. */
+        public boolean reached(long timeout, TimeUnit unit) throws InterruptedException {
+            return reached.await(timeout, unit);
+        }
+
+        /** Lets the request be answered. */
+        public void release() {
+            released.countDown();
+        }
+    }
+
+    /** The next {@code session_get} is not answered until the hold is released; the calls after it are. */
+    public Hold holdNextSessionGet() {
+        Hold hold = new Hold();
+        nextSessionGet.set(hold);
+        return hold;
+    }
+
     /** {@code torrent_remove} of this torrent is answered with a JSON-RPC error; the torrent stays. */
     public FakeTransmission refuseRemovalOf(String hash) {
         refusedRemovals.add(hash);
@@ -107,6 +142,7 @@ public final class FakeTransmission implements AutoCloseable {
         incompleteDirEnabled = false;
         torrents = "[]";
         refusedRemovals.clear();
+        nextSessionGet.set(null);
         requests.clear();
     }
 
@@ -147,6 +183,17 @@ public final class FakeTransmission implements AutoCloseable {
                 exchange.getResponseHeaders().add("X-Transmission-Session-Id", sessionId());
                 respond(exchange, 409, "text/html", "<h1>409: Conflict</h1>");
                 return;
+            }
+            if (body.contains("\"method\":\"session_get\"")) {
+                Hold hold = nextSessionGet.getAndSet(null);
+                if (hold != null) {
+                    hold.reached.countDown();
+                    try {
+                        hold.released.await(60, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
             }
             switch (behaviour) {
                 case LEGACY -> respond(exchange, 200, "application/json",
