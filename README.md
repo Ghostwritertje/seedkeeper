@@ -341,6 +341,34 @@ Answers 503 with `{"reason": "…"}` when the orphans can't be listed: Transmiss
 doesn't answer, with the reason in the check named `Transmission`. `/q/health` and `/q/metrics` need no login and no
 API key.
 
+## Metrics
+
+`/q/metrics` is in the Prometheus text format. Next to what Quarkus reports about the JVM and HTTP requests:
+
+| Metric | Type | Meaning |
+|---|---|---|
+| `seedkeeper_runs_total{status}` | counter | The [runs](#runs-removing-and-deleting) that ended, by `status`: `succeeded` or `failed`. |
+| `seedkeeper_last_successful_run_timestamp_seconds` | gauge | When the last run that succeeded ended, in seconds since the epoch; `0` until one has since seedkeeper started. Alert on `time() - seedkeeper_last_successful_run_timestamp_seconds` being too large. |
+| `seedkeeper_removed_groups_total` | counter | The removals carried out in full. A removal that failed is not counted. |
+| `seedkeeper_space_freed_bytes_total` | counter | The space freed, in bytes. |
+| `seedkeeper_groups{verdict,reason}` | gauge | How many groups the last run gave each [verdict and reason](#verdicts-and-reasons), by their codes. A group the run removed is counted under `remove`. Every reason is always there, at `0` when no group has it. A failed run has no verdicts and leaves these as they were. |
+
+The counters start at 0 with every start of seedkeeper.
+
+## Logs
+
+seedkeeper logs to standard output, one JSON object per line (`timestamp`, `level`, `loggerName`, `message`, `mdc`,
+...). A run logs one line when it starts and one when it ends, one per removal and one per deleted file, each with
+its kind in `mdc.event`: `run-start`, `run-end`, `removal` or `deleted-file`. What went wrong has level `ERROR`: a
+failed run (on its `run-end` line, with the reason), a removal that failed, and a path seedkeeper refused to delete.
+The lines of a run are written when it ends, apart from `run-start`.
+
+```json
+{"timestamp":"2026-11-20T06:00:04.12+01:00","level":"INFO","loggerName":"io.github.ghostwritertje.seedkeeper.run.RunMonitor","message":"Deleted /downloads/Some.Movie/movie.mkv","mdc":{"event":"deleted-file"}, ...}
+```
+
+Under `quarkus:dev` the log is plain text.
+
 ## Build and test
 
 Requires JDK 25. Maven comes with the wrapper.
