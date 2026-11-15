@@ -16,7 +16,7 @@ import java.util.List;
 public class OrphansApi {
 
     /**
-     * @param totalSizeBytes the bytes the orphan files take
+     * @param totalSizeBytes what deleting the orphan files would free: the bytes of those without a library link
      * @param unreadable     the paths under the downloads root that could not be read and were skipped
      */
     @RegisterForReflection
@@ -27,9 +27,10 @@ public class OrphansApi {
     /**
      * @param sizeBytes    of a symlink, the size of the link itself
      * @param lastModified ISO-8601, in UTC, to the second; of a symlink, of the link itself
+     * @param libraryLink  whether a hardlink of the file is under a library root; never true of a symlink
      */
     @RegisterForReflection
-    public record Orphan(String path, long sizeBytes, String lastModified) {
+    public record Orphan(String path, long sizeBytes, String lastModified, boolean libraryLink) {
     }
 
     /** The body of a 503: why the orphans can't be listed right now. */
@@ -60,6 +61,6 @@ public class OrphansApi {
 
     private static Orphan orphan(Orphans.Orphan orphan) {
         return new Orphan(orphan.path().toString(), orphan.size(),
-                orphan.lastModified().truncatedTo(ChronoUnit.SECONDS).toString());
+                orphan.lastModified().truncatedTo(ChronoUnit.SECONDS).toString(), orphan.libraryLink());
     }
 }

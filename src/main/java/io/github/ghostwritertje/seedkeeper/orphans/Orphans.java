@@ -23,12 +23,17 @@ public record Orphans(List<Orphan> files, List<Orphan> danglingSymlinks, List<Pa
     /**
      * @param size         in bytes; of a symlink, the size of the link itself
      * @param lastModified of a symlink, of the link itself
+     * @param libraryLink  whether a hardlink of the file is under a library root: deleting it would free nothing.
+     *                     Never true of a symlink
      */
-    public record Orphan(Path path, long size, Instant lastModified) {
+    public record Orphan(Path path, long size, Instant lastModified, boolean libraryLink) {
     }
 
-    /** The bytes the orphan files take. A dangling symlink takes none worth counting. */
+    /**
+     * What deleting the orphan files would free: the bytes of those without a library link. A dangling symlink takes
+     * none worth counting.
+     */
     public long totalSize() {
-        return files.stream().mapToLong(Orphan::size).sum();
+        return files.stream().filter(orphan -> !orphan.libraryLink()).mapToLong(Orphan::size).sum();
     }
 }

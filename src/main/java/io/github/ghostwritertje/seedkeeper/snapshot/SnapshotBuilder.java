@@ -37,8 +37,12 @@ public final class SnapshotBuilder {
         return new Snapshot(resolved, library);
     }
 
-    /** Every regular file under the roots. Symlinks are neither followed nor indexed. */
-    private static Set<FileId> libraryIndex(List<Path> libraryRoots) {
+    /**
+     * The library index: every regular file under the roots. Symlinks are neither followed nor indexed.
+     *
+     * @throws SnapshotException when a library root can't be read
+     */
+    public static Set<FileId> libraryIndex(List<Path> libraryRoots) {
         Set<FileId> index = new HashSet<>();
         for (Path root : libraryRoots) {
             try {

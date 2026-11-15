@@ -266,7 +266,7 @@ Quarkus) has none; the `SameSite=Strict` cookie is what protects it.
 | `/groups` | Every [cross-seed group](#cross-seed-groups) with its members (name, tracker, seed time and minimum, status, and the tracker message when the tracker reports an [error](#unregistered-torrents): "Unregistered: …", "Tracker error: …" or "Tracker warning: …"), its library links, the verdict seedkeeper would give it right now with the [reason and the secondary reasons](#verdicts-and-reasons), and the forecast: a date in the configured time zone, "clock stopped (paused)", or the end date of a keep override ("until 2027-03-01"). The list can be filtered by verdict and by reason (`/groups?verdict=keep&reason=library-link`). Read from Transmission and the disk on every load. Each group has a **Set a keep override** form (note, optional end date) that adds a [keep override](#keep-overrides) with the info hash of every member. |
 | `/activity` | The [run history](#run-history): every run of the last year, the newest first, with its start and end, whether it succeeded or failed and the reason, the torrents and groups it removed, the files deleted and the space freed; and per removal its torrents (with their tracker, and "not finished", what the tracker said and "not removed" where that applies), the reason, the files deleted, the space freed and what went wrong. |
 | `/overrides` | Every [keep override](#keep-overrides) of the overrides file: its status (active, expired, stale, or expired and stale), note, end date, when it was created (in the configured time zone), the members of the group or groups it matches, its hashes and its id. Each can be edited (note and end date) or deleted, and a form adds one from info hashes. While Transmission or a library root can't be used, the overrides are still listed and can still be changed, with their status and groups "unknown" and the reason shown. |
-| `/orphans` | The **orphans**: what is under the downloads root that no torrent references, as two lists, files and dangling symlinks, each with path, size, age (time since it was last modified) and a total, and how many paths could not be read and were skipped. seedkeeper only shows them and never deletes them. |
+| `/orphans` | The **orphans**: what is under the downloads root, outside every library root, that no torrent references, as two lists, files and dangling symlinks, each with path, size, age (time since it was last modified) and a total, and how many paths could not be read and were skipped. A file with a library link is marked as such and left out of the total, since deleting it would free nothing. seedkeeper only shows them and never deletes them. |
 | `/settings` | The configuration seedkeeper runs with, read-only: every key of the [configuration](#configuration) with its default filled in, each tracker with its hosts and the minimum seed time that applies to it (marked "(default)" when it sets none of its own), and for each secret only whether it is set or missing, never its value. |
 | `/system` | seedkeeper's version; whether a run is running, the outcome of the last [run](#runs-removing-and-deleting) (succeeded or failed with the reason, start and end, torrents and groups removed, files deleted, space freed, and the removals that went wrong) and when the next scheduled run starts; the **Run now** button; and whether Transmission is reachable, its version and, when seedkeeper can't work with it, the reason. |
 
@@ -552,8 +552,9 @@ Answers 400 and 503 like `GET /api/v1/runs`.
 
 ### `GET /api/v1/orphans`
 
-The same data as the Orphans page: what is under `seedkeeper.downloads-root` that no torrent references. Nothing is
-ever deleted. Read from Transmission and the disk on every request.
+The same data as the Orphans page: what is under `seedkeeper.downloads-root`, outside every
+`seedkeeper.library-roots` entry, that no torrent references. Nothing is ever deleted. Read from Transmission and the
+disk on every request.
 
 ```json
 {
@@ -561,14 +562,22 @@ ever deleted. Read from Transmission and the disk on every request.
     {
       "path": "/downloads/Removed.Movie/movie.mkv",
       "sizeBytes": 4294967296,
-      "lastModified": "2026-03-01T10:00:00Z"
+      "lastModified": "2026-03-01T10:00:00Z",
+      "libraryLink": false
+    },
+    {
+      "path": "/downloads/Show.S01E01.mkv",
+      "sizeBytes": 1073741824,
+      "lastModified": "2026-03-01T10:00:00Z",
+      "libraryLink": true
     }
   ],
   "danglingSymlinks": [
     {
       "path": "/downloads/cross-seed/Removed.Movie/movie.mkv",
       "sizeBytes": 34,
-      "lastModified": "2026-03-01T10:00:00Z"
+      "lastModified": "2026-03-01T10:00:00Z",
+      "libraryLink": false
     }
   ],
   "totalSizeBytes": 4294967296,
@@ -583,11 +592,12 @@ ever deleted. Read from Transmission and the disk on every request.
 | `[].path` | The absolute path. |
 | `[].sizeBytes` | The size in bytes; of a symlink, the size of the link itself. |
 | `[].lastModified` | When it was last modified, in UTC; its age is the time since then. |
-| `totalSizeBytes` | The sum of `sizeBytes` over `files`. |
+| `[].libraryLink` | Whether the file has a [library link](#runs-removing-and-deleting): a hardlink of it under a library root. It is still an orphan, but deleting it would free nothing. Always `false` for a symlink. |
+| `totalSizeBytes` | What deleting the orphan files would free: the sum of `sizeBytes` over the `files` without a library link. |
 | `unreadable` | The paths under the downloads root that could not be read (no permission, for example), by path. They are skipped: what is in an unreadable directory is not listed. |
 
 Answers 503 with `{"reason": "…"}` when the orphans can't be listed: Transmission doesn't answer or is older than 4.1
-(without the torrents every file would seem an orphan), or the downloads root can't be read.
+(without the torrents every file would seem an orphan), or the downloads root or a library root can't be read.
 
 ## Health
 
