@@ -70,9 +70,11 @@ public final class OrphanFinder {
                 /** What is under a library root is the media library's, never an orphan. */
                 @Override
                 public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attributes) {
-                    return TorrentPaths.id(directory, LinkOption.NOFOLLOW_LINKS)
-                            .filter(libraryRootDirectories::contains).isPresent()
-                                    ? FileVisitResult.SKIP_SUBTREE : FileVisitResult.CONTINUE;
+                    Optional<FileId> id = TorrentPaths.id(directory, LinkOption.NOFOLLOW_LINKS);
+                    if (id.isPresent() && libraryRootDirectories.contains(id.get())) {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+                    return FileVisitResult.CONTINUE;
                 }
 
                 @Override
