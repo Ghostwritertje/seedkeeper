@@ -1,0 +1,75 @@
+{#include layout.html}
+{#title}Settings{/title}
+<h1>Settings</h1>
+<p>The configuration seedkeeper runs with. To change it, edit <code>seedkeeper.yaml</code> or the environment and restart.</p>
+<section id="run">
+<h2>Run</h2>
+<dl>
+<dt>Schedule</dt>
+<dd>{settings.schedule}</dd>
+<dt>Time zone</dt>
+<dd>{settings.timeZone}</dd>
+</dl>
+</section>
+<section id="transmission">
+<h2>Transmission</h2>
+<dl>
+<dt>URL</dt>
+<dd>{settings.transmissionUrl}</dd>
+</dl>
+</section>
+<section id="paths">
+<h2>Paths</h2>
+<dl>
+<dt>Downloads root</dt>
+<dd>{settings.downloadsRoot}</dd>
+<dt>Library roots</dt>
+{#for root in settings.libraryRoots}
+<dd>{root}</dd>
+{/for}
+<dt>Data dir</dt>
+<dd>{settings.dataDir}</dd>
+</dl>
+</section>
+<section id="trackers">
+<h2>Trackers</h2>
+<dl>
+<dt>Default minimum seed time</dt>
+<dd>{settings.defaultMinimumSeedTime}</dd>
+</dl>
+{#if settings.trackers.isEmpty}
+<p>No trackers: every torrent is unmanaged.</p>
+{#else}
+<table>
+<thead>
+<tr><th>Tracker</th><th>Hosts</th><th>Minimum seed time</th></tr>
+</thead>
+<tbody>
+{#for tracker in settings.trackers}
+<tr><td>{tracker.name}</td><td>{tracker.hosts}</td><td>{tracker.minimumSeedTime}</td></tr>
+{/for}
+</tbody>
+</table>
+{/if}
+{#if !settings.hasPublicTracker}
+<p>No <code>public</code> entry: torrents that are not private and belong to no single tracker are unmanaged.</p>
+{/if}
+</section>
+<section id="login">
+<h2>Login</h2>
+<dl>
+<dt>Username</dt>
+<dd>{settings.username}</dd>
+</dl>
+</section>
+<section id="secrets">
+<h2>Secrets</h2>
+<p>Secrets come from the environment only. Their values are never shown.</p>
+<dl>
+{#for secret in settings.secrets}
+<dt>{secret.variable}</dt>
+<dd>{secret.state}</dd>
+{/for}
+</dl>
+</section>
+{/include}
