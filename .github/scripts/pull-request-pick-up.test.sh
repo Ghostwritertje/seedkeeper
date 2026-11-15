@@ -14,7 +14,7 @@ pull_request() {
   for change in "$@"; do changes="$changes | $change"; done
   jq -nc "{
     state: \"open\",
-    user: {login: \"seedkeeper-implementer[bot]\"},
+    user: {login: \"seedkeeper-implementer[bot]\", type: \"Bot\"},
     labels: [{name: \"ready-for-agent\"}],
     head: {ref: \"agent/issue-7-add-a-verdict\", repo: {full_name: \"Ghostwritertje/seedkeeper\"}},
     base: {ref: \"main\", repo: {full_name: \"Ghostwritertje/seedkeeper\"}}
@@ -23,7 +23,7 @@ pull_request() {
 
 check() {
   local name="$1" input="$2" expected="$3" actual
-  actual="$(printf '%s' "$input" | "$script" main)"
+  actual="$(printf '%s' "$input" | "$script" main 'seedkeeper-implementer[bot]')"
   if [ "$actual" = "$expected" ]; then
     echo "ok   $name"
   else
@@ -33,7 +33,10 @@ check() {
 }
 
 check "an open, labelled agent pull request starts" "$(pull_request)" 'start'
-check "the maintainer's pull request starts" "$(pull_request '.user.login = "Ghostwritertje"' '.head.ref = "fix-typo"')" 'start'
+check "the maintainer's pull request starts" \
+  "$(pull_request '.user = {login: "Ghostwritertje", type: "User"}' '.head.ref = "fix-typo"')" 'start'
+check "the implementer's login matches in any case" \
+  "$(pull_request '.user.login = "Seedkeeper-Implementer[bot]"')" 'start'
 check "a branch with dots, underscores and digits starts" "$(pull_request '.head.ref = "ticket/35_v1.2"')" 'start'
 check "a closed pull request is left alone" "$(pull_request '.state = "closed"')" \
   'skip: the pull request is closed'
@@ -47,6 +50,12 @@ check "a pull request from a deleted fork is left alone" "$(pull_request '.head.
   'skip: the pull request comes from another repository'
 check "a Dependabot pull request is left alone" "$(pull_request '.user.login = "dependabot[bot]"')" \
   'skip: Dependabot pull requests merge on their own'
+check "another bot's pull request is left alone" "$(pull_request '.user.login = "renovate[bot]"')" \
+  "skip: the pull request comes from a bot other than the implementer's"
+check "the reviewer bot's pull request is left alone" "$(pull_request '.user.login = "seedkeeper-reviewer[bot]"')" \
+  "skip: the pull request comes from a bot other than the implementer's"
+check "a user named like the implementer App, without [bot], is a user" \
+  "$(pull_request '.user = {login: "seedkeeper-implementer", type: "User"}')" 'start'
 check "a pull request from the default branch is left alone" "$(pull_request '.head.ref = "main"')" \
   'skip: the pull request comes from the default branch'
 check "a branch name with a space is left alone" "$(pull_request '.head.ref = "fix it"')" \
