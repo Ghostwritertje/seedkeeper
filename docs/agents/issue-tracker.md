@@ -26,8 +26,8 @@ labels. Interactive sessions use them the same way.
 
 | Label               | Who adds it                                                         | What it means                                                                                                       |
 |---------------------|---------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------|
-| `ready-for-agent`   | the maintainer, `to-spec`, `to-tickets`; the reviewer on a pull request | The implementer may take it. On an issue, adding it starts the implementer, and so does closing its last open blocker. |
-| `agent:in-progress` | the implementer, when it starts                                     | An implementer run is working on the issue. It goes when the run ends.                                              |
+| `ready-for-agent`   | the maintainer, `to-spec`, `to-tickets`; the reviewer on a pull request | The implementer may take it. On an issue, adding it starts the implementer, and so does closing its last open blocker. On a pull request, adding it makes the implementer address the review feedback on that pull request's branch. |
+| `agent:in-progress` | the implementer, when it starts                                     | An implementer run is working on the issue or pull request. It goes when the run ends.                              |
 | `agent:blocked`     | the implementer, or a failed agent job                              | The run couldn't finish: `./mvnw verify` stayed red (a draft pull request says where it got stuck), or the job crashed, timed out or ran out of quota (a comment links the run). |
 | `needs-decision`    | either agent                                                        | A choice that is the maintainer's to make. The comment or review gives the question, the options and a recommendation. |
 | `auto-merge`        | the reviewer, on an agent pull request it approves                  | The pull request is a two-way door with a small blast radius, and may merge without the maintainer.                 |
@@ -50,6 +50,21 @@ The life of an issue:
    - a ready pull request that says `Closes #<n>` and lists "Decisions I made";
    - `needs-decision` on the issue, with a comment, and no pull request;
    - a draft pull request and `agent:blocked`.
+
+The life of a pull request's review feedback (`docs/agents/review.md`, **The review/fix loop**):
+
+1. **Labelled.** A user with write access, or the reviewer App when every finding has a clear fix, adds
+   `ready-for-agent` to the pull request. Pull requests from forks and from Dependabot are left alone.
+2. **Picked up.** The implementer swaps `ready-for-agent` for `agent:in-progress` on the pull request.
+3. **Worked on.** On the pull request's own branch: the unresolved review threads and the latest summary review,
+   until `./mvnw verify` is green.
+4. **Ends** in one of these, and `agent:in-progress` goes:
+   - the fixes pushed, the handled threads resolved and a comment saying what changed; the push starts a new review;
+   - `needs-decision` on the pull request, with a comment;
+   - `agent:blocked` on the pull request, with a comment saying where it got stuck.
+
+After three review rounds the reviewer adds `needs-decision` instead of `ready-for-agent`. To resume after a
+decision, answer in a comment, remove `needs-decision` and add `ready-for-agent`.
 
 **Retry.** Nothing retries on its own. Re-adding `ready-for-agent` is the only retry: remove `agent:blocked` or
 `needs-decision` first, and after a decision, answer it in a comment. A retry continues on the agent branch an

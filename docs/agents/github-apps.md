@@ -64,6 +64,24 @@ To check the setup, add `ready-for-agent` to a small issue that has no sub-issue
 comes from `<name>[bot]` and starts the `CI` workflow. A pull request opened with the default workflow token
 wouldn't start it.
 
+## The App variables
+
+Each agent lets the other agent's bot start it, and no other bot: the implementer's pushes start a review, and the
+reviewer's `ready-for-agent` starts the implementer. The workflows build each bot's login, `<slug>[bot]`, from two
+repository variables. A workflow mints only its own App's token, so it can't look up the other App's slug.
+
+1. On each App's page, the slug is the last part of its URL, `https://github.com/apps/<slug>`: the App's name in
+   lowercase, with dashes for spaces.
+2. In the repo, open **Settings → Secrets and variables → Actions → Variables → New repository variable**, and add:
+   - `IMPLEMENTER_APP_SLUG`: the implementer App's slug, for example `seedkeeper-implementer`.
+   - `REVIEWER_APP_SLUG`: the reviewer App's slug, for example `seedkeeper-reviewer`.
+
+Without them each agent still runs for users, but not for the other agent's bot: the review/fix loop stops, and the
+reviewer hands nothing back. Update them when you rename an App.
+
+To check the setup, have the reviewer find a clear fix on an implementer pull request: it adds `ready-for-agent`,
+the `Implementer` workflow runs on the pull request's branch, and its push starts a new `Reviewer` run.
+
 ## Labels
 
 The agents use these labels; `docs/agents/issue-tracker.md` describes their lifecycle. Create any that are

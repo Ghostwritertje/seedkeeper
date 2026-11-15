@@ -3,16 +3,21 @@ name: Implementer
 # The implementer agent turns an issue labelled `ready-for-agent` into a pull request, as the implementer App. It
 # starts when the label is added, and when an issue closes, for each issue it was blocking that still carries the
 # label and no longer has an open blocker. Either way the issue goes through the same pick-up path,
-# implement-issue.yml. The label lifecycle: docs/agents/issue-tracker.md. Setting up the App and the secrets:
-# docs/agents/github-apps.md. Why it runs this way: docs/adr/0001-agent-runner.md.
+# implement-issue.yml. `ready-for-agent` on a pull request makes it address that pull request's review feedback on
+# the same branch, through address-review.yml. The label lifecycle: docs/agents/issue-tracker.md. Setting up the
+# App and the secrets: docs/agents/github-apps.md. Why it runs this way: docs/adr/0001-agent-runner.md.
 #
-# Only a user with write access starts it: the one who labelled the issue, and for a dependent also the one who
-# closed its blocker. Bots don't start it. The concurrency groups, one per issue, are on the jobs in
-# implement-issue.yml.
+# Only a user with write access starts it: the one who labelled the issue or pull request, and for a dependent also
+# the one who closed its blocker. The one bot that may start it is the reviewer App's, `vars.REVIEWER_APP_SLUG` +
+# `[bot]`, by labelling a pull request: that is the review/fix loop. Only `pull_request`, never
+# `pull_request_target`: pull requests from forks get no secrets. The concurrency groups, one per issue or pull
+# request, are on the jobs in implement-issue.yml and address-review.yml.
 
 on:
   issues:
     types: [labeled, closed]
+  pull_request:
+    types: [labeled]
 
 permissions:
   contents: read
@@ -21,8 +26,8 @@ jobs:
   labelled:
     name: Labelled
     if: >-
-      github.event.action == 'labeled' && github.event.label.name == 'ready-for-agent'
-      && github.event.sender.type == 'User'
+      github.event_name == 'issues' && github.event.action == 'labeled'
+      && github.event.label.name == 'ready-for-agent' && github.event.sender.type == 'User'
     uses: ./.github/workflows/implement-issue.yml
     with:
       issue: ${{ github.event.issue.number }}
@@ -36,7 +41,8 @@ jobs:
   # each with the user who last added the label. Still-blocked and unlabelled dependents are left alone.
   dependents:
     name: Find unblocked dependents
-    if: github.event.action == 'closed' && github.event.sender.type == 'User'
+    if: >-
+      github.event_name == 'issues' && github.event.action == 'closed' && github.event.sender.type == 'User'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -94,6 +100,25 @@ jobs:
     with:
       issue: ${{ matrix.issue }}
       labeller: ${{ matrix.labeller }}
+    secrets:
+      IMPLEMENTER_APP_ID: ${{ secrets.IMPLEMENTER_APP_ID }}
+      IMPLEMENTER_APP_KEY: ${{ secrets.IMPLEMENTER_APP_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+  # The pull request's own branch, not a new one. Drafts are included: a draft agent pull request is where a run that
+  # couldn't get verify green left its work.
+  pull-request-labelled:
+    name: Pull request labelled
+    if: >-
+      github.event_name == 'pull_request' && github.event.label.name == 'ready-for-agent'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+      && (github.event.sender.type == 'User'
+        || github.event.sender.login == format('{0}[bot]', vars.REVIEWER_APP_SLUG))
+    uses: ./.github/workflows/address-review.yml
+    with:
+      pull_request: ${{ github.event.pull_request.number }}
+      labeller: ${{ github.event.sender.login }}
     secrets:
       IMPLEMENTER_APP_ID: ${{ secrets.IMPLEMENTER_APP_ID }}
       IMPLEMENTER_APP_KEY: ${{ secrets.IMPLEMENTER_APP_KEY }}
