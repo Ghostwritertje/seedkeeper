@@ -197,7 +197,7 @@ jobs:
       # command line so they also bind the action's own git scripts. Pushes go to the agent branch only, and the
       # pull request tools take the agent branch, so they reach only this issue's pull request. The step's own
       # timeout, under the job's, fails the job, so a timeout reaches the blocked job.
-      - uses: anthropics/claude-code-action@v1
+      - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         timeout-minutes: 55
         env:
           CLAUDE_BRANCH: ${{ needs.pick-up.outputs.branch }}

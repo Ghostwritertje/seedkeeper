@@ -212,7 +212,7 @@ jobs:
       # because the action counts every bot-authored pull request as untrusted and would deny ./mvnw; forks never get
       # here, and pull-request-pick-up.sh skips every other bot's pull request. The step's own timeout, under the
       # job's, fails the job, so a timeout reaches the blocked job.
-      - uses: anthropics/claude-code-action@v1
+      - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         timeout-minutes: 55
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

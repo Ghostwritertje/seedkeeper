@@ -144,7 +144,7 @@ jobs:
       # also bind the action's own git scripts. allowed_bots lets the implementer App's pushes start a review.
       # The step's own timeout, under the job's, fails the job, so a timeout is reported as a failure, while a
       # review cancelled by a new push stays cancelled.
-      - uses: anthropics/claude-code-action@v1
+      - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         timeout-minutes: 18
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
