@@ -2,6 +2,7 @@ package io.github.ghostwritertje.seedkeeper.decide;
 
 /** Why a group got its verdict, in the order of precedence of spec §3.5: the first that holds wins. */
 public enum Reason {
+    UNREGISTERED("unregistered", "Unregistered", Verdict.REMOVE),
     UNMANAGED("unmanaged", "Unmanaged", Verdict.LEFT_ALONE),
     MISSING_DATA("missing-data", "Missing data", Verdict.LEFT_ALONE),
     LOCAL_ERROR("local-error", "Local error", Verdict.LEFT_ALONE),
