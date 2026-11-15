@@ -157,40 +157,40 @@ class GroupsTest {
                 .contentType(containsString("text/html"))
                 .body("html.head.title", is("Groups · seedkeeper"))
                 .body("html.body.main.table.thead.tr.th", contains("Name", "Tracker", "Seed time / minimum",
-                        "Status", "Library links", "Verdict", "Reason", "Forecast"))
+                        "Status", "Library links", "Verdict", "Reason", "Secondary reasons", "Forecast"))
                 .body("html.body.main.table.tbody.tr.size()", is(9))
                 .body(cells(0), contains(
                         "Linked.Show", "tracker-a", "40d / 30d",
-                        "Seeding", "1 of 2 files", "Keep", "Library link (1 of 2 files)", ""))
+                        "Seeding", "1 of 2 files", "Keep", "Library link (1 of 2 files)", "", ""))
                 .body(cells(1), contains(
                         is("Fresh.Movie"), is("tracker-b"),
-                        is("2d 12h / 14d"), is("Seeding"), is("0 of 1 files"), is("Keep"), is("Minimum not reached"),
+                        is("2d 12h / 14d"), is("Seeding"), is("0 of 1 files"), is("Keep"), is("Minimum not reached"), is(""),
                         minuteIn(before, Duration.ofDays(11).plusHours(12))))
                 .body(cells(2), contains(
                         "Old.Movie", "tracker-b", "14d / 14d",
-                        "Stopped", "0 of 1 files", "Remove", "All met", ""))
+                        "Stopped", "0 of 1 files", "Remove", "All met", "", ""))
                 .body(cells(3), contains(
                         "Unknown.Tracker", "unmanaged", "400d",
-                        "Seeding", "0 of 1 files", "Left alone", "Unmanaged", ""))
+                        "Seeding", "0 of 1 files", "Left alone", "Unmanaged", "", ""))
                 .body(cells(4), contains(
                         "Downloading", "tracker-a", "0m / 30d",
-                        "Downloading", "0 of 1 files", "Keep", "Not finished", ""))
+                        "Downloading", "0 of 1 files", "Keep", "Not finished", "Minimum not reached", ""))
                 .body(cells(5), contains(
                         "ubuntu.iso", "public", "1d / 1d",
-                        "Seeding", "0 of 1 files", "Remove", "All met", ""))
+                        "Seeding", "0 of 1 files", "Remove", "All met", "", ""))
                 // The cross-seed group: one row per member, the group's cells span both.
                 .body(cells(6), contains(
                         is("Cross.Seed"), is("tracker-a"),
-                        is("20d / 30d"), is("Seeding"), is("0 of 1 files"), is("Keep"), is("Minimum not reached"),
+                        is("20d / 30d"), is("Seeding"), is("0 of 1 files"), is("Keep"), is("Minimum not reached"), is(""),
                         minuteIn(before, Duration.ofDays(10))))
                 .body("html.body.main.table.tbody.tr[6].td.collect { it.@rowspan.toString() }",
-                        contains("1", "1", "1", "1", "2", "2", "2", "2"))
+                        contains("1", "1", "1", "1", "2", "2", "2", "2", "2"))
                 .body(cells(7), contains(
                         "Cross.Seed.Elsewhere", "tracker-b",
                         "13d / 14d", "Stopped"))
                 .body(cells(8), contains(
                         "Paused.Movie", "tracker-a", "29d / 30d",
-                        "Stopped", "0 of 1 files", "Keep", "Minimum not reached", "clock stopped (paused)"));
+                        "Stopped", "0 of 1 files", "Keep", "Minimum not reached", "", "clock stopped (paused)"));
     }
 
     @Test

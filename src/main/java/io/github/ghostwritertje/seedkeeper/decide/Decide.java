@@ -8,6 +8,7 @@ import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot.WantedFile;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -17,11 +18,14 @@ import java.util.Set;
  * The rules (spec §3.5): a pure function from a snapshot to a verdict per group. Two calls on the same snapshot with
  * the same now give the same verdicts.
  *
- * <p>So far the rules are: unmanaged, not finished, library link, minimum not reached, all met. Each holds for the
- * group when it holds for any member, so a group is removed only when every member has met its own tracker's
- * minimum.
+ * <p>The rules are those of {@link Reason}, in its order; unregistered and keep override don't exist yet. Each holds
+ * for the group when it holds for any member, so a group is removed only when every member has met its own tracker's
+ * minimum. The first that holds decides the verdict, the others that hold are its secondary reasons.
  */
 public final class Decide {
+
+    /** Transmission's error number for a local error, such as files it can't read or write. */
+    private static final int LOCAL_ERROR = 3;
 
     private Decide() {
     }
@@ -45,22 +49,46 @@ public final class Decide {
                 .toList();
         int libraryLinks = (int) files.stream().filter(snapshot::hasLibraryLink).count();
 
-        Reason reason;
+        // An unfinished member is never missing data: its files may not exist yet.
+        int missingFiles = (int) group.stream()
+                .filter(member -> member.torrent().finished())
+                .flatMap(member -> member.wantedFiles().stream())
+                .filter(file -> file.id().isEmpty())
+                .count();
+
+        // Every reason that holds, in the order of precedence. Tracker errors (1 and 2) and paused are not inputs.
+        Set<Reason> holding = EnumSet.noneOf(Reason.class);
         if (members.stream().anyMatch(member -> member.tracker().isEmpty())) {
-            reason = Reason.UNMANAGED;
-        } else if (group.stream().anyMatch(member -> !member.torrent().finished())) {
-            reason = Reason.NOT_FINISHED;
-        } else if (libraryLinks > 0) {
-            reason = Reason.LIBRARY_LINK;
-        } else if (members.stream().anyMatch(member -> !member.remaining().isZero())) {
-            reason = Reason.MINIMUM_NOT_REACHED;
-        } else {
-            reason = Reason.ALL_MET;
+            holding.add(Reason.UNMANAGED);
         }
+        if (missingFiles > 0) {
+            holding.add(Reason.MISSING_DATA);
+        }
+        if (group.stream().anyMatch(member -> member.torrent().error() == LOCAL_ERROR)) {
+            holding.add(Reason.LOCAL_ERROR);
+        }
+        if (group.stream().anyMatch(member -> verifying(member.torrent()))) {
+            holding.add(Reason.VERIFYING);
+        }
+        if (group.stream().anyMatch(member -> !member.torrent().finished())) {
+            holding.add(Reason.NOT_FINISHED);
+        }
+        if (libraryLinks > 0) {
+            holding.add(Reason.LIBRARY_LINK);
+        }
+        if (members.stream().anyMatch(member -> !member.remaining().isZero())) {
+            holding.add(Reason.MINIMUM_NOT_REACHED);
+        }
+        Reason reason = holding.stream().findFirst().orElse(Reason.ALL_MET);
         Optional<Forecast> forecast = reason == Reason.MINIMUM_NOT_REACHED
                 ? Optional.of(forecast(members, now))
                 : Optional.empty();
-        return new GroupVerdict(members, reason.verdict(), reason, libraryLinks, files.size(), forecast);
+        return new GroupVerdict(members, reason.verdict(), reason, libraryLinks, files.size(), forecast,
+                holding.stream().skip(1).toList(), missingFiles);
+    }
+
+    private static boolean verifying(Torrent torrent) {
+        return torrent.status() == Torrent.Status.CHECK_WAIT || torrent.status() == Torrent.Status.CHECKING;
     }
 
     private static Member member(Torrent torrent, TrackerRules trackers) {

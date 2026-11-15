@@ -1,8 +1,11 @@
 package io.github.ghostwritertje.seedkeeper.groups;
 
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
+import io.github.ghostwritertje.seedkeeper.decide.Reason;
 import io.github.ghostwritertje.seedkeeper.decide.Tracker;
+import io.github.ghostwritertje.seedkeeper.groups.GroupsFilter.UnknownFilter;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsService.GroupsUnavailable;
+import jakarta.ws.rs.QueryParam;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.ws.rs.GET;
@@ -21,13 +24,15 @@ public class GroupsApi {
     /**
      * @param verdict      {@code remove}, {@code left-alone} or {@code keep}
      * @param reason       the kebab-case code of the reason that decided the verdict
+     * @param secondaryReasons the codes of every other reason that holds too, in the order of precedence
      * @param libraryLinks how many wanted files of the members have a library link
+     * @param missingFiles how many wanted files of finished members are not on disk
      * @param files        how many wanted files the members have
      * @param forecast     null unless the reason is {@code minimum-not-reached}
      */
     @RegisterForReflection
-    public record Group(String verdict, String reason, int libraryLinks, int files, Forecast forecast,
-            List<Member> members) {
+    public record Group(String verdict, String reason, List<String> secondaryReasons, int libraryLinks,
+            int missingFiles, int files, Forecast forecast, List<Member> members) {
     }
 
     /**
@@ -48,7 +53,7 @@ public class GroupsApi {
             Long minimumSeedTimeSeconds) {
     }
 
-    /** The body of a 503: why there are no verdicts right now. */
+    /** The body of a 503: why there are no verdicts right now. Of a 400: what is wrong with the filter. */
     @RegisterForReflection
     public record Unavailable(String reason) {
     }
@@ -62,9 +67,13 @@ public class GroupsApi {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @RunOnVirtualThread
-    public Response groups() {
+    public Response groups(@QueryParam("verdict") String verdict, @QueryParam("reason") String reason) {
         try {
-            return Response.ok(groups.groups().stream().map(GroupsApi::group).toList()).build();
+            GroupsFilter filter = GroupsFilter.parse(verdict, reason);
+            return Response.ok(groups.groups().stream().filter(filter::matches).map(GroupsApi::group).toList())
+                    .build();
+        } catch (UnknownFilter e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(new Unavailable(e.getMessage())).build();
         } catch (GroupsUnavailable e) {
             return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(new Unavailable(e.getMessage()))
                     .build();
@@ -72,7 +81,9 @@ public class GroupsApi {
     }
 
     private static Group group(GroupVerdict group) {
-        return new Group(group.verdict().code(), group.reason().code(), group.libraryLinks(), group.files(),
+        return new Group(group.verdict().code(), group.reason().code(),
+                group.secondaryReasons().stream().map(Reason::code).toList(), group.libraryLinks(),
+                group.missingFiles(), group.files(),
                 group.forecast().map(GroupsApi::forecast).orElse(null),
                 group.members().stream().map(GroupsApi::member).toList());
     }
