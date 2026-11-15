@@ -16,17 +16,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class RunService {
 
     private final Run run;
+    private final RunMonitor monitor;
     private final AtomicBoolean running = new AtomicBoolean();
     private volatile RunOutcome lastRun;
 
     @Inject
-    RunService(Transmission transmission, SeedkeeperConfig config) {
+    RunService(Transmission transmission, SeedkeeperConfig config, RunMonitor monitor) {
         this(new Run(transmission, TrackerRules.of(config), config.downloadsRoot(), config.libraryRoots(),
-                config.timeZone()));
+                config.timeZone()), monitor);
     }
 
-    RunService(Run run) {
+    RunService(Run run, RunMonitor monitor) {
         this.run = run;
+        this.monitor = monitor;
     }
 
     /**
@@ -39,7 +41,9 @@ public class RunService {
             return Optional.empty();
         }
         try {
+            monitor.started();
             RunOutcome outcome = run.execute();
+            monitor.ended(outcome);
             // What follows a run (spec §5, steps 4 and 5) belongs here, while the lock is still held.
             lastRun = outcome;
             return Optional.of(outcome);

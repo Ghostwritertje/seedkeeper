@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Status;
 import io.github.ghostwritertje.seedkeeper.transmission.StubTransmission;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.ZoneOffset;
@@ -81,6 +82,7 @@ class RunServiceTest {
 
     private RunService service() {
         TrackerRules trackers = new TrackerRules(List.of(), Duration.ofDays(30), Optional.empty());
-        return new RunService(new Run(transmission, trackers, root, List.of(), ZoneOffset.UTC));
+        return new RunService(new Run(transmission, trackers, root, List.of(), ZoneOffset.UTC),
+                new RunMonitor(new SimpleMeterRegistry()));
     }
 }
