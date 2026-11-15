@@ -209,8 +209,8 @@ root `/` is never a place seedkeeper deletes in: not as the downloads root, and 
 refuses is counted with the last run. Only the paths of removed torrents are deleted, so data that a removed torrent reached through a symlink and
 that no torrent has as its own path any more stays behind as an [orphan](#get-apiv1orphans).
 
-The System page shows the last run since seedkeeper started: after a restart there is none until the next run.
-Every run is kept in the [run history](#run-history).
+The System page shows the last run. Every run is kept in the [run history](#run-history), so after a restart it
+shows the last run of the history until the next run.
 
 Secrets come from the environment only. seedkeeper doesn't start when one is missing:
 
@@ -324,7 +324,7 @@ The same data as the System page. Always answers 200, also when Transmission is 
 | `transmission.version` | The version as Transmission reports it; `null` when it didn't say. |
 | `transmission.reason` | Why seedkeeper can't work with this Transmission: it doesn't answer, it rejects the credentials, or it is older than 4.1 (then `reachable` is `true`). `null` when all is well. |
 | `running` | `true` while a [run](#runs-removing-and-deleting) is running. |
-| `lastRun` | The last run that ended since seedkeeper started; `null` when there has been none. |
+| `lastRun` | The last run that ended; after a restart, the last run of the [run history](#run-history) until the next run. `null` when there has been none. For a run of the history, `removalErrors` says how many paths were refused but not which. |
 | `lastRun.started`, `lastRun.ended` | ISO 8601, to the second, with the offset of `seedkeeper.time-zone`. |
 | `lastRun.status` | `succeeded`, or `failed` when the run could make no verdicts and removed nothing (Transmission couldn't be used, a library root or the overrides file couldn't be read, or there was something to remove while the downloads root or a library root couldn't be found), or when it broke off on an unexpected error; then the removals carried out before it are still listed. |
 | `lastRun.error` | The one reason of a failed run; `null` otherwise. |
@@ -599,7 +599,7 @@ API key.
 | Metric | Type | Meaning |
 |---|---|---|
 | `seedkeeper_runs_total{status}` | counter | The [runs](#runs-removing-and-deleting) that ended, by `status`: `succeeded` or `failed`. |
-| `seedkeeper_last_successful_run_timestamp_seconds` | gauge | When the last run that succeeded ended, in seconds since the epoch; `0` until one has since seedkeeper started. Alert on `time() - seedkeeper_last_successful_run_timestamp_seconds` being too large. |
+| `seedkeeper_last_successful_run_timestamp_seconds` | gauge | When the last run that succeeded ended, in seconds since the epoch; read from the [run history](#run-history) at start; `0` when no run has succeeded. Alert on `time() - seedkeeper_last_successful_run_timestamp_seconds` being too large. |
 | `seedkeeper_removed_groups_total` | counter | The removals carried out in full. A removal that failed is not counted. |
 | `seedkeeper_space_freed_bytes_total` | counter | The space freed, in bytes. |
 | `seedkeeper_groups{verdict,reason}` | gauge | How many groups the last run gave each [verdict and reason](#verdicts-and-reasons), by their codes. A group the run removed is counted under `remove`. Every reason is always there, at `0` when no group has it. A failed run has no verdicts and leaves these as they were. |

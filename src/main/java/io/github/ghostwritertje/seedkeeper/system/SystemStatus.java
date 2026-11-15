@@ -7,7 +7,8 @@ import java.util.List;
  * What the System view and {@code GET /api/v1/system} show.
  *
  * @param running true while a run is running
- * @param lastRun the last run that ended since seedkeeper started; null when there has been none
+ * @param lastRun the last run that ended; before the first run since the start, the last one of the run history;
+ *                null when there has been none
  * @param nextRun when the next scheduled run starts: ISO 8601, to the second, with the offset of the configured time
  *                zone; null when there is none
  */

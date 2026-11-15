@@ -11,6 +11,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.runtime.Startup;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -69,6 +70,11 @@ public class RunMonitor {
                     .tag("reason", reason.code())
                     .register(registry);
         }
+    }
+
+    /** Sets the last successful run from the history at start, unless a run since has set a later one. */
+    public void restoreLastSuccessfulRun(Instant ended) {
+        lastSuccessfulRun.accumulateAndGet(ended.getEpochSecond(), Math::max);
     }
 
     /** A run has taken the lock. */

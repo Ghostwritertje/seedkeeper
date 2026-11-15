@@ -240,6 +240,28 @@ public class History {
         }
     }
 
+    /** The run that started last; empty when there is none. */
+    public Optional<RecordedRun> lastRun() {
+        return newest("SELECT started FROM run ORDER BY started DESC, id DESC LIMIT 1")
+                .flatMap(started -> runs(Optional.of(started)).stream().findFirst());
+    }
+
+    /** When the last run that succeeded ended; empty when none has. */
+    public Optional<Instant> lastSuccessfulRunEnded() {
+        return newest("SELECT ended FROM run WHERE status = 'succeeded' ORDER BY ended DESC LIMIT 1");
+    }
+
+    /** The moment of the one row the query gives, as epoch milliseconds; empty when it gives none. */
+    private Optional<Instant> newest(String sql) {
+        try (Connection connection = database.getConnection();
+                Statement select = connection.createStatement();
+                ResultSet rows = select.executeQuery(sql)) {
+            return rows.next() ? Optional.of(Instant.ofEpochMilli(rows.getLong(1))) : Optional.empty();
+        } catch (SQLException e) {
+            throw new HistoryException("The history could not be read", e);
+        }
+    }
+
     /** The removals of the runs that started at or after {@code since} (all when empty), the newest run first. */
     public List<RecordedRemoval> removals(Optional<Instant> since) {
         return runs(since).stream().flatMap(run -> run.removals().stream()).toList();
