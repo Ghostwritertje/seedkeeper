@@ -55,6 +55,8 @@ class DecideTest {
         private Status status = Status.SEEDING;
         private long secondsSeeding = 0;
         private List<FileId> wanted = List.of(DOWNLOAD_ONLY);
+        private int missing = 0;
+        private int error = 0;
 
         Case hash(String hash) {
             this.hash = hash;
@@ -92,6 +94,23 @@ class DecideTest {
             return this;
         }
 
+        /** Adds wanted files that resolve to nothing on disk. */
+        Case missing(int files) {
+            this.missing = files;
+            return this;
+        }
+
+        /** Transmission's error number: 1 tracker warning, 2 tracker error, 3 local error. */
+        Case error(int error) {
+            this.error = error;
+            return this;
+        }
+
+        Case status(Status status) {
+            this.status = status;
+            return this;
+        }
+
         Snapshot snapshot() {
             return DecideTest.snapshot(List.of(this));
         }
@@ -101,7 +120,10 @@ class DecideTest {
             for (int i = 0; i < wanted.size(); i++) {
                 files.add(new WantedFile("file-" + i, Optional.of(wanted.get(i))));
             }
-            Torrent torrent = new Torrent(hash, "Torrent 1", status, percentDone, 0, "", secondsSeeding, isPrivate,
+            for (int i = 0; i < missing; i++) {
+                files.add(new WantedFile("missing-" + i, Optional.empty()));
+            }
+            Torrent torrent = new Torrent(hash, "Torrent 1", status, percentDone, error, "", secondsSeeding, isPrivate,
                     "/downloads", List.of(announce), List.of());
             return new SnapshotTorrent(torrent, files);
         }
@@ -132,6 +154,45 @@ class DecideTest {
                 argumentSet("unmanaged comes before not finished and library link",
                         torrent().announce(UNKNOWN).percentDone(0.5, Status.DOWNLOADING).wanted(IN_LIBRARY),
                         Verdict.LEFT_ALONE, Reason.UNMANAGED, 1, 1),
+                argumentSet("unmanaged comes before missing data",
+                        torrent().announce(UNKNOWN).seeded(400 * DAY).missing(1),
+                        Verdict.LEFT_ALONE, Reason.UNMANAGED, 0, 2),
+                argumentSet("missing data comes before local error",
+                        torrent().seeded(400 * DAY).missing(1).error(3),
+                        Verdict.LEFT_ALONE, Reason.MISSING_DATA, 0, 2),
+                argumentSet("missing data comes before verifying",
+                        torrent().seeded(400 * DAY).missing(1).status(Status.CHECKING),
+                        Verdict.LEFT_ALONE, Reason.MISSING_DATA, 0, 2),
+                argumentSet("local error: left alone",
+                        torrent().seeded(400 * DAY).error(3),
+                        Verdict.LEFT_ALONE, Reason.LOCAL_ERROR, 0, 1),
+                argumentSet("local error comes before verifying",
+                        torrent().seeded(400 * DAY).error(3).status(Status.CHECK_WAIT),
+                        Verdict.LEFT_ALONE, Reason.LOCAL_ERROR, 0, 1),
+                argumentSet("local error comes before not finished and library link",
+                        torrent().percentDone(0.5, Status.STOPPED).error(3).wanted(IN_LIBRARY),
+                        Verdict.LEFT_ALONE, Reason.LOCAL_ERROR, 1, 1),
+                argumentSet("tracker warning (error 1) is not an input",
+                        torrent().seeded(30 * DAY).error(1),
+                        Verdict.REMOVE, Reason.ALL_MET, 0, 1),
+                argumentSet("tracker error (error 2) that is not unregistered is not an input",
+                        torrent().seeded(30 * DAY).error(2),
+                        Verdict.REMOVE, Reason.ALL_MET, 0, 1),
+                argumentSet("verifying, queued to check: keep",
+                        torrent().seeded(400 * DAY).status(Status.CHECK_WAIT),
+                        Verdict.KEEP, Reason.VERIFYING, 0, 1),
+                argumentSet("verifying, checking: keep",
+                        torrent().seeded(400 * DAY).status(Status.CHECKING),
+                        Verdict.KEEP, Reason.VERIFYING, 0, 1),
+                argumentSet("verifying comes before not finished",
+                        torrent().percentDone(0.5, Status.CHECKING),
+                        Verdict.KEEP, Reason.VERIFYING, 0, 1),
+                argumentSet("verifying comes before library link and minimum not reached",
+                        torrent().seeded(0).status(Status.CHECKING).wanted(IN_LIBRARY),
+                        Verdict.KEEP, Reason.VERIFYING, 1, 1),
+                argumentSet("queued to seed is not verifying",
+                        torrent().seeded(30 * DAY).status(Status.SEED_WAIT),
+                        Verdict.REMOVE, Reason.ALL_MET, 0, 1),
                 argumentSet("not finished: keep",
                         torrent().percentDone(0.999, Status.DOWNLOADING),
                         Verdict.KEEP, Reason.NOT_FINISHED, 0, 1),
@@ -216,6 +277,21 @@ class DecideTest {
                 argumentSet("unmanaged comes before another member's library link",
                         List.of(a().wanted(SHARED, IN_LIBRARY), b().announce(UNKNOWN)),
                         Verdict.LEFT_ALONE, Reason.UNMANAGED, 1, 2),
+                argumentSet("one member with a local error: the group is left alone",
+                        List.of(a().seeded(400 * DAY), b().seeded(400 * DAY).error(3)),
+                        Verdict.LEFT_ALONE, Reason.LOCAL_ERROR, 0, 1),
+                argumentSet("one member's local error comes before another member's library link",
+                        List.of(a().seeded(400 * DAY).wanted(SHARED, IN_LIBRARY), b().seeded(400 * DAY).error(3)),
+                        Verdict.LEFT_ALONE, Reason.LOCAL_ERROR, 1, 2),
+                argumentSet("one member verifying: keep",
+                        List.of(a().seeded(400 * DAY).status(Status.CHECKING), b().seeded(400 * DAY)),
+                        Verdict.KEEP, Reason.VERIFYING, 0, 1),
+                argumentSet("one member unmanaged comes before another member verifying",
+                        List.of(a().status(Status.CHECK_WAIT), b().announce(UNKNOWN)),
+                        Verdict.LEFT_ALONE, Reason.UNMANAGED, 0, 1),
+                argumentSet("one member verifying comes before another member not finished",
+                        List.of(a().percentDone(0.5, Status.DOWNLOADING), b().status(Status.CHECK_WAIT)),
+                        Verdict.KEEP, Reason.VERIFYING, 0, 1),
                 argumentSet("one member not finished: keep",
                         List.of(a().seeded(400 * DAY), b().percentDone(0.5, Status.DOWNLOADING)),
                         Verdict.KEEP, Reason.NOT_FINISHED, 0, 1),
@@ -236,6 +312,108 @@ class DecideTest {
         assertEquals(reason, group.reason());
         assertEquals(libraryLinks, group.libraryLinks());
         assertEquals(files, group.files());
+    }
+
+    static Stream<Arguments> missingData() {
+        return Stream.of(
+                argumentSet("a finished torrent with one of two files gone: left alone",
+                        List.of(torrent().seeded(400 * DAY).missing(1)), Reason.MISSING_DATA, 1, 2),
+                argumentSet("a finished torrent with every file gone: left alone",
+                        List.of(torrent().seeded(400 * DAY).wanted().missing(3)), Reason.MISSING_DATA, 3, 3),
+                argumentSet("a paused finished torrent with a file gone: left alone",
+                        List.of(torrent().seeded(400 * DAY).paused().missing(1)), Reason.MISSING_DATA, 1, 2),
+                argumentSet("an unfinished torrent is never missing data: its files may not exist yet",
+                        List.of(torrent().percentDone(0.5, Status.DOWNLOADING).wanted().missing(2)),
+                        Reason.NOT_FINISHED, 0, 2),
+                argumentSet("stopped before finishing with no file on disk: not missing data",
+                        List.of(torrent().percentDone(0.0, Status.STOPPED).wanted().missing(1)),
+                        Reason.NOT_FINISHED, 0, 1),
+                argumentSet("every file on disk: not missing data",
+                        List.of(torrent().seeded(400 * DAY)), Reason.ALL_MET, 0, 1),
+                argumentSet("one finished member of a group has a file gone: the group is left alone",
+                        List.of(a().seeded(400 * DAY), b().seeded(400 * DAY).missing(1)), Reason.MISSING_DATA, 1, 2),
+                argumentSet("only the files of finished members count as missing",
+                        List.of(a().seeded(400 * DAY).missing(1), b().percentDone(0.5, Status.DOWNLOADING).missing(2)),
+                        Reason.MISSING_DATA, 1, 4));
+    }
+
+    @ParameterizedTest
+    @MethodSource("missingData")
+    void aFinishedMemberWithAFileGoneIsMissingData(List<Case> members, Reason reason, int missingFiles, int files) {
+        GroupVerdict group = Decide.decide(snapshot(members), RULES, NOW).get(0);
+
+        assertEquals(reason, group.reason());
+        assertEquals(reason.verdict(), group.verdict());
+        assertEquals(missingFiles, group.missingFiles());
+        assertEquals(files, group.files());
+    }
+
+    static Stream<Arguments> secondaryReasons() {
+        return Stream.of(
+                argumentSet("all met: nothing else holds",
+                        List.of(torrent().seeded(30 * DAY)), Reason.ALL_MET, List.of()),
+                argumentSet("only the minimum is not reached: no secondary reason",
+                        List.of(torrent().seeded(0)), Reason.MINIMUM_NOT_REACHED, List.of()),
+                argumentSet("library link, and the minimum is not reached either",
+                        List.of(torrent().seeded(0).wanted(IN_LIBRARY)),
+                        Reason.LIBRARY_LINK, List.of(Reason.MINIMUM_NOT_REACHED)),
+                argumentSet("library link, and the minimum is reached",
+                        List.of(torrent().seeded(30 * DAY).wanted(IN_LIBRARY)), Reason.LIBRARY_LINK, List.of()),
+                argumentSet("not finished, with a library link and no seed time",
+                        List.of(torrent().percentDone(0.5, Status.DOWNLOADING).wanted(IN_LIBRARY)),
+                        Reason.NOT_FINISHED, List.of(Reason.LIBRARY_LINK, Reason.MINIMUM_NOT_REACHED)),
+                argumentSet("verifying while not finished",
+                        List.of(torrent().seeded(30 * DAY).percentDone(0.5, Status.CHECKING)),
+                        Reason.VERIFYING, List.of(Reason.NOT_FINISHED)),
+                argumentSet("local error while verifying, with a library link",
+                        List.of(torrent().seeded(30 * DAY).error(3).status(Status.CHECK_WAIT).wanted(IN_LIBRARY)),
+                        Reason.LOCAL_ERROR, List.of(Reason.VERIFYING, Reason.LIBRARY_LINK)),
+                argumentSet("missing data with a local error",
+                        List.of(torrent().seeded(30 * DAY).missing(1).error(3)),
+                        Reason.MISSING_DATA, List.of(Reason.LOCAL_ERROR)),
+                argumentSet("unmanaged, and its seed time plays no part",
+                        List.of(torrent().announce(UNKNOWN).seeded(0)), Reason.UNMANAGED, List.of()),
+                argumentSet("everything at once, in the order of precedence",
+                        List.of(a().announce(UNKNOWN).wanted(SHARED, IN_LIBRARY),
+                                b().seeded(0).missing(1).error(3),
+                                torrent().hash("c").wanted(SHARED).status(Status.CHECKING),
+                                torrent().hash("d").wanted(SHARED).percentDone(0.5, Status.DOWNLOADING)),
+                        Reason.UNMANAGED, List.of(Reason.MISSING_DATA, Reason.LOCAL_ERROR, Reason.VERIFYING,
+                                Reason.NOT_FINISHED, Reason.LIBRARY_LINK, Reason.MINIMUM_NOT_REACHED)),
+                argumentSet("reasons of different members add up",
+                        List.of(a().seeded(400 * DAY).status(Status.CHECKING), b().seeded(0)),
+                        Reason.VERIFYING, List.of(Reason.MINIMUM_NOT_REACHED)),
+                argumentSet("paused and a tracker error are no reasons",
+                        List.of(a().seeded(0).paused().error(2), b().seeded(400 * DAY).error(1)),
+                        Reason.MINIMUM_NOT_REACHED, List.of()));
+    }
+
+    @ParameterizedTest
+    @MethodSource("secondaryReasons")
+    void everyOtherReasonThatHoldsIsASecondaryReason(List<Case> members, Reason reason, List<Reason> secondary) {
+        List<GroupVerdict> verdicts = Decide.decide(snapshot(members), RULES, NOW);
+
+        assertEquals(1, verdicts.size());
+        assertEquals(reason, verdicts.get(0).reason());
+        assertEquals(secondary, verdicts.get(0).secondaryReasons());
+    }
+
+    @Test
+    void twoRunsOnTheSameSnapshotGiveTheSameVerdicts() {
+        Snapshot snapshot = snapshot(List.of(
+                a().seeded(20 * DAY), b().seeded(13 * DAY).paused(),
+                torrent().hash("c").announce(UNKNOWN).wanted(IN_LIBRARY),
+                torrent().hash("d").seeded(400 * DAY).wanted().missing(2).error(3),
+                torrent().hash("e").wanted(new FileId(1, 201)).status(Status.CHECKING),
+                torrent().hash("f").wanted(new FileId(1, 202)).percentDone(0.5, Status.DOWNLOADING),
+                torrent().hash("g").wanted(new FileId(1, 203)).seeded(30 * DAY)));
+
+        List<GroupVerdict> first = Decide.decide(snapshot, RULES, NOW);
+        List<GroupVerdict> second = Decide.decide(snapshot, RULES, NOW);
+
+        assertEquals(List.of(Reason.MINIMUM_NOT_REACHED, Reason.UNMANAGED, Reason.MISSING_DATA, Reason.VERIFYING,
+                Reason.NOT_FINISHED, Reason.ALL_MET), first.stream().map(GroupVerdict::reason).toList());
+        assertEquals(first, second);
     }
 
     private static final Optional<Forecast> CLOCK_STOPPED = Optional.of(new Forecast(Optional.empty()));
@@ -332,7 +510,8 @@ class DecideTest {
     @Test
     void verdictsAndReasonsHaveKebabCaseCodes() {
         assertEquals(List.of("remove", "left-alone", "keep"), Stream.of(Verdict.values()).map(Verdict::code).toList());
-        assertEquals(List.of("unmanaged", "not-finished", "library-link", "minimum-not-reached", "all-met"),
+        assertEquals(List.of("unmanaged", "missing-data", "local-error", "verifying", "not-finished", "library-link",
+                "minimum-not-reached", "all-met"),
                 Stream.of(Reason.values()).map(Reason::code).toList());
     }
 }

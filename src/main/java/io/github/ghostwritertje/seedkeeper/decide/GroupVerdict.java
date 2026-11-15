@@ -11,12 +11,21 @@ import java.util.Optional;
  * @param libraryLinks how many wanted files of the group have a library link
  * @param files        how many wanted files the group has; a file that several members share counts once
  * @param forecast     present only when the reason is <em>minimum not reached</em>
+ * @param secondaryReasons every other reason that holds too, in the order of precedence
+ * @param missingFiles how many wanted files of finished members resolve to nothing on disk
  */
 public record GroupVerdict(List<Member> members, Verdict verdict, Reason reason, int libraryLinks, int files,
-        Optional<Forecast> forecast) {
+        Optional<Forecast> forecast, List<Reason> secondaryReasons, int missingFiles) {
 
     public GroupVerdict {
         members = List.copyOf(members);
+        secondaryReasons = List.copyOf(secondaryReasons);
+    }
+
+    /** A verdict with no secondary reason and no file missing. */
+    public GroupVerdict(List<Member> members, Verdict verdict, Reason reason, int libraryLinks, int files,
+            Optional<Forecast> forecast) {
+        this(members, verdict, reason, libraryLinks, files, forecast, List.of(), 0);
     }
 
     /**
