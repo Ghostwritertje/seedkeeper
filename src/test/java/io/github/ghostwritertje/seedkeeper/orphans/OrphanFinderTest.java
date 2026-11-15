@@ -67,7 +67,7 @@ class OrphanFinderTest {
         Instant modified = Instant.parse("2026-03-01T10:00:00Z");
         Files.setLastModifiedTime(leftover, FileTime.from(modified));
 
-        assertEquals(List.of(new Orphan(leftover, 7, modified)), find().files());
+        assertEquals(List.of(new Orphan(leftover, 7, modified, false)), find().files());
     }
 
     @Test
@@ -187,6 +187,31 @@ class OrphanFinderTest {
         assertEquals(List.of(leftover), paths(orphans.files()));
         assertEquals(List.of(), orphans.danglingSymlinks());
         assertEquals(4, orphans.totalSize());
+    }
+
+    @Test
+    void anOrphanFileWithALibraryLinkIsListedAsLibraryLinkedAndLeftOutOfTheTotal() throws IOException {
+        Path library = Files.createDirectory(root.resolve("library"));
+        Path linked = file(downloads.resolve("Show.S01E01.mkv"));
+        Files.createDirectories(library.resolve("tv"));
+        Files.createLink(library.resolve("tv/Show.S01E01.mkv"), linked);
+        Path leftover = Files.writeString(downloads.resolve("leftover.mkv"), "seven b");
+
+        Orphans orphans = OrphanFinder.find(downloads, List.of(library), List.of(), Optional.empty());
+
+        assertEquals(List.of(linked, leftover), paths(orphans.files()));
+        assertEquals(List.of(true, false), orphans.files().stream().map(Orphan::libraryLink).toList());
+        assertEquals(7, orphans.totalSize());
+    }
+
+    @Test
+    void aLibraryRootThatIsMissingGivesTheReason() {
+        Path missing = root.resolve("library-not-mounted");
+
+        OrphansException failure = org.junit.jupiter.api.Assertions.assertThrows(OrphansException.class,
+                () -> OrphanFinder.find(downloads, List.of(missing), List.of(), Optional.empty()));
+
+        assertEquals("Library root " + missing + " can't be read (NoSuchFileException)", failure.getMessage());
     }
 
     @Test
