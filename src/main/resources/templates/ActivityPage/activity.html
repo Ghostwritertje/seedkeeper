@@ -1,0 +1,49 @@
+{#include layout.html}
+{#title}Activity{/title}
+<h1>Activity</h1>
+{#if unavailable}
+<p role="alert">{unavailable}</p>
+{#else if runs.isEmpty}
+<p>No run has ended yet.</p>
+{#else}
+<p>The runs of the last year, the newest first, and what each removed.</p>
+{#for run in runs}
+<article>
+<h2>{run.started}</h2>
+<dl>
+<dt>Status</dt>
+<dd>{run.status}</dd>
+<dt>Ended</dt>
+<dd>{run.ended}</dd>
+<dt>Removed</dt>
+<dd>{run.removed}</dd>
+<dt>Files deleted</dt>
+<dd>{run.filesDeleted}</dd>
+<dt>Space freed</dt>
+<dd>{run.spaceFreed}</dd>
+</dl>
+{#if run.error}
+<p role="alert">{run.error}</p>
+{/if}
+{#if !run.removals.isEmpty}
+<table>
+<thead>
+<tr><th>Removed</th><th>Reason</th><th>Files deleted</th><th>Space freed</th><th>Error</th></tr>
+</thead>
+<tbody>
+{#for removal in run.removals}
+<tr>
+<td><ul>{#for member in removal.members}<li>{member}</li>{/for}</ul></td>
+<td>{removal.reason}</td>
+<td>{removal.filesDeleted}</td>
+<td>{removal.spaceFreed}</td>
+<td>{removal.error}</td>
+</tr>
+{/for}
+</tbody>
+</table>
+{/if}
+</article>
+{/for}
+{/if}
+{/include}
