@@ -69,22 +69,18 @@ jobs:
           CLOSER: ${{ github.event.sender.login }}
         run: |
           dependents='[]'
-          permission="$(gh api "repos/$GH_REPO/collaborators/$CLOSER/permission" --jq .permission)"
-          case "$permission" in
-            admin|write)
-              unblocked="$(gh api --paginate "repos/$GH_REPO/issues/$ISSUE/dependencies/blocking" \
-                | .github/scripts/unblocked-dependents.sh)"
-              for dependent in $unblocked; do
-                labeller="$(gh api --paginate "repos/$GH_REPO/issues/$dependent/events" \
-                  | .github/scripts/ready-for-agent-labeller.sh)"
-                dependents="$(jq -c --argjson issue "$dependent" --arg labeller "$labeller" \
-                  '. + [{issue: $issue, labeller: $labeller}]' <<<"$dependents")"
-              done
-              ;;
-            *)
-              echo "::notice::$CLOSER has $permission access, not write: starting no dependents."
-              ;;
-          esac
+          if [ "$(gh api "repos/$GH_REPO/collaborators/$CLOSER/permission" | .github/scripts/write-access.sh)" = true ]; then
+            unblocked="$(gh api --paginate "repos/$GH_REPO/issues/$ISSUE/dependencies/blocking" \
+              | .github/scripts/unblocked-dependents.sh)"
+            for dependent in $unblocked; do
+              labeller="$(gh api --paginate "repos/$GH_REPO/issues/$dependent/events" \
+                | .github/scripts/ready-for-agent-labeller.sh)"
+              dependents="$(jq -c --argjson issue "$dependent" --arg labeller "$labeller" \
+                '. + [{issue: $issue, labeller: $labeller}]' <<<"$dependents")"
+            done
+          else
+            echo "::notice::$CLOSER doesn't have write access: starting no dependents."
+          fi
           echo "Unblocked dependents of #$ISSUE: $dependents"
           echo "dependents=$dependents" >> "$GITHUB_OUTPUT"
 
