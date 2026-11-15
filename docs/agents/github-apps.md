@@ -40,11 +40,37 @@ Both agents use this secret.
 To check the setup, open a pull request that isn't a draft, or mark one ready for review: the `Reviewer` workflow
 runs, and its review and comments come from `<name>[bot]`.
 
+## The implementer App
+
+Create it as for the reviewer App, steps 1 to 10, with these differences:
+
+- **GitHub App name:** for example `seedkeeper-implementer`. Its bot, `<name>[bot]`, is who pushes the agent
+  branches, opens the pull requests and comments on the issues.
+- **Repository permissions**, exactly these, every other permission at **No access**:
+  - **Contents:** Read and write
+  - **Issues:** Read and write
+  - **Metadata:** Read-only (GitHub sets this)
+  - **Pull requests:** Read and write
+
+  Leave **Workflows** at **No access**: GitHub then rejects any push from the App that changes
+  `.github/workflows/`.
+- **Install** it on `seedkeeper` only, through **Only select repositories**.
+- **Secrets:**
+  - `IMPLEMENTER_APP_ID`: the App ID.
+  - `IMPLEMENTER_APP_KEY`: the whole contents of the `.pem` file, including the `BEGIN` and `END` lines.
+
+To check the setup, add `ready-for-agent` to a small issue that has no sub-issues and no open blockers: the
+`Implementer` workflow runs, `<name>[bot]` swaps the label for `agent:in-progress`, and the pull request it opens
+comes from `<name>[bot]` and starts the `CI` workflow. A pull request opened with the default workflow token
+wouldn't start it.
+
 ## Labels
 
-The reviewer uses these labels. Create any that are missing:
+The agents use these labels; `docs/agents/issue-tracker.md` describes their lifecycle. Create any that are
+missing:
 
 ```sh
 gh label create needs-decision --color d93f0b --description "Needs a decision from the maintainer"
+gh label create agent:in-progress --color fbca04 --description "An agent is working on this issue"
 gh label create agent:blocked --color b60205 --description "An agent job failed; see the linked run"
 ```

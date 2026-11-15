@@ -18,6 +18,36 @@ Infer the repo from `git remote -v`; `gh` does this automatically when run insid
 
 File issues only into the user's own repo. Never file into `mattpocock/skills` (the repo these skills come from) unless the user owns it. In a fork, `gh` can default to the upstream parent, so before the first `gh issue create` of a session, check the target with `gh repo view --json nameWithOwner` and confirm it with the user if it is not their repo.
 
+## Agent labels
+
+The implementer and reviewer agents run in GitHub Actions (`.github/workflows/implementer.yml`,
+`.github/workflows/reviewer.yml`) and drive their work with these labels. Interactive sessions use them the same way.
+
+| Label               | Who adds it                                                         | What it means                                                                                                       |
+|---------------------|---------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------|
+| `ready-for-agent`   | the maintainer, `to-spec`, `to-tickets`; the reviewer on a pull request | The implementer may take it. On an issue, adding it starts the implementer.                                       |
+| `agent:in-progress` | the implementer, when it starts                                     | An implementer run is working on the issue. It goes when the run ends.                                              |
+| `agent:blocked`     | the implementer, or a failed agent job                              | The run couldn't finish: `./mvnw verify` stayed red (a draft pull request says where it got stuck), or the job crashed, timed out or ran out of quota (a comment links the run). |
+| `needs-decision`    | either agent                                                        | A choice that is the maintainer's to make. The comment or review gives the question, the options and a recommendation. |
+| `auto-merge`        | the reviewer, on an agent pull request it approves                  | The pull request is a two-way door with a small blast radius, and may merge without the maintainer.                 |
+
+The life of an issue:
+
+1. **Labelled.** A user with write access adds `ready-for-agent`. Any other label, or a labeller without write
+   access, starts nothing.
+2. **Picked up.** An issue with sub-issues is a spec: the implementer comments, removes `ready-for-agent`, and
+   doesn't start; label its sub-issues instead. An issue with open blockers (see **Count open blockers**) gets a
+   comment and keeps `ready-for-agent`. Otherwise the implementer swaps `ready-for-agent` for `agent:in-progress`.
+3. **Worked on.** On the branch `agent/issue-<n>-<slug>`, test-first, until `./mvnw verify` is green.
+4. **Ends** in one of these, and `agent:in-progress` goes:
+   - a ready pull request that says `Closes #<n>` and lists "Decisions I made";
+   - `needs-decision` on the issue, with a comment, and no pull request;
+   - a draft pull request and `agent:blocked`.
+
+**Retry.** Nothing retries on its own. Re-adding `ready-for-agent` is the only retry: remove `agent:blocked` or
+`needs-decision` first, and after a decision, answer it in a comment. A retry continues on the agent branch an
+earlier run pushed.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_
