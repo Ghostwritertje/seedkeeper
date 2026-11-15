@@ -92,14 +92,20 @@ jobs:
           persist-credentials: false
 
       # The prompt comes from the base branch, like the CLAUDE.md and .claude/ the action restores, so a pull
-      # request can't rewrite its own reviewer's instructions. Only the pull request that adds it reads its own.
+      # request can't rewrite its own reviewer's instructions. Only a pull request whose base has no prompt at all,
+      # the one that adds it, reads its own; any other failure to read the base's copy fails the step.
       - name: Read the reviewer prompt
         id: prompt
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           file=.github/prompts/reviewer.md
-          git show "origin/$BASE_REF:$file" > "$RUNNER_TEMP/reviewer.md" 2>/dev/null || cp "$file" "$RUNNER_TEMP/reviewer.md"
+          if git cat-file -e "origin/$BASE_REF:$file" 2>/dev/null; then
+            git show "origin/$BASE_REF:$file" > "$RUNNER_TEMP/reviewer.md"
+          else
+            echo "::notice::The base branch has no reviewer prompt: reading this pull request's own."
+            cp "$file" "$RUNNER_TEMP/reviewer.md"
+          fi
           {
             echo 'text<<REVIEWER_PROMPT_EOF'
             cat "$RUNNER_TEMP/reviewer.md"
@@ -109,7 +115,7 @@ jobs:
       # The round of this review: the reviewer's earlier summary reviews with a round marker, plus one. And how it
       # may hand a clear fix back: ready-for-agent on an implementer pull request for three rounds, then
       # needs-decision; on anybody else's pull request not at all. The script comes from the base branch, like the
-      # prompt, so a pull request can't lift its own cap.
+      # prompt, so a pull request can't lift its own cap; a base without it allows no handback at all.
       - name: Count the review rounds
         id: round
         env:
@@ -122,7 +128,12 @@ jobs:
           IMPLEMENTER: ${{ vars.IMPLEMENTER_APP_SLUG }}[bot]
         run: |
           file=.github/scripts/review-round.sh
-          git show "origin/$BASE_REF:$file" > "$RUNNER_TEMP/review-round.sh" 2>/dev/null || cp "$file" "$RUNNER_TEMP/review-round.sh"
+          if ! git cat-file -e "origin/$BASE_REF:$file" 2>/dev/null; then
+            echo "::notice::The base branch has no round counter: no handback."
+            printf 'round=1\nhandback=none\n' | tee -a "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git show "origin/$BASE_REF:$file" > "$RUNNER_TEMP/review-round.sh"
           gh api --paginate "repos/$GH_REPO/pulls/$PR/reviews" \
             | bash "$RUNNER_TEMP/review-round.sh" "$REVIEWER" "$AUTHOR" "$IMPLEMENTER" | tee -a "$GITHUB_OUTPUT"
 
@@ -131,7 +142,10 @@ jobs:
       # auto-merge only on an implementer pull request.
       # --permission-mode default denies whatever it doesn't list, and the denies are on the command line so they
       # also bind the action's own git scripts. allowed_bots lets the implementer App's pushes start a review.
+      # The step's own timeout, under the job's, fails the job, so a timeout is reported as a failure, while a
+      # review cancelled by a new push stays cancelled.
       - uses: anthropics/claude-code-action@v1
+        timeout-minutes: 18
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.app-token.outputs.token }}
@@ -218,11 +232,12 @@ jobs:
             echo "::notice::Not merging: $reason."
           fi
 
-  # A crash, a timeout or an exhausted quota fails the review; a review cancelled by a new push doesn't.
+  # A crash, a timeout or an exhausted quota fails the review; a review cancelled by a new push doesn't. A failed
+  # withdraw skips the review, since an auto-merge may still be on, and is reported here too.
   blocked:
     name: Report a failed review
-    needs: review
-    if: failure() && needs.review.result == 'failure'
+    needs: [withdraw, review]
+    if: failure() && (needs.withdraw.result == 'failure' || needs.review.result == 'failure')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -238,8 +253,15 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          WITHDRAW: ${{ needs.withdraw.result }}
         run: |
           gh pr edit "$PR" --add-label agent:blocked
-          gh pr comment "$PR" --body "The reviewer agent failed: it crashed, timed out or ran out of quota. Nothing retries on its own. See the run: $RUN_URL
+          if [ "$WITHDRAW" = failure ]; then
+            gh pr comment "$PR" --body "The reviewer couldn't withdraw the earlier auto-merge of this pull request, so it didn't review the new push: an auto-merge for an unreviewed head may still be on. Turn off auto-merge on this pull request and remove \`auto-merge\`. See the run: $RUN_URL
 
           To retry, push a commit or close and reopen this pull request."
+          else
+            gh pr comment "$PR" --body "The reviewer agent failed: it crashed, timed out or ran out of quota. Nothing retries on its own. See the run: $RUN_URL
+
+          To retry, push a commit or close and reopen this pull request."
+          fi
