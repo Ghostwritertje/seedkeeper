@@ -21,6 +21,11 @@ on:
 permissions:
   contents: read
 
+# bash -eo pipefail, not the default bash -e: a failed fetch at the head of a pipe fails the step.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # An approval and `auto-merge` hold for the head they were given on, not for later pushes: GitHub keeps an
   # auto-merge on when the implementer pushes, and the ruleset requires no approval. Runs on drafts too, and before

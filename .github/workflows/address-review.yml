@@ -28,6 +28,11 @@ on:
 permissions:
   contents: read
 
+# bash -eo pipefail, not the default bash -e: a failed fetch at the head of a pipe fails the step.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # Deterministic checks before any agent runs: who labelled it, and whether the pull request can be worked on
   # (.github/scripts/pull-request-pick-up.sh). Only then swap the labels. One pick-up per pull request at a time, so

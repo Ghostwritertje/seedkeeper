@@ -29,6 +29,11 @@ on:
 permissions:
   contents: read
 
+# bash -eo pipefail, not the default bash -e: a failed fetch at the head of a pipe fails the step.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # Deterministic checks before any agent runs: who labelled it, whether it still carries the label, sub-issues,
   # open blockers. Only then swap the labels. One pick-up per issue at a time, so two runs for the same issue (a
@@ -218,7 +223,7 @@ jobs:
             --max-turns 150
             --permission-mode default
             --allowedTools
-            "Read,Glob,Grep,Edit,MultiEdit,Write,Agent,Skill,TodoWrite,Bash(./mvnw:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git branch --show-current),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git commit:*),Bash(git restore:*),Bash(git push origin ${{ needs.pick-up.outputs.branch }}),Bash(git push -u origin ${{ needs.pick-up.outputs.branch }}),Bash(gh issue view:*),Bash(gh issue comment ${{ inputs.issue }}:*),Bash(gh issue edit ${{ inputs.issue }}:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr comment ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr edit ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr ready ${{ needs.pick-up.outputs.branch }})"
+            "Read,Glob,Grep,Edit,MultiEdit,Write,Agent,Skill,TodoWrite,Bash(./mvnw:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git branch --show-current),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git commit:*),Bash(git restore:*),Bash(git push origin ${{ needs.pick-up.outputs.branch }}),Bash(git push -u origin ${{ needs.pick-up.outputs.branch }}),Bash(gh issue view:*),Bash(gh issue comment ${{ inputs.issue }}:*),Bash(gh issue edit ${{ inputs.issue }}:*),Bash(gh pr create --base ${{ github.event.repository.default_branch }} --head ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr view:*),Bash(gh pr comment ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr edit ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr ready ${{ needs.pick-up.outputs.branch }})"
             --disallowedTools
             "Bash(gh pr merge:*),Bash(gh pr review:*),Bash(gh pr edit *auto-merge*),Bash(gh api:*),Bash(git push --force:*),Bash(git push -f:*),Bash(git push --force-with-lease:*),Bash(git push * --force*),Bash(git push * -f*),Bash(git push *+*),Bash(git push --delete:*),Bash(git push * --delete*),Bash(git reset --hard:*),Bash(git rebase:*),Bash(./mvnw *-Dnative*),Bash(./mvnw *-Pnative*)"
 
