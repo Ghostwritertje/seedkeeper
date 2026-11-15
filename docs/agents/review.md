@@ -12,7 +12,8 @@ On every pull request that is opened, reopened, marked ready for review or pushe
 - **Dependabot.** Its pull requests merge through `dependabot-auto-merge.yml`.
 - **Forks.** They get no secrets.
 
-Only users with write access, and no bots, start it. A new push cancels the review in progress and starts a new one.
+Only users with write access start it, and of the bots only the implementer App's, so the implementer's pushes are
+reviewed again. A new push cancels the review in progress and starts a new one.
 
 ## What it checks
 
@@ -31,9 +32,12 @@ It doesn't run the build: CI's `Verify (JVM)` and `Verify (native)` jobs do.
 
 - **Inline comments.** Each finding that belongs to a line is an inline comment on that line. A finding says what is
   wrong, why, with the standard or the spec line it breaks, and the fix when the fix is clear.
-- **One summary review**, submitted last, as a comment review:
+- **One summary review**, submitted last, as a comment review. Its first line is a hidden round marker, which the
+  workflow counts (see **The review/fix loop**):
 
   ```markdown
+  <!-- seedkeeper-review-round: <n> -->
+
   ## Standards
 
   <findings, or "No findings.">
@@ -62,6 +66,30 @@ It doesn't run the build: CI's `Verify (JVM)` and `Verify (native)` jobs do.
 
   **Recommendation:** <the option, and why>
   ```
+
+## The review/fix loop
+
+On an implementer pull request, the reviewer and the implementer hand the work back and forth without the
+maintainer:
+
+1. **Handing back.** When every finding has a clear fix, the reviewer adds `ready-for-agent`. It gives the findings
+   that have no line in the summary review.
+2. **Fixing.** `ready-for-agent` on a pull request starts the implementer on that pull request's branch
+   (`.github/workflows/address-review.yml`). It addresses the unresolved review threads and the latest summary
+   review, pushes, and resolves the threads it handled.
+3. **Reviewing again.** The implementer's push starts a new review, the next round.
+
+**Rounds.** A round is one summary review by the reviewer App with the round marker. Before it reviews, the workflow
+counts the earlier ones (`.github/scripts/review-round.sh`). After three rounds the reviewer adds `needs-decision`
+instead of `ready-for-agent`, and asks whether to fix the remaining findings, accept the pull request as it is, or
+close it. The workflow only gives the reviewer the tool to add `ready-for-agent` while a handback is allowed.
+
+**Only agent pull requests are handed back.** On a pull request someone else wrote, the reviewer adds no
+`ready-for-agent`; the author can add it to have the implementer address the review.
+
+**Resuming after a decision.** Answer in a comment on the pull request, remove `needs-decision` and add
+`ready-for-agent`. The implementer reads the answer and carries on. The round count isn't reset: each later review
+past the third asks for a decision again.
 
 ## What it never does
 

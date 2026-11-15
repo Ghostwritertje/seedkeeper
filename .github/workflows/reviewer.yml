@@ -5,7 +5,8 @@ name: Reviewer
 # docs/agents/github-apps.md. Why it runs this way: docs/adr/0001-agent-runner.md.
 #
 # Only `pull_request`, never `pull_request_target`: pull requests from forks get no secrets, and the action's
-# default check lets only users with write access (and no bots) start a review.
+# default check lets only users with write access start a review. The one bot that may start one is the implementer
+# App's, `vars.IMPLEMENTER_APP_SLUG` + `[bot]`, so its pushes are reviewed again: that is the review/fix loop.
 
 on:
   pull_request:
@@ -23,6 +24,8 @@ jobs:
       github.event.pull_request.draft == false
       && github.event.pull_request.user.login != 'dependabot[bot]'
       && github.event.pull_request.head.repo.full_name == github.repository
+      && (github.event.sender.type == 'User'
+        || github.event.sender.login == format('{0}[bot]', vars.IMPLEMENTER_APP_SLUG))
     # One review per pull request: a new push cancels the review still in progress.
     concurrency:
       group: reviewer-${{ github.event.pull_request.number }}
@@ -57,18 +60,42 @@ jobs:
             echo 'REVIEWER_PROMPT_EOF'
           } >> "$GITHUB_OUTPUT"
 
+      # The round of this review: the reviewer's earlier summary reviews with a round marker, plus one. And how it
+      # may hand a clear fix back: ready-for-agent on an implementer pull request for three rounds, then
+      # needs-decision; on anybody else's pull request not at all. The script comes from the base branch, like the
+      # prompt, so a pull request can't lift its own cap.
+      - name: Count the review rounds
+        id: round
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          REVIEWER: ${{ steps.app-token.outputs.app-slug }}[bot]
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          IMPLEMENTER: ${{ vars.IMPLEMENTER_APP_SLUG }}[bot]
+        run: |
+          file=.github/scripts/review-round.sh
+          git show "origin/$BASE_REF:$file" > "$RUNNER_TEMP/review-round.sh" 2>/dev/null || cp "$file" "$RUNNER_TEMP/review-round.sh"
+          gh api --paginate "repos/$GH_REPO/pulls/$PR/reviews" \
+            | bash "$RUNNER_TEMP/review-round.sh" "$REVIEWER" "$AUTHOR" "$IMPLEMENTER" | tee -a "$GITHUB_OUTPUT"
+
       # The allowlist is exact: read the code and the pull request, post inline comments, submit the summary
-      # review and add needs-decision. --permission-mode default denies whatever it doesn't list, and the denies
-      # are on the command line so they also bind the action's own git scripts.
+      # review, add needs-decision, and add ready-for-agent only while the round allows a handback.
+      # --permission-mode default denies whatever it doesn't list, and the denies are on the command line so they
+      # also bind the action's own git scripts. allowed_bots lets the implementer App's pushes start a review.
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.app-token.outputs.token }}
+          allowed_bots: ${{ vars.IMPLEMENTER_APP_SLUG }}[bot]
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
             BASE: origin/${{ github.event.pull_request.base.ref }}
             HEAD: ${{ github.event.pull_request.head.sha }}
+            ROUND: ${{ steps.round.outputs.round }}
+            HANDBACK: ${{ steps.round.outputs.handback }}
 
             ${{ steps.prompt.outputs.text }}
           claude_args: >-
@@ -76,7 +103,7 @@ jobs:
             --max-turns 40
             --permission-mode default
             --allowedTools
-            "Read,Glob,Grep,Agent,Skill,mcp__github_inline_comment__create_inline_comment,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(gh pr view ${{ github.event.pull_request.number }}:*),Bash(gh pr diff ${{ github.event.pull_request.number }}:*),Bash(gh issue view:*),Bash(gh pr review ${{ github.event.pull_request.number }} --comment:*),Bash(gh pr edit ${{ github.event.pull_request.number }} --add-label needs-decision)"
+            "Read,Glob,Grep,Agent,Skill,mcp__github_inline_comment__create_inline_comment,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(gh pr view ${{ github.event.pull_request.number }}:*),Bash(gh pr diff ${{ github.event.pull_request.number }}:*),Bash(gh issue view:*),Bash(gh pr review ${{ github.event.pull_request.number }} --comment:*),Bash(gh pr edit ${{ github.event.pull_request.number }} --add-label needs-decision)${{ steps.round.outputs.handback == 'ready-for-agent' && format(',Bash(gh pr edit {0} --add-label ready-for-agent)', github.event.pull_request.number) || '' }}"
             --disallowedTools
             "Edit,Write,NotebookEdit,Bash(git push:*),Bash(git commit:*),Bash(git add:*),Bash(git merge:*),Bash(git rebase:*),Bash(git reset:*),Bash(gh pr merge:*),Bash(gh api:*)"
 

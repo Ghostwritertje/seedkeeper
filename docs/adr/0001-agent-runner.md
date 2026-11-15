@@ -37,6 +37,18 @@ private GitHub App, and both are billed to the maintainer's Claude subscription 
   paths from the default branch itself, so an earlier run can't loosen the next one's settings.
 - The action's own branch for an issue is `issue-<n>`; the implementer sets `CLAUDE_BRANCH` to
   `agent/issue-<n>-<slug>` instead, and allows pushes to that branch only.
+- The two agents start each other through their Apps' bots, for the review/fix loop, and each workflow filters its
+  job on the sender: a user, or the other agent's bot, named by the `IMPLEMENTER_APP_SLUG` and `REVIEWER_APP_SLUG`
+  repository variables. The reviewer's `allowed_bots` is the implementer's bot. The implementer's, on a pull
+  request, is the reviewer's bot and its own: when a bot acts on a pull request, the action also checks that the
+  pull request's author is allowed, and the implementer writes most of those pull requests. The sender filter keeps
+  the implementer from starting itself.
+- The action counts a pull request written by a bot as untrusted and denies `./mvnw` on it. The implementer turns
+  that off with `restrict_untrusted_prs: false` on pull requests: forks never get secrets, and the code on its own
+  pull requests is its own, which it ran when it wrote it.
+- The action has no tool for resolving review threads, and resolving one takes `gh api graphql`, which the agents
+  are denied. The workflow lists the unresolved threads before the run and resolves, after it, the ones the agent
+  says it handled, if they were on that list.
 - An issue's closing starts its unblocked dependents in the same workflow run, through the reusable
   `implement-issue.yml`, rather than by dispatching a new run. A run dispatched with the default workflow token has
   `github-actions[bot]` as its actor, which the action's access check rejects unless it is in `allowed_bots`. In the
