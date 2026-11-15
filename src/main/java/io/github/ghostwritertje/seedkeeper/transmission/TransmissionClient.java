@@ -74,6 +74,11 @@ public class TransmissionClient implements Transmission {
         return result;
     }
 
+    @Override
+    public void remove(String hash) {
+        call("torrent_remove", Map.of("ids", List.of(hash), "delete_local_data", false));
+    }
+
     private Torrent torrent(JsonNode torrent) {
         List<String> trackers = new ArrayList<>();
         for (JsonNode tracker : torrent.path("trackers")) {
