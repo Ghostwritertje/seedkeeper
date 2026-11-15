@@ -38,6 +38,7 @@ public final class Run {
     private final TrackerRules trackers;
     private final List<Path> libraryRoots;
     private final ZoneId timeZone;
+    private final Deletion deletion;
     private final Remover remover;
     private final OverrideStore overrides;
 
@@ -48,7 +49,8 @@ public final class Run {
         this.trackers = trackers;
         this.libraryRoots = List.copyOf(libraryRoots);
         this.timeZone = timeZone;
-        this.remover = new Remover(transmission, new Deletion(downloadsRoot, libraryRoots));
+        this.deletion = new Deletion(downloadsRoot, libraryRoots);
+        this.remover = new Remover(transmission, deletion);
     }
 
     /** Never throws: a run that can't be done ends {@code failed} with the one reason. */
@@ -66,6 +68,10 @@ public final class Run {
             verdicts = Decide.decide(snapshot, trackers, keepOverrides, started);
             Map<String, Torrent> byHash = snapshot.torrents().stream().map(SnapshotTorrent::torrent)
                     .collect(Collectors.toMap(Torrent::hash, Function.identity(), (first, second) -> first));
+            if (verdicts.stream().anyMatch(verdict -> verdict.verdict() == Verdict.REMOVE)) {
+                // A torrent removed while its data can't be deleted leaves that data behind for good: fail first.
+                deletion.checkRoots();
+            }
             for (GroupVerdict verdict : verdicts) {
                 if (verdict.verdict() == Verdict.REMOVE) {
                     List<Torrent> group = verdict.members().stream()
@@ -75,7 +81,7 @@ public final class Run {
                     removals.add(remover.remove(verdict.reason(), group, session.incompleteDir()));
                 }
             }
-        } catch (TransmissionException | SnapshotException | OverridesException e) {
+        } catch (TransmissionException | SnapshotException | OverridesException | Deletion.RootsUnavailable e) {
             error = Optional.of(e.getMessage());
         } catch (RuntimeException e) {
             error = Optional.of("The run broke off: " + e);

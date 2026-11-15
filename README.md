@@ -178,7 +178,9 @@ A **run** carries out the verdicts. It starts by itself on the cron expression o
 that comes due while another run is running is skipped, not queued, and Run now during a run answers "A run is
 already running." A run asks Transmission for its session
 first: when Transmission doesn't answer or is older than 4.1, or a library root or the
-[overrides file](#keep-overrides) can't be read, the run ends `failed` with that one reason and removes nothing.
+[overrides file](#keep-overrides) can't be read, the run ends `failed` with that one reason and removes nothing. So
+does a run with something to remove while `seedkeeper.downloads-root` or a library root can't be found (a mount that
+isn't there), since a torrent removed then would leave its data behind for good.
 After the removals a run adds the hashes of new group members to the keep overrides.
 
 Otherwise every group with the verdict **Remove** leaves. An [unregistered](#unregistered-torrents) torrent of a
@@ -188,7 +190,7 @@ tracker in the config is such a group of one: it leaves on its own, and what the
    of that group is skipped and none of its files is deleted; the error is shown with the last run, and the next run
    finds the rest still due.
 2. The torrent list is read again. Then, for each path of each removed torrent (in its download dir or, when enabled,
-   the incomplete dir, with or without `.part`; deselected files too):
+   the incomplete dir, with or without `.part`; only its wanted files, never one deselected in Transmission):
    - a symlink is deleted, unless a remaining torrent has that exact path. What it leads to is never deleted;
    - a regular file is deleted, unless a remaining torrent still uses that file under any path (a hardlink, or
      through a symlink).
@@ -199,8 +201,10 @@ tracker in the config is such a group of one: it leaves on its own, and what the
 that lives on through a library link or another hardlink, frees nothing.
 
 seedkeeper never deletes anything outside `seedkeeper.downloads-root` and Transmission's incomplete dir, and never
-anything under a library root, also not through a symlinked directory. A path it refuses is counted with the last
-run. Only the paths of removed torrents are deleted, so data that a removed torrent reached through a symlink and
+anything under a library root, also not through a symlinked directory. These roots are looked up on every run, so a
+mount that comes up after seedkeeper started is seen; while one can't be found, nothing is deleted. The filesystem
+root `/` is never a place seedkeeper deletes in: not as the downloads root, and not as the incomplete dir. A path it
+refuses is counted with the last run. Only the paths of removed torrents are deleted, so data that a removed torrent reached through a symlink and
 that no torrent has as its own path any more stays behind as an [orphan](#get-apiv1orphans).
 
 The System page shows the last run since seedkeeper started: after a restart there is none until the next run.
@@ -249,7 +253,10 @@ A login is kept in a cookie encrypted with `QUARKUS_HTTP_AUTH_SESSION_ENCRYPTION
 seedkeeper as long as that key stays the same. It ends after 30 minutes without a request. Changing the key logs
 everyone out.
 
-Every form carries a CSRF token; a form POST without it is rejected with 400.
+The session cookie is `HttpOnly` and `SameSite=Strict`: scripts can't read it and other sites can't send it.
+
+Every form carries a CSRF token; a form POST without it is rejected with 400. The login form itself (handled by
+Quarkus) has none; the `SameSite=Strict` cookie is what protects it.
 
 ## Pages
 
