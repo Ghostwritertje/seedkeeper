@@ -18,9 +18,11 @@ Settings that are safe to commit go in `seedkeeper.yaml`, mounted in the contain
 
 ```yaml
 seedkeeper:
-  time-zone: Europe/Brussels                         # optional
+  schedule: "0 0 6 * * ?"                            # Quarkus cron, in time-zone
+  time-zone: Europe/Brussels
   transmission:
     url: http://transmission:9091/transmission/rpc   # Transmission's RPC endpoint
+  downloads-root: /downloads                         # orphans are looked for here
   library-roots: [/library/movies, /library/tv]
   default-minimum-seed-time: 30d
   trackers:
@@ -33,18 +35,24 @@ seedkeeper:
     minimum-seed-time: 1d
   auth:
     username: admin                                  # the password comes from the environment
+  data-dir: /data
 ```
 
 | Key | Required | Meaning |
 |---|---|---|
+| `seedkeeper.schedule` | no, `0 0 6 * * ?` | When the scheduled run starts: a Quarkus cron expression (seconds, minutes, hours, day of month, month, day of week), in the time zone below. Not used yet: nothing runs on a schedule so far. |
+| `seedkeeper.time-zone` | no, `UTC` | The time zone of the schedule and of the dates seedkeeper shows, as a tz database name, for example `Europe/Brussels`. seedkeeper doesn't start with a name that doesn't exist. |
 | `seedkeeper.transmission.url` | yes | URL of Transmission's RPC endpoint. |
-| `seedkeeper.time-zone` | no, `Europe/Brussels` | The time zone dates are shown in, as a tz database name. seedkeeper doesn't start with a name that doesn't exist. |
+| `seedkeeper.downloads-root` | no, `/downloads` | The directory Transmission downloads into. [Orphans](#get-apiv1orphans) are looked for under it. |
 | `seedkeeper.library-roots` | yes | The directories of the media library. A downloaded file that has a hardlink under one of them has a **library link**, which keeps its torrent. Symlinks under a library root don't count and are not followed. When a root can't be read there are no verdicts at all. |
 | `seedkeeper.default-minimum-seed-time` | no, `30d` | The minimum seed time of a tracker that doesn't set its own. |
 | `seedkeeper.trackers.<name>.hosts` | yes, per tracker | The hosts of the tracker's announce URLs, matched exactly (a subdomain is another host). A torrent belongs to the tracker when every one of its announce hosts is in this list. |
 | `seedkeeper.trackers.<name>.minimum-seed-time` | no | The seed time the tracker requires before a torrent may leave; the default when absent. |
 | `seedkeeper.public.minimum-seed-time` | no | Adds the tracker `public`: every torrent that is not private and belongs to no single managed tracker gets it, with this minimum. Without the `public` entry such torrents are unmanaged. |
-| `seedkeeper.auth.username` | no | Username of seedkeeper's login. Default `admin`. |
+| `seedkeeper.auth.username` | no, `admin` | Username of seedkeeper's login. |
+| `seedkeeper.data-dir` | no, `/data` | The directory seedkeeper keeps its own files in. Not used yet. |
+
+The [Settings page](#pages) shows the value of every key seedkeeper runs with, defaults included.
 
 A duration is a number with a unit: `30d`, `12h`, `90m`; a bare number is seconds.
 
@@ -99,6 +107,8 @@ Every form carries a CSRF token; a form POST without it is rejected with 400.
 | Page | Shows |
 |---|---|
 | `/groups` | Every [cross-seed group](#cross-seed-groups) with its members (name, tracker, seed time and minimum, status), its library links, the verdict seedkeeper would give it right now with the reason, and the forecast: a date in the configured time zone, or "clock stopped (paused)". Read from Transmission and the disk on every load. |
+| `/orphans` | The **orphans**: what is under the downloads root that no torrent references, as two lists, files and dangling symlinks, each with path, size, age (time since it was last modified) and a total. seedkeeper only shows them and never deletes them. |
+| `/settings` | The configuration seedkeeper runs with, read-only: every key of the [configuration](#configuration) with its default filled in, each tracker with its hosts and the minimum seed time that applies to it (marked "(default)" when it sets none of its own), and for each secret only whether it is set or missing, never its value. |
 | `/system` | seedkeeper's version, and whether Transmission is reachable, its version and, when seedkeeper can't work with it, the reason. |
 
 ## JSON API
@@ -196,6 +206,43 @@ give it right now. Groups are in the order of their first member in Transmission
 
 Answers 503 with `{"reason": "…"}` when there are no verdicts: Transmission doesn't answer or is older than 4.1, or a
 library root can't be read.
+
+### `GET /api/v1/orphans`
+
+The same data as the Orphans page: what is under `seedkeeper.downloads-root` that no torrent references. Nothing is
+ever deleted. Read from Transmission and the disk on every request.
+
+```json
+{
+  "files": [
+    {
+      "path": "/downloads/Removed.Movie/movie.mkv",
+      "sizeBytes": 4294967296,
+      "lastModified": "2026-03-01T10:00:00Z"
+    }
+  ],
+  "danglingSymlinks": [
+    {
+      "path": "/downloads/cross-seed/Removed.Movie/movie.mkv",
+      "sizeBytes": 34,
+      "lastModified": "2026-03-01T10:00:00Z"
+    }
+  ],
+  "totalSizeBytes": 4294967296
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `files` | The regular files no torrent references, by path. A torrent references the file each of its files resolves to (in the download dir or, when enabled, the incomplete dir, with or without `.part`, following symlinks), whatever the file's path: a hardlink of it elsewhere under the downloads root is not an orphan. Files deselected in Transmission count as referenced too. |
+| `danglingSymlinks` | The symlinks that lead nowhere and whose path is not a path of a torrent's file, by path. A symlink that leads somewhere is never listed. |
+| `[].path` | The absolute path. |
+| `[].sizeBytes` | The size in bytes; of a symlink, the size of the link itself. |
+| `[].lastModified` | When it was last modified, in UTC; its age is the time since then. |
+| `totalSizeBytes` | The sum of `sizeBytes` over `files`. |
+
+Answers 503 with `{"reason": "…"}` when the orphans can't be listed: Transmission doesn't answer or is older than 4.1
+(without the torrents every file would seem an orphan), or the downloads root can't be read.
 
 ## Health
 
