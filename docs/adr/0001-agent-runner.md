@@ -32,3 +32,8 @@ private GitHub App, and both are billed to the maintainer's Claude subscription 
   pass tool calls the allowlist doesn't cover. Denies go in `claude_args`, where they also bind the action's own git
   scripts.
 - Workflows use `pull_request`, never `pull_request_target`, so pull requests from forks get no secrets.
+- The action restores `CLAUDE.md` and `.claude/` from the base branch only on pull requests. On an issue the
+  implementer starts from the default branch, and a retry that continues an earlier agent branch restores those
+  paths from the default branch itself, so an earlier run can't loosen the next one's settings.
+- The action's own branch for an issue is `issue-<n>`; the implementer sets `CLAUDE_BRANCH` to
+  `agent/issue-<n>-<slug>` instead, and allows pushes to that branch only.
