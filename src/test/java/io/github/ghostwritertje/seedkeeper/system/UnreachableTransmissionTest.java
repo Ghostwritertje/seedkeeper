@@ -33,7 +33,11 @@ class UnreachableTransmissionTest {
             Map<String, String> config = TestSecrets.with("seedkeeper.transmission.url",
                     "http://127.0.0.1:" + unusedPort() + "/transmission/rpc");
             config.put("seedkeeper.library-roots", "/library");
-            config.put("seedkeeper.data-dir", dataDir());
+            try {
+                config.put("seedkeeper.data-dir", Files.createTempDirectory("seedkeeper-test-data").toString());
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
             return config;
         }
     }
@@ -72,14 +76,6 @@ class UnreachableTransmissionTest {
     }
 
     /** A port that was free a moment ago and that nothing listens on. */
-    private static String dataDir() {
-        try {
-            return Files.createTempDirectory("seedkeeper-test-data").toString();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     private static int unusedPort() {
         try (ServerSocket socket = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
             return socket.getLocalPort();

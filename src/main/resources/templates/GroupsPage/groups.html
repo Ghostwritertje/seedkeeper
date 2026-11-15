@@ -24,16 +24,17 @@
 <p>Transmission has no torrents.</p>
 {#else}
 <p>What seedkeeper would decide right now. Nothing is removed yet. Torrents that share files (cross-seeds) are one
-group, with one verdict. The reason is the first rule that holds; the secondary reasons are the others that hold too.
+group, with one verdict. A torrent its tracker has deleted (unregistered) leaves its group and is removed on its own;
+any other tracker message is only shown. The reason is the first rule that holds; the secondary reasons are the others that hold too.
 The forecast is when a group kept for its minimum seed time is expected to have met it, if it keeps seeding.</p>
 <table>
 <thead>
-<tr><th>Name</th><th>Tracker</th><th>Seed time / minimum</th><th>Status</th><th>Library links</th><th>Verdict</th><th>Reason</th><th>Secondary reasons</th><th>Forecast</th></tr>
+<tr><th>Name</th><th>Tracker</th><th>Seed time / minimum</th><th>Status</th><th>Tracker message</th><th>Library links</th><th>Verdict</th><th>Reason</th><th>Secondary reasons</th><th>Forecast</th></tr>
 </thead>
 <tbody>
 {#for group in groups}
 {#for member in group.members}
-<tr><td>{member.name}</td><td>{member.tracker}</td><td>{member.seedTime}</td><td>{member.status}</td>{#if member_isFirst}<td rowspan="{group.members.size}">{group.libraryLinks}</td><td rowspan="{group.members.size}">{group.verdict}</td><td rowspan="{group.members.size}">{group.reason}</td><td rowspan="{group.members.size}">{group.secondaryReasons}</td><td rowspan="{group.members.size}">{group.forecast}</td>{/if}</tr>
+<tr><td>{member.name}</td><td>{member.tracker}</td><td>{member.seedTime}</td><td>{member.status}</td><td>{member.trackerMessage}</td>{#if member_isFirst}<td rowspan="{group.members.size}">{group.libraryLinks}</td><td rowspan="{group.members.size}">{group.verdict}</td><td rowspan="{group.members.size}">{group.reason}</td><td rowspan="{group.members.size}">{group.secondaryReasons}</td><td rowspan="{group.members.size}">{group.forecast}</td>{/if}</tr>
 {/for}
 {/for}
 </tbody>

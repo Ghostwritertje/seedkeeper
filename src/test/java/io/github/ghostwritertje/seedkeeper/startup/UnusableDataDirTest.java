@@ -4,13 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import io.quarkus.test.QuarkusUnitTest;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-/** With a data dir it can't make or write to, the application doesn't start, and the failure names the key. */
+/** With a data dir that can't be created the application doesn't start, and the failure names the key. */
 class UnusableDataDirTest {
 
     @RegisterExtension
@@ -24,24 +21,16 @@ class UnusableDataDirTest {
             .overrideConfigKey("seedkeeper.auth.password", "ui-password")
             .overrideConfigKey("seedkeeper.api-key", "api-key")
             .overrideConfigKey("quarkus.http.auth.session.encryption-key", "a-session-encryption-key-for-tests")
-            .overrideConfigKey("seedkeeper.data-dir", aFile() + "/data")
+            // Under a file, so it can't be created, whoever runs the tests.
+            .overrideConfigKey("seedkeeper.data-dir", "/dev/null/data")
             .assertException(failure -> {
                 String message = Startup.messages(failure);
-                assertTrue(message.contains("seedkeeper.data-dir"), message);
-                assertTrue(message.contains("seedkeeper.db"), message);
+                assertTrue(message.contains("The data dir /dev/null/data (seedkeeper.data-dir) can't be used"),
+                        message);
             });
 
     @Test
     void doesNotStart() {
-        fail("the application started without a data dir it can use");
-    }
-
-    /** A directory can't be made under a regular file, whoever runs the tests. */
-    private static String aFile() {
-        try {
-            return Files.createTempFile("seedkeeper-test", ".file").toString();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        fail("the application started without a data dir it can write to");
     }
 }

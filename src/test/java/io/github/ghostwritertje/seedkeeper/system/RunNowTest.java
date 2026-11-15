@@ -100,7 +100,7 @@ class RunNowTest {
 
         given().cookie(session).when().get("/system").then().statusCode(200)
                 .body(RUNS + ".dl.dt.collect { it.text() }", contains("Status", "Last run", "Started", "Ended",
-                        "Removed", "Files deleted", "Space freed"))
+                        "Removed", "Files deleted", "Space freed", "Next run"))
                 .body(RUNS + ".dl.dd[0]", is("Idle"))
                 .body(RUNS + ".dl.dd[1]", is("Succeeded"))
                 .body(RUNS + ".dl.dd[2]", matchesPattern("\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"))

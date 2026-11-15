@@ -2,6 +2,7 @@ package io.github.ghostwritertje.seedkeeper.history;
 
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.decide.Tracker;
+import io.github.ghostwritertje.seedkeeper.decide.TrackerError;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Removal;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Status;
@@ -306,8 +307,8 @@ public class History {
 
     /** What the tracker said: Transmission's error string of a tracker warning (1) or tracker error (2). */
     private static Optional<String> trackerMessage(Torrent torrent) {
-        boolean fromTracker = torrent.error() == 1 || torrent.error() == 2;
-        return Optional.ofNullable(torrent.errorString()).filter(message -> fromTracker && !message.isBlank());
+        return TrackerError.of(torrent.error(), torrent.errorString()).map(TrackerError::message)
+                .filter(message -> !message.isBlank());
     }
 
     /**

@@ -38,8 +38,9 @@ public class HistoryKeeper {
             Files.createDirectories(dataDir);
             flyway.migrate();
         } catch (IOException | RuntimeException e) {
-            throw new IllegalStateException("seedkeeper.data-dir " + dataDir + " can't be used for the run history"
-                    + " (seedkeeper.db): it must be a directory seedkeeper can write to: " + e, e);
+            throw new IllegalStateException("The data dir " + dataDir + " (seedkeeper.data-dir) can't be used: " + e
+                    + ". seedkeeper keeps seedkeeper.db there: it must be a directory seedkeeper can write"
+                    + " to", e);
         }
     }
 

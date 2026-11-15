@@ -135,8 +135,8 @@ class GroupsFilterTest {
                 .when().get("/api/v1/groups?reason=libary-link")
                 .then()
                 .statusCode(400)
-                .body("reason", is("Unknown reason 'libary-link': use unmanaged, missing-data, local-error,"
-                        + " verifying, not-finished, library-link, minimum-not-reached or all-met"));
+                .body("reason", is("Unknown reason 'libary-link': use unregistered, unmanaged, missing-data, local-error,"
+                        + " verifying, not-finished, keep-override, library-link, minimum-not-reached or all-met"));
     }
 
     @Test
@@ -146,14 +146,14 @@ class GroupsFilterTest {
                 .then()
                 .statusCode(200)
                 .body("html.body.main.table.thead.tr.th", contains("Name", "Tracker", "Seed time / minimum",
-                        "Status", "Library links", "Verdict", "Reason", "Secondary reasons", "Forecast"))
-                .body(cells(0), contains("Half.Gone", "tracker-a", "400d / 30d", "Seeding", "0 of 2 files",
+                        "Status", "Tracker message", "Library links", "Verdict", "Reason", "Secondary reasons", "Forecast"))
+                .body(cells(0), contains("Half.Gone", "tracker-a", "400d / 30d", "Seeding", "", "0 of 2 files",
                         "Left alone", "Missing data (1 of 2 files)", "", ""))
-                .body(cells(1), contains("Broken.Movie", "tracker-a", "1d / 30d", "Seeding", "0 of 1 files",
+                .body(cells(1), contains("Broken.Movie", "tracker-a", "1d / 30d", "Seeding", "", "0 of 1 files",
                         "Left alone", "Local error", "Minimum not reached", ""))
-                .body(cells(2), contains("Checking.Movie", "tracker-a", "400d / 30d", "Verifying", "0 of 1 files",
+                .body(cells(2), contains("Checking.Movie", "tracker-a", "400d / 30d", "Verifying", "", "0 of 1 files",
                         "Keep", "Verifying", "", ""))
-                .body(cells(5), contains("Not.Yet", "tracker-a", "0m / 30d", "Downloading", "0 of 1 files",
+                .body(cells(5), contains("Not.Yet", "tracker-a", "0m / 30d", "Downloading", "", "0 of 1 files",
                         "Keep", "Not finished", "Minimum not reached", ""));
     }
 
@@ -165,7 +165,7 @@ class GroupsFilterTest {
         Authenticated.asUser()
                 .when().get("/groups")
                 .then()
-                .body(cells(0), contains("Kept.Movie", "tracker-a", "0m / 30d", "Verifying", "1 of 1 files",
+                .body(cells(0), contains("Kept.Movie", "tracker-a", "0m / 30d", "Verifying", "", "1 of 1 files",
                         "Left alone", "Local error", "Verifying, Library link (1 of 1 files), Minimum not reached",
                         ""));
     }
@@ -198,10 +198,10 @@ class GroupsFilterTest {
                 .body("html.body.main.form.@action", is("/groups"))
                 .body(options("verdict", "@value"), contains("", "remove", "left-alone", "keep"))
                 .body(options("verdict", "text()"), contains("Any verdict", "Remove", "Left alone", "Keep"))
-                .body(options("reason", "@value"), contains("", "unmanaged", "missing-data", "local-error",
-                        "verifying", "not-finished", "library-link", "minimum-not-reached", "all-met"))
-                .body(options("reason", "text()"), contains("Any reason", "Unmanaged", "Missing data", "Local error",
-                        "Verifying", "Not finished", "Library link", "Minimum not reached", "All met"))
+                .body(options("reason", "@value"), contains("", "unregistered", "unmanaged", "missing-data", "local-error",
+                        "verifying", "not-finished", "keep-override", "library-link", "minimum-not-reached", "all-met"))
+                .body(options("reason", "text()"), contains("Any reason", "Unregistered", "Unmanaged", "Missing data", "Local error",
+                        "Verifying", "Not finished", "Keep override", "Library link", "Minimum not reached", "All met"))
                 .body(selected("verdict"), is(""))
                 .body(selected("reason"), is(""));
     }

@@ -3,6 +3,7 @@ package io.github.ghostwritertje.seedkeeper.groups;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.decide.Reason;
 import io.github.ghostwritertje.seedkeeper.decide.Tracker;
+import io.github.ghostwritertje.seedkeeper.decide.TrackerError;
 import io.github.ghostwritertje.seedkeeper.decide.Verdict;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsFilter.UnknownFilter;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsService.GroupsUnavailable;
@@ -41,7 +42,8 @@ public class GroupsPage {
      *
      * @param reason           "Library link (1 of 2 files)", "Missing data (1 of 2 files)", or the label alone
      * @param secondaryReasons every other reason that holds, written like the reason and separated by commas
-     * @param forecast         "2026-11-25 10:00" in the configured time zone, "clock stopped (paused)", or empty
+     * @param forecast         "2026-11-25 10:00" in the configured time zone, "clock stopped (paused)", "until 2027-03-01" (the
+     *                         end date of a keep override), or empty
      */
     public record Group(String verdict, String reason, String secondaryReasons, String libraryLinks, String forecast,
             List<Member> members) {
@@ -70,8 +72,10 @@ public class GroupsPage {
     /**
      * @param tracker  "unmanaged" when the torrent has no tracker
      * @param seedTime "40d / 30d": the seed time and the tracker's minimum; the seed time alone when unmanaged
+     * @param trackerMessage "Unregistered: Unregistered torrent", "Tracker error: Passkey does not exist!", or
+     *                       empty when the tracker reports nothing wrong
      */
-    public record Member(String name, String tracker, String seedTime, String status) {
+    public record Member(String name, String tracker, String seedTime, String status, String trackerMessage) {
     }
 
     private final GroupsService groups;
@@ -112,7 +116,8 @@ public class GroupsPage {
     private static Group group(GroupVerdict group) {
         String libraryLinks = group.libraryLinks() + " of " + group.files() + " files";
         String forecast = group.forecast()
-                .map(f -> f.date().map(FORECAST_DATE::format).orElse("clock stopped (paused)"))
+                .map(f -> f.until().map(endDate -> "until " + endDate)
+                        .orElseGet(() -> f.date().map(FORECAST_DATE::format).orElse("clock stopped (paused)")))
                 .orElse("");
         return new Group(group.verdict().label(), reason(group.reason(), group),
                 group.secondaryReasons().stream().map(r -> reason(r, group)).collect(Collectors.joining(", ")),
@@ -133,6 +138,11 @@ public class GroupsPage {
         return new Member(member.name(), member.tracker().map(Tracker::name).orElse("unmanaged"),
                 member.tracker().map(tracker -> seedTime + " / " + StatusText.duration(tracker.minimumSeedTime()))
                         .orElse(seedTime),
-                StatusText.label(member.status()));
+                StatusText.label(member.status()),
+                member.trackerError().map(GroupsPage::trackerMessage).orElse(""));
+    }
+
+    private static String trackerMessage(TrackerError error) {
+        return error.message().isBlank() ? error.kind().label() : error.kind().label() + ": " + error.message();
     }
 }

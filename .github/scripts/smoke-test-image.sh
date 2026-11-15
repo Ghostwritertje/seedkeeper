@@ -26,20 +26,20 @@ seedkeeper:
     minimum-seed-time: 1d
 YAML
 chmod 644 "$config/seedkeeper.yaml"
-# The data dir, writable for the uid:gid the container runs as.
-mkdir "$config/data"
-chmod 777 "$config/data"
+# The data dir (overrides.yaml, seedkeeper.db): writable by whatever uid the container runs as.
+data="$(mktemp -d)"
+chmod 777 "$data"
 
 docker run -d --name "$name" --user 1029:65536 -p 127.0.0.1:8080:8080 \
   -v "$config/seedkeeper.yaml:/work/config/application.yaml:ro" \
-  -v "$config/data:/data" \
+  -v "$data:/data" \
   -e SEEDKEEPER_TRANSMISSION_USERNAME=smoke \
   -e SEEDKEEPER_TRANSMISSION_PASSWORD=smoke \
   -e SEEDKEEPER_AUTH_PASSWORD=smoke \
   -e SEEDKEEPER_API_KEY=smoke \
   -e QUARKUS_HTTP_AUTH_SESSION_ENCRYPTION_KEY=smoke-test-session-encryption-key \
   "$image" >/dev/null
-trap 'docker logs "$name" || true; docker rm -f "$name" >/dev/null; rm -rf "$config"' EXIT
+trap 'docker logs "$name" || true; docker rm -f "$name" >/dev/null; rm -rf "$config" "$data"' EXIT
 
 for _ in $(seq 1 30); do
   if curl -fsS http://127.0.0.1:8080/q/health/live | grep -q '"status": *"UP"'; then
@@ -54,7 +54,7 @@ for _ in $(seq 1 30); do
     fi
     runs="$(curl -fsS -H 'X-Api-Key: smoke' http://127.0.0.1:8080/api/v1/runs)"
     echo "$runs"
-    if [ "$runs" = "[]" ] && [ -f "$config/data/seedkeeper.db" ]; then
+    if [ "$runs" = "[]" ] && [ -f "$data/seedkeeper.db" ]; then
       echo "the run history is in the mounted data dir"
       exit 0
     fi

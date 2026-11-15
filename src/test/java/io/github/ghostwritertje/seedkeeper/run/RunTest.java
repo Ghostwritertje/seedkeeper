@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.ghostwritertje.seedkeeper.decide.Reason;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules.ManagedTracker;
+import io.github.ghostwritertje.seedkeeper.overrides.OverrideStore;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Removal;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Status;
 import io.github.ghostwritertje.seedkeeper.transmission.StubTransmission;
@@ -206,8 +207,139 @@ class RunTest {
         assertEquals(4, next.removals().getFirst().deleted().spaceFreed());
     }
 
+    @Test
+    void aKeepOverrideInTheFileKeepsAGroupThatIsDue() throws IOException {
+        Path kept = file(downloads.resolve("Kept/movie.mkv"));
+        Path due = file(downloads.resolve("Due/movie.mkv"));
+        transmission.add(torrent("kept", 30 * DAY, "Kept/movie.mkv"), torrent("due", 30 * DAY, "Due/movie.mkv"));
+        overrides("overrides:\n  - id: one\n    hashes: [kept]\n    until: 2999-12-31\n");
+
+        RunOutcome outcome = run();
+
+        assertEquals(Status.SUCCEEDED, outcome.status());
+        assertEquals(List.of(Reason.KEEP_OVERRIDE, Reason.ALL_MET),
+                outcome.verdicts().stream().map(verdict -> verdict.reason()).toList());
+        assertEquals(List.of("due"), transmission.removed());
+        assertTrue(Files.exists(kept), "the file of a group with a keep override was deleted");
+        assertGone(due);
+    }
+
+    @Test
+    void theOverridesFileIsReadAtTheStartOfEveryRun() throws IOException {
+        Path file = file(downloads.resolve("Kept/movie.mkv"));
+        transmission.add(torrent("kept", 30 * DAY, "Kept/movie.mkv"));
+        Run run = run(new OverrideStore(overridesFile()));
+        overrides("overrides:\n  - id: one\n    hashes: [kept]\n");
+
+        assertEquals(List.of(), run.execute().removals(), "an override added after the start was not read");
+
+        overrides("overrides:\n  - id: one\n    hashes: [kept]\n    until: 2020-01-01\n");
+        run.execute();
+
+        assertEquals(List.of("kept"), transmission.removed());
+        assertGone(file);
+    }
+
+    @Test
+    void endsFailedAndRemovesNothingWhenTheOverridesFileCannotBeRead() throws IOException {
+        Path due = file(downloads.resolve("Due/movie.mkv"));
+        transmission.add(torrent("due", 30 * DAY, "Due/movie.mkv"));
+        overrides("overrides: [\n");
+
+        RunOutcome outcome = run();
+
+        assertEquals(Status.FAILED, outcome.status());
+        assertTrue(outcome.error().orElseThrow().startsWith("The overrides file " + overridesFile()
+                + " can't be read: "), outcome.error().orElseThrow());
+        assertEquals(List.of(), outcome.verdicts());
+        assertEquals(List.of(), transmission.removed());
+        assertTrue(Files.exists(due));
+    }
+
+    private Path overridesFile() {
+        return root.resolve("overrides.yaml");
+    }
+
+    private void overrides(String yaml) throws IOException {
+        Files.writeString(overridesFile(), yaml);
+    }
+
+    @Test
+    void anUnregisteredMemberLeavesAloneAndTheRestOfItsGroupStaysWithItsData() throws IOException {
+        Path original = file(downloads.resolve("Original/movie.mkv"));
+        Path link = downloads.resolve("cross-seed/movie.mkv");
+        Files.createDirectories(link.getParent());
+        Files.createSymbolicLink(link, original);
+        transmission.add(torrent("original", 29 * DAY, "Original/movie.mkv"),
+                unregistered(torrent("cross-seed", DAY, "cross-seed/movie.mkv")));
+
+        RunOutcome outcome = run();
+
+        assertEquals(List.of("cross-seed"), transmission.removed());
+        assertEquals(List.of("original"), transmission.hashes());
+        assertGone(link, link.getParent());
+        assertTrue(Files.exists(original), "the data of the member that stays was deleted");
+        assertEquals(List.of(Reason.MINIMUM_NOT_REACHED, Reason.UNREGISTERED),
+                outcome.verdicts().stream().map(verdict -> verdict.reason()).toList());
+        assertEquals(1, outcome.removals().size());
+        Removal removal = outcome.removals().getFirst();
+        assertEquals(Reason.UNREGISTERED, removal.reason());
+        assertEquals(List.of("cross-seed"), removal.removed().stream().map(Torrent::hash).toList());
+        assertEquals(0, removal.deleted().spaceFreed());
+    }
+
+    @Test
+    void anUnregisteredOriginalLeavesButItsDataStaysForTheMemberThatLinksToIt() throws IOException {
+        Path original = file(downloads.resolve("Original/movie.mkv"));
+        Path link = downloads.resolve("cross-seed/movie.mkv");
+        Files.createDirectories(link.getParent());
+        Files.createSymbolicLink(link, original);
+        transmission.add(unregistered(torrent("original", DAY, "Original/movie.mkv")),
+                torrent("cross-seed", 29 * DAY, "cross-seed/movie.mkv"));
+
+        RunOutcome outcome = run();
+
+        assertEquals(List.of("original"), transmission.removed());
+        assertEquals(List.of("cross-seed"), transmission.hashes());
+        assertTrue(Files.exists(original), "the data the remaining member links to was deleted");
+        assertTrue(Files.isSymbolicLink(link));
+        assertEquals(List.of(), outcome.removals().getFirst().deleted().files());
+    }
+
+    @Test
+    void anUnregisteredMemberAndTheRestOfItsGroupThatIsDueLeaveInOneRun() throws IOException {
+        Path original = file(downloads.resolve("Original/movie.mkv"));
+        Path link = downloads.resolve("cross-seed/movie.mkv");
+        Files.createDirectories(link.getParent());
+        Files.createSymbolicLink(link, original);
+        transmission.add(unregistered(torrent("original", DAY, "Original/movie.mkv")),
+                torrent("cross-seed", 30 * DAY, "cross-seed/movie.mkv"));
+
+        RunOutcome outcome = run();
+
+        assertEquals(List.of("original", "cross-seed"), transmission.removed());
+        assertGone(link);
+        assertEquals(List.of(Reason.UNREGISTERED, Reason.ALL_MET),
+                outcome.removals().stream().map(Removal::reason).toList());
+        // Two removals: the data was still in use when its own torrent left, and the second removal deletes only
+        // the paths of its own torrent. The data stays behind as an orphan.
+        assertTrue(Files.exists(original));
+        assertEquals(0, outcome.spaceFreed());
+    }
+
+    /** The same torrent, with the tracker error of a torrent its tracker has deleted. */
+    private static Torrent unregistered(Torrent torrent) {
+        return new Torrent(torrent.hash(), torrent.name(), torrent.status(), torrent.percentDone(), 2,
+                "Unregistered torrent", torrent.secondsSeeding(), torrent.isPrivate(), torrent.downloadDir(),
+                torrent.trackers(), torrent.files());
+    }
+
     private RunOutcome run() {
-        return new Run(transmission, TRACKERS, downloads, List.of(library), ZONE).execute();
+        return run(new OverrideStore(overridesFile())).execute();
+    }
+
+    private Run run(OverrideStore overrides) {
+        return new Run(transmission, TRACKERS, downloads, List.of(library), ZONE, overrides);
     }
 
     /** A finished, seeding torrent of tracker-a in the downloads root. */

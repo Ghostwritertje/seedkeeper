@@ -11,7 +11,9 @@ import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot.SnapshotTorrent;
 import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot.WantedFile;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent.Status;
+import io.github.ghostwritertje.seedkeeper.overrides.KeepOverride;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +59,7 @@ class DecideTest {
         private List<FileId> wanted = List.of(DOWNLOAD_ONLY);
         private int missing = 0;
         private int error = 0;
+        private String errorString = "";
 
         Case hash(String hash) {
             this.hash = hash;
@@ -106,6 +109,18 @@ class DecideTest {
             return this;
         }
 
+        /** A tracker error (error 2) with this tracker message. */
+        Case trackerError(String message) {
+            this.error = 2;
+            this.errorString = message;
+            return this;
+        }
+
+        /** The tracker has deleted the torrent. */
+        Case unregistered() {
+            return trackerError("Unregistered torrent");
+        }
+
         Case status(Status status) {
             this.status = status;
             return this;
@@ -123,7 +138,7 @@ class DecideTest {
             for (int i = 0; i < missing; i++) {
                 files.add(new WantedFile("missing-" + i, Optional.empty()));
             }
-            Torrent torrent = new Torrent(hash, "Torrent 1", status, percentDone, error, "", secondsSeeding, isPrivate,
+            Torrent torrent = new Torrent(hash, "Torrent 1", status, percentDone, error, errorString, secondsSeeding, isPrivate,
                     "/downloads", List.of(announce), List.of());
             return new SnapshotTorrent(torrent, files);
         }
@@ -416,6 +431,131 @@ class DecideTest {
         assertEquals(first, second);
     }
 
+    static Stream<Arguments> unregistered() {
+        return Stream.of(
+                argumentSet("unregistered: remove, whatever its seed time",
+                        torrent().unregistered().seeded(0),
+                        Verdict.REMOVE, Reason.UNREGISTERED, List.of(Reason.MINIMUM_NOT_REACHED)),
+                argumentSet("unregistered with a library link: remove",
+                        torrent().unregistered().seeded(400 * DAY).wanted(IN_LIBRARY),
+                        Verdict.REMOVE, Reason.UNREGISTERED, List.of(Reason.LIBRARY_LINK)),
+                argumentSet("unregistered comes before unmanaged, missing data and not finished",
+                        torrent().unregistered().announce(UNKNOWN).missing(1).percentDone(0.5, Status.STOPPED),
+                        Verdict.REMOVE, Reason.UNREGISTERED, List.of(Reason.UNMANAGED, Reason.NOT_FINISHED)),
+                argumentSet("unregistered but verifying: keep until the check is over",
+                        torrent().unregistered().seeded(400 * DAY).status(Status.CHECKING),
+                        Verdict.KEEP, Reason.VERIFYING, List.of()),
+                argumentSet("unregistered but queued to verify: keep until the check is over",
+                        torrent().unregistered().seeded(400 * DAY).status(Status.CHECK_WAIT),
+                        Verdict.KEEP, Reason.VERIFYING, List.of()),
+                argumentSet("unregistered and paused: remove",
+                        torrent().unregistered().seeded(400 * DAY).paused(),
+                        Verdict.REMOVE, Reason.UNREGISTERED, List.of()),
+                argumentSet("a passkey problem is a tracker error: not an input",
+                        torrent().trackerError("Passkey does not exist!").seeded(30 * DAY),
+                        Verdict.REMOVE, Reason.ALL_MET, List.of()),
+                argumentSet("a tracker error that matches no pattern: not an input",
+                        torrent().trackerError("Connection timed out").seeded(30 * DAY),
+                        Verdict.REMOVE, Reason.ALL_MET, List.of()));
+    }
+
+    @ParameterizedTest
+    @MethodSource("unregistered")
+    void anUnregisteredTorrentIsRemovedStraightAway(Case given, Verdict verdict, Reason reason,
+            List<Reason> secondary) {
+        List<GroupVerdict> verdicts = Decide.decide(given.snapshot(), RULES, NOW);
+
+        assertEquals(1, verdicts.size());
+        assertEquals(verdict, verdicts.get(0).verdict());
+        assertEquals(reason, verdicts.get(0).reason());
+        assertEquals(secondary, verdicts.get(0).secondaryReasons());
+        assertEquals(NO_FORECAST, verdicts.get(0).forecast());
+    }
+
+    /** What one verdict says, short enough to compare a whole list: its members' hashes, verdict and reason. */
+    private record Said(List<String> members, Verdict verdict, Reason reason) {
+    }
+
+    private static Said said(Verdict verdict, Reason reason, String... members) {
+        return new Said(List.of(members), verdict, reason);
+    }
+
+    static Stream<Arguments> unregisteredMembers() {
+        Case bridge = torrent().hash("u").wanted(SHARED, DOWNLOAD_ONLY);
+        Case c = torrent().hash("c").wanted(DOWNLOAD_ONLY);
+        return Stream.of(
+                argumentSet("the unregistered member leaves; the rest has not met its minimum: keep",
+                        List.of(a().unregistered().seeded(400 * DAY), b().seeded(14 * DAY - 1)),
+                        List.of(said(Verdict.REMOVE, Reason.UNREGISTERED, "a"),
+                                said(Verdict.KEEP, Reason.MINIMUM_NOT_REACHED, "b"))),
+                argumentSet("the unregistered member leaves; the rest has met its minimum: remove",
+                        List.of(a().seeded(30 * DAY), b().unregistered().seeded(0)),
+                        List.of(said(Verdict.REMOVE, Reason.ALL_MET, "a"),
+                                said(Verdict.REMOVE, Reason.UNREGISTERED, "b"))),
+                argumentSet("what holds for the unregistered member only does not count for the rest",
+                        List.of(a().unregistered().announce(UNKNOWN).percentDone(0.5, Status.STOPPED),
+                                b().seeded(14 * DAY)),
+                        List.of(said(Verdict.REMOVE, Reason.UNREGISTERED, "a"),
+                                said(Verdict.REMOVE, Reason.ALL_MET, "b"))),
+                argumentSet("the rest is kept for its library link, the unregistered member still leaves",
+                        List.of(a().unregistered().wanted(IN_LIBRARY), b().seeded(14 * DAY).wanted(IN_LIBRARY)),
+                        List.of(said(Verdict.REMOVE, Reason.UNREGISTERED, "a"),
+                                said(Verdict.KEEP, Reason.LIBRARY_LINK, "b"))),
+                argumentSet("an unregistered member that is verifying stays, and keeps the group",
+                        List.of(a().unregistered().seeded(400 * DAY).status(Status.CHECKING), b().seeded(14 * DAY)),
+                        List.of(said(Verdict.KEEP, Reason.VERIFYING, "a", "b"))),
+                argumentSet("every member unregistered: each leaves on its own",
+                        List.of(a().unregistered(), b().unregistered()),
+                        List.of(said(Verdict.REMOVE, Reason.UNREGISTERED, "a"),
+                                said(Verdict.REMOVE, Reason.UNREGISTERED, "b"))),
+                argumentSet("a member with a tracker error that is not unregistered stays in its group",
+                        List.of(a().trackerError("Passkey does not exist!").seeded(30 * DAY), b().seeded(14 * DAY)),
+                        List.of(said(Verdict.REMOVE, Reason.ALL_MET, "a", "b"))),
+                argumentSet("members that only the unregistered member held together are two groups without it",
+                        List.of(a().seeded(30 * DAY), bridge.unregistered(), c.seeded(0)),
+                        List.of(said(Verdict.REMOVE, Reason.ALL_MET, "a"),
+                                said(Verdict.REMOVE, Reason.UNREGISTERED, "u"),
+                                said(Verdict.KEEP, Reason.MINIMUM_NOT_REACHED, "c"))));
+    }
+
+    @ParameterizedTest
+    @MethodSource("unregisteredMembers")
+    void anUnregisteredMemberLeavesItsGroupAndTheRestIsJudgedWithoutIt(List<Case> members, List<Said> said) {
+        List<GroupVerdict> verdicts = Decide.decide(snapshot(members), RULES, NOW);
+
+        assertEquals(said, verdicts.stream()
+                .map(group -> new Said(group.members().stream().map(Member::hash).toList(), group.verdict(),
+                        group.reason()))
+                .toList());
+    }
+
+    @Test
+    void theRestOfTheGroupIsForecastWithoutTheUnregisteredMember() {
+        List<GroupVerdict> verdicts = Decide.decide(
+                snapshot(List.of(a().unregistered().seeded(0), b().seeded(10 * DAY))), RULES, NOW);
+
+        assertEquals(List.of(NO_FORECAST, on("2026-11-19T10:00:00+01:00[Europe/Brussels]")),
+                verdicts.stream().map(GroupVerdict::forecast).toList());
+    }
+
+    @Test
+    void aMemberCarriesWhatItsTrackerReports() {
+        List<GroupVerdict> verdicts = Decide.decide(snapshot(List.of(
+                a().unregistered().status(Status.CHECKING),
+                b().trackerError("Passkey does not exist!"),
+                torrent().hash("c").wanted(SHARED).error(1),
+                torrent().hash("d").wanted(SHARED).error(3),
+                torrent().hash("e").wanted(SHARED))), RULES, NOW);
+
+        assertEquals(List.of(
+                Optional.of(new TrackerError(TrackerError.Kind.UNREGISTERED, "Unregistered torrent")),
+                Optional.of(new TrackerError(TrackerError.Kind.TRACKER_ERROR, "Passkey does not exist!")),
+                Optional.of(new TrackerError(TrackerError.Kind.TRACKER_WARNING, "")),
+                Optional.empty(),
+                Optional.empty()),
+                verdicts.get(0).members().stream().map(Member::trackerError).toList());
+    }
+
     private static final Optional<Forecast> CLOCK_STOPPED = Optional.of(new Forecast(Optional.empty()));
     private static final Optional<Forecast> NO_FORECAST = Optional.empty();
 
@@ -482,6 +622,120 @@ class DecideTest {
         assertEquals(forecast, verdicts.get(0).forecast());
     }
 
+    /** An override on hash {@code a}; {@code until} is its inclusive end date, null for none. */
+    private static KeepOverride override(String until, String... hashes) {
+        return new KeepOverride("id-1", List.of(hashes), "Rewatching", Optional.ofNullable(until).map(LocalDate::parse),
+                Optional.empty());
+    }
+
+    private static Optional<Forecast> until(String date) {
+        return Optional.of(Forecast.until(LocalDate.parse(date)));
+    }
+
+    /** Now is 2026-11-15 10:00 in Brussels. The group is {@code a} and {@code b}, due for removal unless said. */
+    static Stream<Arguments> overrides() {
+        List<Case> due = List.of(a().seeded(30 * DAY), b().seeded(14 * DAY));
+        return Stream.of(
+                argumentSet("an override without an end date keeps a group that is due",
+                        due, List.of(override(null, "a", "b")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), NO_FORECAST),
+                argumentSet("an override with one of the group's hashes matches the whole group",
+                        due, List.of(override(null, "gone", "b")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), NO_FORECAST),
+                argumentSet("an override with an end date in the future keeps and shows the date",
+                        due, List.of(override("2027-03-01", "a")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), until("2027-03-01")),
+                argumentSet("on the end date itself the override still keeps",
+                        due, List.of(override("2026-11-15", "a")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), until("2026-11-15")),
+                argumentSet("the last second of the end date still keeps",
+                        due, List.of(override("2026-11-15", "a")),
+                        ZonedDateTime.parse("2026-11-15T23:59:59+01:00[Europe/Brussels]"),
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), until("2026-11-15")),
+                argumentSet("the day after the end date the override has expired: no effect",
+                        due, List.of(override("2026-11-14", "a")), NOW,
+                        Verdict.REMOVE, Reason.ALL_MET, List.of(), NO_FORECAST),
+                argumentSet("the end date is in the time zone of now: still the 15th in New York",
+                        due, List.of(override("2026-11-15", "a")),
+                        ZonedDateTime.parse("2026-11-15T23:00:00-05:00[America/New_York]"),
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), until("2026-11-15")),
+                argumentSet("the end date is in the time zone of now: already the 16th in Brussels",
+                        due, List.of(override("2026-11-15", "a")),
+                        ZonedDateTime.parse("2026-11-16T05:00:00+01:00[Europe/Brussels]"),
+                        Verdict.REMOVE, Reason.ALL_MET, List.of(), NO_FORECAST),
+                argumentSet("a stale override has no effect",
+                        due, List.of(override(null, "gone")), NOW,
+                        Verdict.REMOVE, Reason.ALL_MET, List.of(), NO_FORECAST),
+                argumentSet("an expired override next to an active one: the active one keeps",
+                        due, List.of(override("2026-01-01", "a"), override("2026-12-01", "b")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), until("2026-12-01")),
+                argumentSet("two active overrides: the one that keeps longest shows",
+                        due, List.of(override("2027-01-01", "a"), override("2026-12-01", "b")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), until("2027-01-01")),
+                argumentSet("two active overrides, one without an end date: no date",
+                        due, List.of(override("2027-01-01", "a"), override(null, "b")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), NO_FORECAST),
+                argumentSet("an override comes before a library link and the minimum",
+                        List.of(a().seeded(DAY).wanted(SHARED, IN_LIBRARY), b().seeded(DAY)),
+                        List.of(override(null, "a")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE,
+                        List.of(Reason.LIBRARY_LINK, Reason.MINIMUM_NOT_REACHED), NO_FORECAST),
+                argumentSet("not finished comes before an override",
+                        List.of(a().percentDone(0.5, Status.DOWNLOADING), b()),
+                        List.of(override("2027-03-01", "a")), NOW,
+                        Verdict.KEEP, Reason.NOT_FINISHED,
+                        List.of(Reason.KEEP_OVERRIDE, Reason.MINIMUM_NOT_REACHED), NO_FORECAST),
+                argumentSet("an override does not manage an unmanaged group",
+                        List.of(a().seeded(400 * DAY), b().announce(UNKNOWN).seeded(400 * DAY)),
+                        List.of(override(null, "a")), NOW,
+                        Verdict.LEFT_ALONE, Reason.UNMANAGED, List.of(Reason.KEEP_OVERRIDE), NO_FORECAST),
+                argumentSet("an expired override does not show as a secondary reason",
+                        List.of(a().seeded(DAY), b().seeded(DAY)),
+                        List.of(override("2026-11-14", "a")), NOW,
+                        Verdict.KEEP, Reason.MINIMUM_NOT_REACHED, List.of(),
+                        on("2026-12-14T10:00:00+01:00[Europe/Brussels]")));
+    }
+
+    @ParameterizedTest
+    @MethodSource("overrides")
+    void aKeepOverrideOnlyPreventsARemoval(List<Case> members, List<KeepOverride> overrides, ZonedDateTime now,
+            Verdict verdict, Reason reason, List<Reason> secondaryReasons, Optional<Forecast> forecast) {
+        List<GroupVerdict> verdicts = Decide.decide(snapshot(members), RULES, overrides, now);
+
+        assertEquals(1, verdicts.size());
+        GroupVerdict group = verdicts.get(0);
+        assertEquals(verdict, group.verdict());
+        assertEquals(reason, group.reason());
+        assertEquals(secondaryReasons, group.secondaryReasons());
+        assertEquals(forecast, group.forecast());
+    }
+
+    /** Whatever the snapshot, adding overrides never turns a verdict into Remove. */
+    @Test
+    void anOverrideNeverCausesARemoval() {
+        Snapshot snapshot = snapshot(List.of(
+                a().seeded(20 * DAY), b().seeded(13 * DAY).paused(),
+                torrent().hash("c").announce(UNKNOWN).wanted(IN_LIBRARY),
+                torrent().hash("d").seeded(400 * DAY).wanted().missing(2).error(3),
+                torrent().hash("e").wanted(new FileId(1, 201)).status(Status.CHECKING),
+                torrent().hash("f").wanted(new FileId(1, 202)).percentDone(0.5, Status.DOWNLOADING),
+                torrent().hash("g").wanted(new FileId(1, 203)).seeded(30 * DAY)));
+        List<KeepOverride> overrides = List.of(
+                override(null, "a"), override("2026-11-14", "b", "c"), override("2026-11-15", "d", "e"),
+                override("2027-01-01", "f"), override(null, "gone"));
+
+        List<GroupVerdict> without = Decide.decide(snapshot, RULES, List.of(), NOW);
+        List<GroupVerdict> with = Decide.decide(snapshot, RULES, overrides, NOW);
+
+        for (int i = 0; i < without.size(); i++) {
+            if (with.get(i).verdict() == Verdict.REMOVE) {
+                assertEquals(Verdict.REMOVE, without.get(i).verdict(), "an override caused the removal of group " + i);
+            }
+        }
+        assertEquals(List.of(Reason.KEEP_OVERRIDE, Reason.UNMANAGED, Reason.MISSING_DATA, Reason.VERIFYING,
+                Reason.NOT_FINISHED, Reason.ALL_MET), with.stream().map(GroupVerdict::reason).toList());
+    }
+
     @Test
     void aMemberCarriesItsTrackerSeedTimeAndMinimum() {
         List<GroupVerdict> verdicts = Decide.decide(torrent().announce(TRACKER_B).seeded(3 * DAY).snapshot(), RULES, NOW);
@@ -510,8 +764,8 @@ class DecideTest {
     @Test
     void verdictsAndReasonsHaveKebabCaseCodes() {
         assertEquals(List.of("remove", "left-alone", "keep"), Stream.of(Verdict.values()).map(Verdict::code).toList());
-        assertEquals(List.of("unmanaged", "missing-data", "local-error", "verifying", "not-finished", "library-link",
-                "minimum-not-reached", "all-met"),
+        assertEquals(List.of("unregistered", "unmanaged", "missing-data", "local-error", "verifying", "not-finished",
+                "keep-override", "library-link", "minimum-not-reached", "all-met"),
                 Stream.of(Reason.values()).map(Reason::code).toList());
     }
 }
