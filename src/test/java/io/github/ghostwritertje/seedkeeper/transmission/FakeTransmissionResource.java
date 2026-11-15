@@ -24,7 +24,7 @@ public class FakeTransmissionResource implements QuarkusTestResourceLifecycleMan
         return fake;
     }
 
-    /** An empty directory to put downloaded files in. */
+    /** The downloads root of the application under test: a directory to put downloaded files in. */
     public static Path downloads() {
         return downloads;
     }
@@ -45,6 +45,7 @@ public class FakeTransmissionResource implements QuarkusTestResourceLifecycleMan
             throw new UncheckedIOException(e);
         }
         Map<String, String> config = TestSecrets.with("seedkeeper.transmission.url", fake.url().toString());
+        config.put("seedkeeper.downloads-root", downloads.toString());
         config.put("seedkeeper.library-roots", library.toString());
         config.put("seedkeeper.trackers.tracker-a.hosts", "tracker-a.example");
         config.put("seedkeeper.trackers.tracker-b.hosts", "tracker-b.example,tracker-b.example.org");

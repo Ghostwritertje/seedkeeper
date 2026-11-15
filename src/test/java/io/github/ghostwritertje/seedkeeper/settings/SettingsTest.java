@@ -35,7 +35,8 @@ class SettingsTest {
                 .body(section("transmission") + ".dl.dd", is(FakeTransmissionResource.fake().url().toString()))
                 .body(section("paths") + ".dl.dt", contains("Downloads root", "Library roots", "Data dir"))
                 .body(section("paths") + ".dl.dd",
-                        contains("/downloads", FakeTransmissionResource.library().toString(), "/data"))
+                        contains(FakeTransmissionResource.downloads().toString(),
+                                FakeTransmissionResource.library().toString(), "/data"))
                 .body(section("login") + ".dl.dt", is("Username"))
                 .body(section("login") + ".dl.dd", is("admin"));
     }
