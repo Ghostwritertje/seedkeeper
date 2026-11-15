@@ -79,7 +79,7 @@ order.
 
 | Verdict | Reason | Code | Holds when |
 |---|---|---|---|
-| Remove (one member) | Unregistered | `unregistered` | The torrent is [unregistered](#unregistered-torrents) and is not being verified. It leaves its group and is a group of its own with this verdict; the rest of its group is judged without it. |
+| Remove (one member) | Unregistered | `unregistered` | The torrent is [unregistered](#unregistered-torrents), belongs to a tracker of the config (`public` included) and is not being verified. It leaves its group and is a group of its own with this verdict; the rest of its group is judged without it. An unregistered torrent that is unmanaged stays in its group and only shows `unregistered` as a secondary reason. |
 | Left alone | Unmanaged | `unmanaged` | A member belongs to no tracker of the config. |
 | Left alone | Missing data (n of m files) | `missing-data` | A wanted file of a finished member is nowhere on disk. A member that isn't finished is never missing data: its files may not exist yet. |
 | Left alone | Local error | `local-error` | Transmission reports a local error on a member (its `error` is 3), for example files it can't read. |
@@ -113,11 +113,15 @@ is 2) and the tracker message, lower-cased, contains one of these:
 A message with `passkey` in it is never unregistered: `Passkey does not exist!` is a problem with the account, not
 with the torrent. The list is built in; adding a pattern is a pull request.
 
-An unregistered torrent gets the verdict Remove straight away, whatever its seed time, its library links or its
-tracker (also one that is in no tracker of the config). This is the one case where one member leaves its
+An unregistered torrent of a tracker in the config (`public` included, when configured) gets the verdict Remove
+straight away, whatever its seed time or its library links. This is the one case where one member leaves its
 cross-seed group: the unregistered torrent is listed as a group of its own with reason `unregistered`, and the other
 members are grouped and judged as if it wasn't there. While the torrent is being verified (status `check-wait` or
 `checking`) it stays in its group, which is kept for `verifying`.
+
+An unregistered torrent that is [unmanaged](#configuration) is never removed: only torrents of a tracker in the config
+are. It stays in its group, which is left alone with reason `unmanaged` and lists `unregistered` as a secondary
+reason, so it stays visible.
 
 Any other tracker error, and any tracker warning (`error` is 1), has no effect on the verdict. The Groups page and
 the API show it with the tracker message.
@@ -177,8 +181,8 @@ first: when Transmission doesn't answer or is older than 4.1, or a library root 
 [overrides file](#keep-overrides) can't be read, the run ends `failed` with that one reason and removes nothing.
 After the removals a run adds the hashes of new group members to the keep overrides.
 
-Otherwise every group with the verdict **Remove** leaves. An [unregistered](#unregistered-torrents) torrent is such
-a group of one: it leaves on its own, and what the rest of its cross-seed group still uses stays on disk.
+Otherwise every group with the verdict **Remove** leaves. An [unregistered](#unregistered-torrents) torrent of a
+tracker in the config is such a group of one: it leaves on its own, and what the rest of its cross-seed group still uses stays on disk.
 
 1. Each member is removed from Transmission, which is told to leave the data alone. When one removal fails, the rest
    of that group is skipped and none of its files is deleted; the error is shown with the last run, and the next run
@@ -328,7 +332,8 @@ Run now is not in the API: it is a button on the System page only.
 
 The same data as the Groups page: every [cross-seed group](#cross-seed-groups) with the verdict seedkeeper would
 give it right now. Groups are in the order of their first member in Transmission. An
-[unregistered](#unregistered-torrents) torrent is a group of its own, with verdict `remove` and reason `unregistered`.
+[unregistered](#unregistered-torrents) torrent of a tracker in the config is a group of its own, with verdict
+`remove` and reason `unregistered`.
 
 | Query parameter | Meaning |
 |---|---|
