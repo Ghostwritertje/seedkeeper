@@ -17,7 +17,7 @@ thread() {
   jq -nc --arg id "$id" --argjson resolved "$resolved" --argjson outdated "$outdated" --arg path "$path" \
     --argjson line "$line" '
     {id: $id, isResolved: $resolved, isOutdated: $outdated, path: $path, line: $line,
-     comments: {nodes: [$ARGS.positional | _nwise(2)
+     comments: {nodes: [$ARGS.positional as $a | range(0; $a | length; 2) | $a[.:.+2]
        | {author: (if .[0] | endswith("[bot]") then {__typename: "Bot", login: (.[0] | rtrimstr("[bot]"))}
                    else {__typename: "User", login: .[0]} end),
           body: .[1]}]}}' --args "$@"
