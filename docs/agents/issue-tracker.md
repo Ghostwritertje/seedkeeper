@@ -30,7 +30,7 @@ labels. Interactive sessions use them the same way.
 | `agent:in-progress` | the implementer, when it starts                                     | An implementer run is working on the issue or pull request. It goes when the run ends.                              |
 | `agent:blocked`     | the implementer, or a failed agent job                              | The run couldn't finish: `./mvnw verify` stayed red (a draft pull request says where it got stuck), or the job crashed, timed out or ran out of quota (a comment links the run). |
 | `needs-decision`    | either agent                                                        | A choice that is the maintainer's to make. The comment or review gives the question, the options and a recommendation. |
-| `auto-merge`        | the reviewer, on an agent pull request it approves                  | The pull request is a two-way door with a small blast radius, and may merge without the maintainer.                 |
+| `auto-merge`        | the reviewer, on an agent pull request it approves                  | The pull request is a two-way door with a small blast radius, and may merge without the maintainer: the `Auto-merge gate` job turns on a squash auto-merge if it touches no human-only path (`docs/agents/auto-merge.md`). A new push removes it. |
 
 The life of an issue:
 
@@ -45,6 +45,11 @@ The life of an issue:
    the same way, as if the user who last added its `ready-for-agent` had just added it. Dependents that are still
    blocked, or carry no `ready-for-agent`, are left alone. The blocker's close reason doesn't matter: "not planned"
    unblocks too.
+
+   **Not after an auto-merge.** An issue closed by an auto-merged pull request (`docs/agents/auto-merge.md`) starts
+   no dependents: the merge is made by `github-actions[bot]` with the workflow's own token, not by a user with
+   write access. Start each unblocked dependent by hand: remove its `ready-for-agent` and add it again. Why:
+   `docs/adr/0002-auto-merge-policy.md`.
 3. **Worked on.** On the branch `agent/issue-<n>-<slug>`, test-first, until `./mvnw verify` is green.
 4. **Ends** in one of these, and `agent:in-progress` goes:
    - a ready pull request that says `Closes #<n>` and lists "Decisions I made";
@@ -63,7 +68,9 @@ The life of a pull request's review feedback (`docs/agents/review.md`, **The rev
    - `needs-decision` on the pull request, with a comment;
    - `agent:blocked` on the pull request, with a comment saying where it got stuck.
 
-After three review rounds the reviewer adds `needs-decision` instead of `ready-for-agent`. To resume after a
+When the reviewer approves an implementer pull request and adds `auto-merge`, the gate may merge it without the
+maintainer (`docs/agents/auto-merge.md`). After three review rounds the reviewer adds `needs-decision` instead of
+`ready-for-agent`. To resume after a
 decision, answer in a comment, remove `needs-decision` and add `ready-for-agent`.
 
 **Retry.** Nothing retries on its own. Re-adding `ready-for-agent` is the only retry: remove `agent:blocked` or

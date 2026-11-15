@@ -5,7 +5,9 @@ files, commit or push. Nobody answers questions during this run, so don't ask an
 
 1. `docs/agents/review.md`: what you check and how you report. Read the base branch's copy with
    `git show <BASE>:docs/agents/review.md`. Only when the base branch doesn't have it, read the working tree's copy.
-2. The pull request: `gh pr view <PR NUMBER> --json title,body,author,labels,commits` and
+2. `docs/agents/auto-merge.md`: when an agent pull request may merge without the maintainer. Read it the same way,
+   from the base branch first.
+3. The pull request: `gh pr view <PR NUMBER> --json title,body,author,labels,commits` and
    `gh pr view <PR NUMBER> --comments`.
 
 ## Review
@@ -20,7 +22,8 @@ read its parent spec when it has one. When the pull request names no issue, its 
 1. Post each finding that belongs to a line as an inline comment with
    `mcp__github_inline_comment__create_inline_comment`, with `confirmed: true`.
 2. Submit exactly one summary review, last:
-   `gh pr review <PR NUMBER> --comment --body "<summary>"`.
+   `gh pr review <PR NUMBER> --comment --body "<summary>"`, or, only when you approve (below),
+   `gh pr review <PR NUMBER> --approve --body "<summary>"`.
    Its first line is the hidden round marker `<!-- seedkeeper-review-round: <ROUND> -->`, exactly so, with the
    number from `ROUND` above. The workflow counts these markers to cap the review/fix loop. Its shape is in
    `docs/agents/review.md`.
@@ -35,6 +38,13 @@ read its parent spec when it has one. When the pull request names no issue, its 
      pull request as it is, or close it, with your recommendation.
    - **`HANDBACK` is `none`:** someone other than the implementer wrote this pull request; leave its fixes to them
      and add no label, except `needs-decision` for a decision.
-   - **No findings:** add no label.
+   - **No findings:** add no label, except as in step 4.
+4. Approve and mark auto-merge, only when `AUTO-MERGE` above is `allowed`, the review has no findings and no
+   decision is needed, and the change meets the criteria in `docs/agents/auto-merge.md`: submit the summary review
+   with `--approve`, then add `auto-merge` with `gh pr edit <PR NUMBER> --add-label auto-merge`. When the change
+   doesn't meet them, submit it with `--comment` and say in the verdict which criterion keeps it for the maintainer.
+   When `AUTO-MERGE` is `not allowed`, a human opened the pull request: never approve it or add `auto-merge`.
 
-You can't approve, request changes, merge, push or call `gh api`. Don't try another route to do any of these.
+You can't request changes, merge, push or call `gh api`, nor approve anything but what step 4 allows. Don't try
+another route to do any of these. Approving doesn't merge: a separate gate decides that, and it ignores your approval
+for a pull request that touches a human-only path.

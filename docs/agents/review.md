@@ -32,7 +32,8 @@ It doesn't run the build: CI's `Verify (JVM)` and `Verify (native)` jobs do.
 
 - **Inline comments.** Each finding that belongs to a line is an inline comment on that line. A finding says what is
   wrong, why, with the standard or the spec line it breaks, and the fix when the fix is clear.
-- **One summary review**, submitted last, as a comment review. Its first line is a hidden round marker, which the
+- **One summary review**, submitted last, as a comment review, or as an approval when it approves (see
+  **Approving**). Its first line is a hidden round marker, which the
   workflow counts (see **The review/fix loop**):
 
   ```markdown
@@ -91,10 +92,21 @@ close it. The workflow only gives the reviewer the tool to add `ready-for-agent`
 `ready-for-agent`. The implementer reads the answer and carries on. The round count isn't reset: each later review
 past the third asks for a decision again.
 
+## Approving
+
+The reviewer approves only an implementer pull request, and only when the review has no findings, no decision is
+needed, and the change meets the criteria in `docs/agents/auto-merge.md`. It then adds `auto-merge`. It never
+approves a pull request a human opened: the workflow gives it the tools to approve and to add `auto-merge` only on
+the implementer's pull requests.
+
+Approving doesn't merge. The `Auto-merge gate` job decides after the review, and turns on a squash auto-merge only
+when the gate passes (`docs/agents/auto-merge.md`, **The gate**). A new push to an implementer pull request turns an
+earlier auto-merge off and removes `auto-merge`, so the new head is reviewed and approved on its own.
+
 ## What it never does
 
-It never edits files, commits, pushes, merges or calls `gh api`. Its tool allowlist and its App's read-only contents
-permission enforce this.
+It never edits files, commits, pushes, merges, requests changes or calls `gh api`. Its tool allowlist and its App's
+read-only contents permission enforce this.
 
 ## When it fails
 

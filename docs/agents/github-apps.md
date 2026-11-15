@@ -91,4 +91,16 @@ missing:
 gh label create needs-decision --color d93f0b --description "Needs a decision from the maintainer"
 gh label create agent:in-progress --color fbca04 --description "An agent is working on this issue"
 gh label create agent:blocked --color b60205 --description "An agent job failed; see the linked run"
+gh label create auto-merge --color 0e8a16 --description "The reviewer approved this agent pull request to merge without the maintainer"
 ```
+
+## Auto-merge
+
+The `Auto-merge gate` job turns on auto-merge with the workflow's own token (`docs/agents/auto-merge.md`). It needs
+**Settings → General → Pull Requests → Allow auto-merge** on, as `dependabot-auto-merge.yml` already does, and
+squash merging allowed. Neither App needs a permission for it: the reviewer App's contents stay read-only.
+
+To check the setup, have the reviewer approve a small implementer pull request that touches no human-only path: it
+adds `auto-merge`, the `Auto-merge gate` job logs that auto-merge is on, and GitHub squash-merges the pull request
+once `Verify (JVM)` and `Verify (native)` pass. On a pull request that touches `.github/`, the job logs the
+human-only path and leaves the pull request open.
