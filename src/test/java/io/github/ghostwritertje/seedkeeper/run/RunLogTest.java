@@ -109,6 +109,18 @@ class RunLogTest {
                 lines.get(2));
     }
 
+    @Test
+    void aPathThatIsRefusedIsLoggedAsAnErrorOfItsOwnKind(@TempDir Path elsewhere) throws IOException {
+        Path outside = file(elsewhere.resolve("Due/a.mkv"));
+        transmission.add(new Torrent("due", "Due", Torrent.Status.SEEDING, 1, 0, "", 30 * DAY, true,
+                elsewhere.toString(), List.of("https://tracker-a.example/announce"),
+                List.of(new Torrent.File("Due/a.mkv", 4, true))));
+
+        service().run();
+
+        assertEquals("ERROR refused-path: Refused to delete " + outside, lines.get(2), lines.toString());
+    }
+
     private RunService service() {
         TrackerRules trackers = new TrackerRules(
                 List.of(new ManagedTracker("tracker-a", List.of("tracker-a.example"), Optional.empty())),

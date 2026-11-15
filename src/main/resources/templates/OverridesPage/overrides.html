@@ -7,6 +7,10 @@
 {#if unavailable}
 <p role="alert">{unavailable}</p>
 {#else}
+{#if groupsUnknown}
+<p role="alert">The groups the overrides match are unknown right now, so whether each is active or stale is too:
+{groupsUnknown}</p>
+{/if}
 {#if overrides.isEmpty}
 <p>There are no keep overrides.</p>
 <p>A keep override is a manual instruction never to remove a group, until an optional
@@ -23,7 +27,7 @@ the file as a whole: comments added by hand are lost.</p>
 </thead>
 <tbody>
 {#for override in overrides}
-<tr><td>{override.status}</td><td>{override.note}</td><td>{override.until}</td><td>{override.created}</td><td>{#if override.groups.isEmpty}no torrent{#else}{#for group in override.groups}<ul>{#for name in group}<li>{name}</li>{/for}</ul>{/for}{/if}</td><td>{override.hashes}</td><td>{override.id}</td><td><form id="edit-{override_index}" method="post" action="/overrides/edit">
+<tr><td>{override.status}</td><td>{override.note}</td><td>{override.until}</td><td>{override.created}</td><td>{#if !override.known}unknown{#else if override.groups.isEmpty}no torrent{#else}{#for group in override.groups}<ul>{#for name in group}<li>{name}</li>{/for}</ul>{/for}{/if}</td><td>{override.hashes}</td><td>{override.id}</td><td><form id="edit-{override_index}" method="post" action="/overrides/edit">
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
 <input type="hidden" name="id" value="{override.id}">
 <label>Note <input type="text" name="note" value="{override.note}"></label>

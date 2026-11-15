@@ -47,6 +47,7 @@ public final class OrphanFinder {
 
         List<Orphan> files = new ArrayList<>();
         List<Orphan> danglingSymlinks = new ArrayList<>();
+        List<Path> unreadable = new ArrayList<>();
         try {
             Files.walkFileTree(downloadsRoot, new SimpleFileVisitor<>() {
                 @Override
@@ -62,6 +63,16 @@ public final class OrphanFinder {
                     }
                     return FileVisitResult.CONTINUE;
                 }
+
+                /** One file or directory that can't be read doesn't hide the rest: it is skipped and counted. */
+                @Override
+                public FileVisitResult visitFileFailed(Path path, IOException e) throws IOException {
+                    if (path.equals(downloadsRoot)) {
+                        throw e;
+                    }
+                    unreadable.add(path);
+                    return FileVisitResult.CONTINUE;
+                }
             });
         } catch (IOException e) {
             throw new OrphansException(
@@ -69,6 +80,7 @@ public final class OrphanFinder {
         }
         files.sort(Comparator.comparing(Orphan::path));
         danglingSymlinks.sort(Comparator.comparing(Orphan::path));
-        return new Orphans(files, danglingSymlinks);
+        unreadable.sort(Comparator.naturalOrder());
+        return new Orphans(files, danglingSymlinks, unreadable);
     }
 }

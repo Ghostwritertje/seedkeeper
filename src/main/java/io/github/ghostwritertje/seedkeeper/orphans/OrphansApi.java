@@ -17,9 +17,11 @@ public class OrphansApi {
 
     /**
      * @param totalSizeBytes the bytes the orphan files take
+     * @param unreadable     the paths under the downloads root that could not be read and were skipped
      */
     @RegisterForReflection
-    public record Body(List<Orphan> files, List<Orphan> danglingSymlinks, long totalSizeBytes) {
+    public record Body(List<Orphan> files, List<Orphan> danglingSymlinks, long totalSizeBytes,
+            List<String> unreadable) {
     }
 
     /**
@@ -48,7 +50,8 @@ public class OrphansApi {
         try {
             Orphans found = orphans.orphans();
             return Response.ok(new Body(found.files().stream().map(OrphansApi::orphan).toList(),
-                    found.danglingSymlinks().stream().map(OrphansApi::orphan).toList(), found.totalSize())).build();
+                    found.danglingSymlinks().stream().map(OrphansApi::orphan).toList(), found.totalSize(),
+                    found.unreadable().stream().map(Object::toString).toList())).build();
         } catch (OrphansUnavailable e) {
             return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(new Unavailable(e.getMessage()))
                     .build();

@@ -149,6 +149,24 @@ class RunTest {
     }
 
     @Test
+    void endsFailedAndRemovesNothingWhenTheDownloadsRootCannotBeFound() throws IOException {
+        // The downloads root is a mount that is gone; Transmission still has its torrent, and its data elsewhere.
+        Path gone = root.resolve("gone");
+        Path due = file(downloads.resolve("Due/movie.mkv"));
+        transmission.add(torrent("due", 30 * DAY, "Due/movie.mkv"));
+
+        RunOutcome outcome = new Run(transmission, TRACKERS, gone, List.of(library), ZONE,
+                new OverrideStore(overridesFile())).execute();
+
+        assertEquals(Status.FAILED, outcome.status());
+        assertEquals(Optional.of("The downloads root " + gone + " (seedkeeper.downloads-root) can't be found"),
+                outcome.error());
+        assertEquals(List.of(), outcome.removals());
+        assertEquals(List.of(), transmission.removed());
+        assertTrue(Files.exists(due));
+    }
+
+    @Test
     void aFailedRemovalDeletesNoFilesOfThatGroupAndTheNextRunFinishesIt() throws IOException {
         Path first = file(downloads.resolve("Pack/movie.mkv"));
         Path second = downloads.resolve("cross-seed/movie.mkv");

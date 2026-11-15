@@ -44,6 +44,24 @@ class OrphanFinderTest {
     }
 
     @Test
+    void aDirectoryThatCannotBeReadIsSkippedAndCountedAndTheRestIsStillFound() throws IOException {
+        Path leftover = file(downloads.resolve("Removed/movie.mkv"));
+        Path locked = Files.createDirectory(downloads.resolve("locked"));
+        file(locked.resolve("movie.mkv"));
+        Files.setPosixFilePermissions(locked, java.util.Set.of());
+        try {
+            org.junit.jupiter.api.Assumptions.assumeFalse(Files.isReadable(locked), "running as root reads anything");
+
+            Orphans orphans = find();
+
+            assertEquals(List.of(leftover), paths(orphans.files()));
+            assertEquals(List.of(locked), orphans.unreadable());
+        } finally {
+            Files.setPosixFilePermissions(locked, java.nio.file.attribute.PosixFilePermissions.fromString("rwx------"));
+        }
+    }
+
+    @Test
     void anOrphanHasItsSizeAndWhenItWasLastModified() throws IOException {
         Path leftover = Files.writeString(downloads.resolve("leftover.mkv"), "seven b");
         Instant modified = Instant.parse("2026-03-01T10:00:00Z");

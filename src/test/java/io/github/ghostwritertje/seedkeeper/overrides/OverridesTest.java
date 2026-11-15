@@ -204,17 +204,36 @@ class OverridesTest {
     }
 
     @Test
-    void apiAndPageGiveTheReasonWhenTransmissionCannotBeUsed() {
+    void whileTransmissionCannotBeUsedTheOverridesAreListedWithTheirGroupsUnknown() {
         FakeTransmissionResource.fake().behaviour(Behaviour.RPC_ERROR);
 
         Authenticated.withApiKey().when().get("/api/v1/overrides").then()
-                .statusCode(503)
+                .statusCode(200)
                 .contentType("application/json")
-                .body("reason", containsString("refused session_get: Method not found"));
+                .body("id", contains("7f3c", "9d2e", "1b5a"))
+                .body("expired", contains(false, true, false))
+                .body("active", contains(nullValue(), is(false), nullValue()))
+                .body("stale", contains(nullValue(), nullValue(), nullValue()))
+                .body("groups", contains(nullValue(), nullValue(), nullValue()))
+                .body("[0].groupsUnknown", containsString("refused session_get: Method not found"))
+                .body("[1].groupsUnknown", containsString("refused session_get: Method not found"));
         Authenticated.asUser().when().get("/overrides").then()
                 .statusCode(200)
                 .body("html.body.main.p.find { it.@role == 'alert' }",
-                        containsString("refused session_get: Method not found"));
+                        containsString("refused session_get: Method not found"))
+                .body("html.body.main.table.tbody.tr.size()", is(3))
+                .body("html.body.main.table.tbody.tr[0].td[0]", is("Unknown"))
+                .body("html.body.main.table.tbody.tr[0].td[4]", is("unknown"))
+                .body("html.body.main.table.tbody.tr[1].td[0]", is("Expired"))
+                .body("html.body.main.table.tbody.tr[0].td[7].form.size()", is(2))
+                .body("html.body.main.section.find { it.@id == 'add-override' }.form.@id", is("add"));
+    }
+
+    @Test
+    void whenTheGroupsAreKnownNoOverrideSaysTheyAreUnknown() {
+        Authenticated.withApiKey().when().get("/api/v1/overrides").then()
+                .statusCode(200)
+                .body("groupsUnknown", contains(nullValue(), nullValue(), nullValue()));
     }
 
     @Test

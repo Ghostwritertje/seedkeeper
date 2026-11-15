@@ -7,7 +7,8 @@ import java.util.List;
  * What the System view and {@code GET /api/v1/system} show.
  *
  * @param running true while a run is running
- * @param lastRun the last run that ended since seedkeeper started; null when there has been none
+ * @param lastRun the last run that ended; before the first run since the start, the last one of the run history;
+ *                null when there has been none
  * @param nextRun when the next scheduled run starts: ISO 8601, to the second, with the offset of the configured time
  *                zone; null when there is none
  */
@@ -19,9 +20,12 @@ public record SystemStatus(String version, TransmissionStatus transmission, bool
      * @param reachable Transmission answered
      * @param version   as Transmission reports it; null when it didn't say
      * @param reason    why seedkeeper can't work with this Transmission; null when it can
+     * @param incompleteDirWarning what is worth knowing about Transmission's incomplete dir, which seedkeeper deletes
+     *                             in: it is enabled and outside the downloads root, or it is {@code /}; null when
+     *                             there is nothing to tell
      */
     @RegisterForReflection
-    public record TransmissionStatus(boolean reachable, String version, String reason) {
+    public record TransmissionStatus(boolean reachable, String version, String reason, String incompleteDirWarning) {
 
         public boolean usable() {
             return reason == null;

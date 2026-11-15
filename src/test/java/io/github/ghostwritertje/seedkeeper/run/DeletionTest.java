@@ -155,18 +155,61 @@ class DeletionTest {
     }
 
     @Test
-    void aFileThatIsNotWantedIsDeletedTooAndOneOfARemainingTorrentIsKept() throws IOException {
+    void aFileThatIsNotWantedStaysAndOneOfARemainingTorrentIsKeptThoughNotWanted() throws IOException {
         Path sample = file(downloads.resolve("Movie/sample.mkv"));
+        Path movie = file(downloads.resolve("Movie/movie.mkv"));
         Path shared = file(downloads.resolve("Pack/extras.mkv"));
         Torrent left = new Torrent("a", "a", Status.SEEDING, 1, 0, "", 0, true, downloads.toString(), List.of(),
-                List.of(new Torrent.File("Movie/sample.mkv", 9, false), new Torrent.File("Pack/extras.mkv", 9, true)));
+                List.of(new Torrent.File("Movie/sample.mkv", 9, false), new Torrent.File("Movie/movie.mkv", 9, true),
+                        new Torrent.File("Pack/extras.mkv", 9, true)));
         Torrent stays = new Torrent("b", "b", Status.SEEDING, 1, 0, "", 0, true, downloads.toString(), List.of(),
                 List.of(new Torrent.File("Pack/extras.mkv", 9, false)));
 
         Deleted deleted = delete(List.of(left), List.of(stays));
 
-        assertEquals(List.of(sample), deleted.files());
+        assertEquals(List.of(movie), deleted.files());
+        assertTrue(Files.exists(sample), "a file the torrent that left did not want was deleted");
         assertTrue(Files.exists(shared), "a file a remaining torrent still has, though not wanted, was deleted");
+    }
+
+    @Test
+    void theRootsAreLookedUpWhenDeletingNotWhenTheDeletionIsMade() throws IOException {
+        // The downloads root is a symlink, as a mount point can be, that is not there yet when seedkeeper starts.
+        Path real = Files.createDirectory(root.resolve("real-downloads"));
+        Path mounted = root.resolve("mounted");
+        Deletion deletion = new Deletion(mounted, List.of(library));
+        Files.createSymbolicLink(mounted, real);
+        Path movie = file(mounted.resolve("Movie/movie.mkv"));
+
+        Deleted deleted = deletion.delete(List.of(torrent("a", mounted, "Movie/movie.mkv")), List.of(),
+                Optional.empty());
+
+        assertEquals(List.of(movie), deleted.files());
+        assertGone(movie);
+    }
+
+    @Test
+    void aLibraryRootThatCannotBeFoundRefusesEveryDeletion() throws IOException {
+        Path movie = file(downloads.resolve("Movie/movie.mkv"));
+        Files.delete(library);
+
+        Deleted deleted = delete(List.of(torrent("a", downloads, "Movie/movie.mkv")), List.of());
+
+        assertTrue(Files.exists(movie), "a file was deleted while a library root could not be found");
+        assertEquals(List.of(), deleted.files());
+        assertEquals(List.of(movie), deleted.refused());
+    }
+
+    @Test
+    void anIncompleteDirThatIsTheFilesystemRootIsNoPlaceToDeleteIn() throws IOException {
+        incompleteDir = Optional.of(root.getRoot());
+        Path elsewhere = Files.createDirectory(root.resolve("elsewhere"));
+        Path file = file(elsewhere.resolve("Movie/movie.mkv"));
+
+        Deleted deleted = delete(List.of(torrent("a", elsewhere, "Movie/movie.mkv")), List.of());
+
+        assertTrue(Files.exists(file), "a file outside the downloads root was deleted under an incomplete dir of /");
+        assertEquals(List.of(file), deleted.refused());
     }
 
     @Test

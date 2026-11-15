@@ -37,11 +37,12 @@ public class OverridesPage {
 
         /**
          * @param file        the path of the overrides file
-         * @param unavailable why the overrides can't be listed right now; null when they can
-         * @param notice      why the form that was just posted changed nothing; null when there is nothing to tell
+         * @param unavailable   why the overrides file can't be read right now; null when it can
+         * @param groupsUnknown why the groups the overrides match can't be known right now; null when they can
+         * @param notice        why the form that was just posted changed nothing; null when there is nothing to tell
          */
         static native TemplateInstance overrides(List<Row> overrides, String file, String unavailable,
-                String notice);
+                String groupsUnknown, String notice);
     }
 
     private static final DateTimeFormatter CREATED = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -49,15 +50,16 @@ public class OverridesPage {
     /**
      * One override, as text ready to show.
      *
-     * @param status    "Active", "Expired", "Stale" or "Expired, stale"
+     * @param status    "Active", "Expired", "Stale", "Expired, stale", or "Unknown" when the groups are unknown
      * @param until     "2027-03-01" or "no end date"
      * @param created   "2026-11-20 10:12" in the configured time zone; empty when the file doesn't say
-     * @param groups    the names of the members of every group it matches; empty when it is stale
+     * @param groups    the names of the members of every group it matches; empty when it is stale or unknown
+     * @param known     false when the groups can't be known right now
      * @param hashes    separated by commas
      * @param untilDate "2027-03-01", or empty when it never ends: the value of the date field of the edit form
      */
     public record Row(String status, String note, String until, String created, List<List<String>> groups,
-            String hashes, String id, String untilDate) {
+            boolean known, String hashes, String id, String untilDate) {
     }
 
     private final OverridesService overrides;
@@ -142,25 +144,30 @@ public class OverridesPage {
 
     private TemplateInstance page(String notice) {
         String file = config.dataDir().resolve(OverrideStore.FILE_NAME).toString();
+        List<Listed> listed;
         try {
-            return Templates.overrides(overrides.overrides().stream().map(this::row).toList(), file, null, notice);
+            listed = overrides.overrides();
         } catch (OverridesUnavailable e) {
-            return Templates.overrides(List.of(), file, e.getMessage(), notice);
+            return Templates.overrides(List.of(), file, e.getMessage(), null, notice);
         }
+        String groupsUnknown = listed.stream().flatMap(override -> override.groupsUnknown().stream()).findFirst()
+                .orElse(null);
+        return Templates.overrides(listed.stream().map(this::row).toList(), file, null, groupsUnknown, notice);
     }
 
     private Row row(Listed listed) {
         KeepOverride override = listed.override();
         String status = listed.active() ? "Active"
                 : listed.expired() && listed.stale() ? "Expired, stale"
-                : listed.expired() ? "Expired" : "Stale";
+                : listed.expired() ? "Expired"
+                : listed.groupsKnown() ? "Stale" : "Unknown";
         return new Row(status, override.note(),
                 override.until().map(Object::toString).orElse("no end date"),
                 override.created().map(created -> CREATED.format(created.atZoneSameInstant(config.timeZone())))
                         .orElse(""),
                 listed.groups().stream().map(group -> group.stream().map(GroupVerdict.Member::name).toList())
                         .toList(),
-                String.join(", ", override.hashes()), override.id(),
+                listed.groupsKnown(), String.join(", ", override.hashes()), override.id(),
                 override.until().map(Object::toString).orElse(""));
     }
 }

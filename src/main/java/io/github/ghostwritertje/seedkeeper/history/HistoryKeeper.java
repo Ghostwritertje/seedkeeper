@@ -1,6 +1,9 @@
 package io.github.ghostwritertje.seedkeeper.history;
 
 import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
+import io.github.ghostwritertje.seedkeeper.history.History.HistoryException;
+import io.github.ghostwritertje.seedkeeper.history.History.RecordedRun;
+import io.github.ghostwritertje.seedkeeper.run.RunMonitor;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -8,11 +11,13 @@ import jakarta.enterprise.event.Observes;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 import org.flywaydb.core.Flyway;
 import org.jboss.logging.Logger;
 
 /**
- * Keeps the history going: makes the database at start, and writes every run that ends to it.
+ * Keeps the history going: makes the database at start, reads the last run from it so a restart doesn't forget it,
+ * and writes every run that ends to it.
  */
 @ApplicationScoped
 public class HistoryKeeper {
@@ -22,11 +27,19 @@ public class HistoryKeeper {
     private final History history;
     private final Flyway flyway;
     private final Path dataDir;
+    private final RunMonitor monitor;
+    private volatile Optional<RecordedRun> lastRecordedRun = Optional.empty();
 
-    HistoryKeeper(History history, Flyway flyway, SeedkeeperConfig config) {
+    HistoryKeeper(History history, Flyway flyway, SeedkeeperConfig config, RunMonitor monitor) {
         this.history = history;
         this.flyway = flyway;
         this.dataDir = config.dataDir();
+        this.monitor = monitor;
+    }
+
+    /** The last run in the history when seedkeeper started; empty when there was none or it couldn't be read. */
+    public Optional<RecordedRun> lastRecordedRun() {
+        return lastRecordedRun;
     }
 
     /**
@@ -41,6 +54,12 @@ public class HistoryKeeper {
             throw new IllegalStateException("The data dir " + dataDir + " (seedkeeper.data-dir) can't be used: " + e
                     + ". seedkeeper keeps seedkeeper.db there: it must be a directory seedkeeper can write"
                     + " to", e);
+        }
+        try {
+            lastRecordedRun = history.lastRun();
+            history.lastSuccessfulRunEnded().ifPresent(monitor::restoreLastSuccessfulRun);
+        } catch (HistoryException e) {
+            LOG.warn("The last run could not be read from the history: " + e.getMessage());
         }
     }
 

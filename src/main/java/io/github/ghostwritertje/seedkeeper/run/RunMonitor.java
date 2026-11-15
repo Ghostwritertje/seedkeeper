@@ -11,6 +11,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.runtime.Startup;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -27,7 +28,10 @@ import org.jboss.logging.MDC;
 @Startup // the metrics are there from the start, not from the first run
 public class RunMonitor {
 
-    /** The MDC key of a line's kind: {@code run-start}, {@code run-end}, {@code removal}, {@code deleted-file}. */
+    /**
+     * The MDC key of a line's kind: {@code run-start}, {@code run-end}, {@code removal}, {@code deleted-file},
+     * {@code refused-path}.
+     */
     static final String EVENT = "event";
 
     private static final Logger LOG = Logger.getLogger(RunMonitor.class);
@@ -68,6 +72,11 @@ public class RunMonitor {
         }
     }
 
+    /** Sets the last successful run from the history at start, unless a run since has set a later one. */
+    public void restoreLastSuccessfulRun(Instant ended) {
+        lastSuccessfulRun.accumulateAndGet(ended.getEpochSecond(), Math::max);
+    }
+
     /** A run has taken the lock. */
     void started() {
         log("run-start", Logger.Level.INFO, "Run started");
@@ -78,7 +87,7 @@ public class RunMonitor {
         for (Removal removal : outcome.removals()) {
             logRemoval(removal);
         }
-        long carriedOut = outcome.removals().stream().filter(removal -> removal.error().isEmpty()).count();
+        int carriedOut = outcome.groupsRemoved();
         runs.get(outcome.status()).increment();
         removedGroups.increment(carriedOut);
         spaceFreed.increment(outcome.spaceFreed());
@@ -111,7 +120,7 @@ public class RunMonitor {
             log("deleted-file", Logger.Level.INFO, "Deleted " + file);
         }
         for (Path refused : removal.deleted().refused()) {
-            log("deleted-file", Logger.Level.ERROR, "Refused to delete " + refused);
+            log("refused-path", Logger.Level.ERROR, "Refused to delete " + refused);
         }
     }
 

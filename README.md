@@ -5,11 +5,6 @@ and every tracker's hit-and-run rule is met. It treats cross-seeded torrents as 
 another torrent still uses. It is a small web app with a scheduled run, a UI that shows what it will do and why, and a
 read-only JSON API.
 
-**Status: under construction.** So far seedkeeper connects to Transmission, behind a login and an API key. It
-shows, per cross-seed group, the verdict it would give and when a group kept for its minimum seed time may leave. It
-removes nothing yet; see the
-[spec](https://github.com/Ghostwritertje/seedkeeper/issues/5) for what is being built and in which order.
-
 ## Configuration
 
 seedkeeper needs Transmission 4.1 or newer (it speaks JSON-RPC 2.0, which older versions don't).
@@ -178,7 +173,9 @@ A **run** carries out the verdicts. It starts by itself on the cron expression o
 that comes due while another run is running is skipped, not queued, and Run now during a run answers "A run is
 already running." A run asks Transmission for its session
 first: when Transmission doesn't answer or is older than 4.1, or a library root or the
-[overrides file](#keep-overrides) can't be read, the run ends `failed` with that one reason and removes nothing.
+[overrides file](#keep-overrides) can't be read, the run ends `failed` with that one reason and removes nothing. So
+does a run with something to remove while `seedkeeper.downloads-root` or a library root can't be found (a mount that
+isn't there), since a torrent removed then would leave its data behind for good.
 After the removals a run adds the hashes of new group members to the keep overrides.
 
 Otherwise every group with the verdict **Remove** leaves. An [unregistered](#unregistered-torrents) torrent of a
@@ -187,8 +184,10 @@ tracker in the config is such a group of one: it leaves on its own, and what the
 1. Each member is removed from Transmission, which is told to leave the data alone. When one removal fails, the rest
    of that group is skipped and none of its files is deleted; the error is shown with the last run, and the next run
    finds the rest still due.
-2. The torrent list is read again. Then, for each path of each removed torrent (in its download dir or, when enabled,
-   the incomplete dir, with or without `.part`; deselected files too):
+2. The torrent list is read again, up to 4 times with a short wait in between when Transmission doesn't answer.
+   When it still can't be read, nothing of that group is deleted: the error is shown with the last run and logged,
+   and what the removed torrents leave behind becomes an [orphan](#get-apiv1orphans). Otherwise, for each path of each removed torrent (in its download dir or, when enabled,
+   the incomplete dir, with or without `.part`; only its wanted files, never one deselected in Transmission):
    - a symlink is deleted, unless a remaining torrent has that exact path. What it leads to is never deleted;
    - a regular file is deleted, unless a remaining torrent still uses that file under any path (a hardlink, or
      through a symlink).
@@ -199,12 +198,14 @@ tracker in the config is such a group of one: it leaves on its own, and what the
 that lives on through a library link or another hardlink, frees nothing.
 
 seedkeeper never deletes anything outside `seedkeeper.downloads-root` and Transmission's incomplete dir, and never
-anything under a library root, also not through a symlinked directory. A path it refuses is counted with the last
-run. Only the paths of removed torrents are deleted, so data that a removed torrent reached through a symlink and
+anything under a library root, also not through a symlinked directory. These roots are looked up on every run, so a
+mount that comes up after seedkeeper started is seen; while one can't be found, nothing is deleted. The filesystem
+root `/` is never a place seedkeeper deletes in: not as the downloads root, and not as the incomplete dir. A path it
+refuses is counted with the last run. Only the paths of removed torrents are deleted, so data that a removed torrent reached through a symlink and
 that no torrent has as its own path any more stays behind as an [orphan](#get-apiv1orphans).
 
-The System page shows the last run since seedkeeper started: after a restart there is none until the next run.
-Every run is kept in the [run history](#run-history).
+The System page shows the last run. Every run is kept in the [run history](#run-history), so after a restart it
+shows the last run of the history until the next run.
 
 Secrets come from the environment only. seedkeeper doesn't start when one is missing:
 
@@ -249,7 +250,10 @@ A login is kept in a cookie encrypted with `QUARKUS_HTTP_AUTH_SESSION_ENCRYPTION
 seedkeeper as long as that key stays the same. It ends after 30 minutes without a request. Changing the key logs
 everyone out.
 
-Every form carries a CSRF token; a form POST without it is rejected with 400.
+The session cookie is `HttpOnly` and `SameSite=Strict`: scripts can't read it and other sites can't send it.
+
+Every form carries a CSRF token; a form POST without it is rejected with 400. The login form itself (handled by
+Quarkus) has none; the `SameSite=Strict` cookie is what protects it.
 
 ## Pages
 
@@ -257,8 +261,8 @@ Every form carries a CSRF token; a form POST without it is rejected with 400.
 |---|---|
 | `/groups` | Every [cross-seed group](#cross-seed-groups) with its members (name, tracker, seed time and minimum, status, and the tracker message when the tracker reports an [error](#unregistered-torrents): "Unregistered: …", "Tracker error: …" or "Tracker warning: …"), its library links, the verdict seedkeeper would give it right now with the [reason and the secondary reasons](#verdicts-and-reasons), and the forecast: a date in the configured time zone, "clock stopped (paused)", or the end date of a keep override ("until 2027-03-01"). The list can be filtered by verdict and by reason (`/groups?verdict=keep&reason=library-link`). Read from Transmission and the disk on every load. Each group has a **Set a keep override** form (note, optional end date) that adds a [keep override](#keep-overrides) with the info hash of every member. |
 | `/activity` | The [run history](#run-history): every run of the last year, the newest first, with its start and end, whether it succeeded or failed and the reason, the torrents and groups it removed, the files deleted and the space freed; and per removal its torrents (with their tracker, and "not finished", what the tracker said and "not removed" where that applies), the reason, the files deleted, the space freed and what went wrong. |
-| `/overrides` | Every [keep override](#keep-overrides) of the overrides file: its status (active, expired, stale, or expired and stale), note, end date, when it was created (in the configured time zone), the members of the group or groups it matches, its hashes and its id. Each can be edited (note and end date) or deleted, and a form adds one from info hashes. |
-| `/orphans` | The **orphans**: what is under the downloads root that no torrent references, as two lists, files and dangling symlinks, each with path, size, age (time since it was last modified) and a total. seedkeeper only shows them and never deletes them. |
+| `/overrides` | Every [keep override](#keep-overrides) of the overrides file: its status (active, expired, stale, or expired and stale), note, end date, when it was created (in the configured time zone), the members of the group or groups it matches, its hashes and its id. Each can be edited (note and end date) or deleted, and a form adds one from info hashes. While Transmission or a library root can't be used, the overrides are still listed and can still be changed, with their status and groups "unknown" and the reason shown. |
+| `/orphans` | The **orphans**: what is under the downloads root that no torrent references, as two lists, files and dangling symlinks, each with path, size, age (time since it was last modified) and a total, and how many paths could not be read and were skipped. seedkeeper only shows them and never deletes them. |
 | `/settings` | The configuration seedkeeper runs with, read-only: every key of the [configuration](#configuration) with its default filled in, each tracker with its hosts and the minimum seed time that applies to it (marked "(default)" when it sets none of its own), and for each secret only whether it is set or missing, never its value. |
 | `/system` | seedkeeper's version; whether a run is running, the outcome of the last [run](#runs-removing-and-deleting) (succeeded or failed with the reason, start and end, torrents and groups removed, files deleted, space freed, and the removals that went wrong) and when the next scheduled run starts; the **Run now** button; and whether Transmission is reachable, its version and, when seedkeeper can't work with it, the reason. |
 
@@ -314,10 +318,11 @@ The same data as the System page. Always answers 200, also when Transmission is 
 | `transmission.reachable` | `true` when Transmission answered. |
 | `transmission.version` | The version as Transmission reports it; `null` when it didn't say. |
 | `transmission.reason` | Why seedkeeper can't work with this Transmission: it doesn't answer, it rejects the credentials, or it is older than 4.1 (then `reachable` is `true`). `null` when all is well. |
+| `transmission.incompleteDirWarning` | Set when Transmission's incomplete dir is enabled and outside `seedkeeper.downloads-root` (seedkeeper deletes part files there too), or is `/` (seedkeeper never deletes there); also shown on the System page. `null` otherwise. |
 | `running` | `true` while a [run](#runs-removing-and-deleting) is running. |
-| `lastRun` | The last run that ended since seedkeeper started; `null` when there has been none. |
+| `lastRun` | The last run that ended; after a restart, the last run of the [run history](#run-history) until the next run. `null` when there has been none. For a run of the history, `removalErrors` says how many paths were refused but not which. |
 | `lastRun.started`, `lastRun.ended` | ISO 8601, to the second, with the offset of `seedkeeper.time-zone`. |
-| `lastRun.status` | `succeeded`, or `failed` when the run removed nothing because Transmission couldn't be used or a library root couldn't be read. |
+| `lastRun.status` | `succeeded`, or `failed` when the run could make no verdicts and removed nothing (Transmission couldn't be used, a library root or the overrides file couldn't be read, or there was something to remove while the downloads root or a library root couldn't be found), or when it broke off on an unexpected error; then the removals carried out before it are still listed. |
 | `lastRun.error` | The one reason of a failed run; `null` otherwise. |
 | `lastRun.groupsRemoved` | The removals carried out in full. |
 | `lastRun.torrentsRemoved` | The torrents removed from Transmission, also those of a group whose removal then failed. |
@@ -429,7 +434,8 @@ editing and deleting are on the Overrides and Groups pages only.
         {"hash": "0123456789abcdef0123456789abcdef01234567", "name": "Some.Show.S01"},
         {"hash": "89abcdef0123456789abcdef0123456789abcdef", "name": "Some.Show.S01.1080p"}
       ]
-    ]
+    ],
+    "groupsUnknown": null
   }
 ]
 ```
@@ -439,14 +445,14 @@ editing and deleting are on the Overrides and Groups pages only.
 | `id`, `hashes`, `note` | As in the file; hashes in lower case, `note` empty when there is none. |
 | `until` | The end date (inclusive, in `seedkeeper.time-zone`), `yyyy-mm-dd`; `null` when the override never ends. |
 | `created` | As in the file: ISO 8601 with its offset; `null` when the file doesn't say. |
-| `active` | `true` when the override keeps a group: it is neither expired nor stale. |
+| `active` | `true` when the override keeps a group: it is neither expired nor stale. `null` when the groups are unknown and it hasn't expired. |
 | `expired` | `true` when today, in `seedkeeper.time-zone`, is after `until`. |
-| `stale` | `true` when none of its hashes is a torrent in Transmission any more. An override can be both expired and stale. |
-| `groups` | Every current group the override matches, each as the hash and name of all its members (also the ones the override doesn't list yet). Empty when stale. |
+| `stale` | `true` when none of its hashes is a torrent in Transmission any more. An override can be both expired and stale. `null` when the groups are unknown. |
+| `groups` | Every current group the override matches, each as the hash and name of all its members (also the ones the override doesn't list yet). Empty when stale; `null` when the groups are unknown. |
+| `groupsUnknown` | Why the groups can't be known right now: Transmission doesn't answer or is older than 4.1, or a library root can't be read. `null` when they can. The overrides are still listed, and can still be changed on the Overrides page. |
 
-Answers 503 with `{"reason": "…"}` when the overrides file can't be read, or when the groups can't be known:
-Transmission doesn't answer or is older than 4.1, or a library root can't be read. Overrides can't be changed through
-the API.
+Answers 503 with `{"reason": "…"}` when the overrides file can't be read. Overrides can't be changed through the
+API.
 
 ### `GET /api/v1/runs`
 
@@ -476,7 +482,7 @@ The runs of the [run history](#run-history), the newest first: the same data as 
 |---|---|
 | `id` | The run's number; a later run has a higher one. |
 | `started`, `ended` | ISO 8601, to the second, with the offset of `seedkeeper.time-zone`. |
-| `status` | `succeeded`, or `failed` when the run removed nothing because Transmission couldn't be used or a library root couldn't be read. |
+| `status` | `succeeded`, or `failed` when the run could make no verdicts and removed nothing (Transmission couldn't be used, a library root or the overrides file couldn't be read, or there was something to remove while the downloads root or a library root couldn't be found), or when it broke off on an unexpected error; then the removals carried out before it are still listed. |
 | `error` | The one reason of a failed run; `null` otherwise. |
 | `groupsRemoved` | The removals carried out in full. |
 | `torrentsRemoved` | The torrents removed from Transmission, also those of a removal that then failed. |
@@ -561,7 +567,8 @@ ever deleted. Read from Transmission and the disk on every request.
       "lastModified": "2026-03-01T10:00:00Z"
     }
   ],
-  "totalSizeBytes": 4294967296
+  "totalSizeBytes": 4294967296,
+  "unreadable": []
 }
 ```
 
@@ -573,6 +580,7 @@ ever deleted. Read from Transmission and the disk on every request.
 | `[].sizeBytes` | The size in bytes; of a symlink, the size of the link itself. |
 | `[].lastModified` | When it was last modified, in UTC; its age is the time since then. |
 | `totalSizeBytes` | The sum of `sizeBytes` over `files`. |
+| `unreadable` | The paths under the downloads root that could not be read (no permission, for example), by path. They are skipped: what is in an unreadable directory is not listed. |
 
 Answers 503 with `{"reason": "…"}` when the orphans can't be listed: Transmission doesn't answer or is older than 4.1
 (without the torrents every file would seem an orphan), or the downloads root can't be read.
@@ -590,7 +598,7 @@ API key.
 | Metric | Type | Meaning |
 |---|---|---|
 | `seedkeeper_runs_total{status}` | counter | The [runs](#runs-removing-and-deleting) that ended, by `status`: `succeeded` or `failed`. |
-| `seedkeeper_last_successful_run_timestamp_seconds` | gauge | When the last run that succeeded ended, in seconds since the epoch; `0` until one has since seedkeeper started. Alert on `time() - seedkeeper_last_successful_run_timestamp_seconds` being too large. |
+| `seedkeeper_last_successful_run_timestamp_seconds` | gauge | When the last run that succeeded ended, in seconds since the epoch; read from the [run history](#run-history) at start; `0` when no run has succeeded. Alert on `time() - seedkeeper_last_successful_run_timestamp_seconds` being too large. |
 | `seedkeeper_removed_groups_total` | counter | The removals carried out in full. A removal that failed is not counted. |
 | `seedkeeper_space_freed_bytes_total` | counter | The space freed, in bytes. |
 | `seedkeeper_groups{verdict,reason}` | gauge | How many groups the last run gave each [verdict and reason](#verdicts-and-reasons), by their codes. A group the run removed is counted under `remove`. Every reason is always there, at `0` when no group has it. A failed run has no verdicts and leaves these as they were. |
@@ -601,8 +609,9 @@ The counters start at 0 with every start of seedkeeper.
 
 seedkeeper logs to standard output, one JSON object per line (`timestamp`, `level`, `loggerName`, `message`, `mdc`,
 ...). A run logs one line when it starts and one when it ends, one per removal and one per deleted file, each with
-its kind in `mdc.event`: `run-start`, `run-end`, `removal` or `deleted-file`. What went wrong has level `ERROR`: a
-failed run (on its `run-end` line, with the reason), a removal that failed, and a path seedkeeper refused to delete.
+its kind in `mdc.event`: `run-start`, `run-end`, `removal`, `deleted-file`, or `refused-path` for a path seedkeeper
+refused to delete. What went wrong has level `ERROR`: a failed run (on its `run-end` line, with the reason), a
+removal that failed, and a refused path.
 The lines of a run are written when it ends, apart from `run-start`.
 
 ```json

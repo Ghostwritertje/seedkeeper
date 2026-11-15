@@ -50,7 +50,9 @@ public record RunOutcome(ZonedDateTime started, ZonedDateTime ended, Status stat
      * @param reason   why they had to leave
      * @param torrents the torrents that were due: every member of a group, or the one member that leaves alone
      * @param removed  the ones Transmission removed; all of {@code torrents} unless there is an error
-     * @param error    what went wrong; then no file was deleted, and the next run finds the rest still due
+     * @param error    what went wrong; then no file was deleted. When a torrent could not be removed, the next run
+     *                 finds the rest still due; when every one was but the torrent list could not be read again,
+     *                 what they left on disk is an orphan
      * @param deleted  what was deleted on disk
      */
     public record Removal(Reason reason, List<Torrent> torrents, List<Torrent> removed, Optional<String> error,
@@ -60,6 +62,21 @@ public record RunOutcome(ZonedDateTime started, ZonedDateTime ended, Status stat
             torrents = List.copyOf(torrents);
             removed = List.copyOf(removed);
         }
+    }
+
+    /** The removals carried out in full. */
+    public int groupsRemoved() {
+        return (int) removals.stream().filter(removal -> removal.error().isEmpty()).count();
+    }
+
+    /** The torrents Transmission removed, also those of a removal that then went wrong. */
+    public int torrentsRemoved() {
+        return removals.stream().mapToInt(removal -> removal.removed().size()).sum();
+    }
+
+    /** The files and symlinks deleted by all removals together. */
+    public int filesDeleted() {
+        return removals.stream().mapToInt(removal -> removal.deleted().files().size()).sum();
     }
 
     /** The space freed by all removals together, in bytes. */
