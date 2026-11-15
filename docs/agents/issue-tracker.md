@@ -30,7 +30,7 @@ labels. Interactive sessions use them the same way.
 | `agent:in-progress` | the implementer, when it starts                                     | An implementer run is working on the issue or pull request. It goes when the run ends.                              |
 | `agent:blocked`     | the implementer, or a failed agent job                              | The run couldn't finish: `./mvnw verify` stayed red (a draft pull request says where it got stuck), or the job crashed, timed out or ran out of quota (a comment links the run). |
 | `needs-decision`    | either agent                                                        | A choice that is the maintainer's to make. The comment or review gives the question, the options and a recommendation. |
-| `auto-merge`        | the reviewer, on an agent pull request it approves                  | The pull request is a two-way door with a small blast radius, and may merge without the maintainer: the `Auto-merge gate` job turns on a squash auto-merge if it touches no human-only path (`docs/agents/auto-merge.md`). A new push removes it. |
+| `auto-merge`        | the reviewer, on an implementer pull request it approves                  | The pull request is a two-way door with a small blast radius, and may merge without the maintainer: the `Auto-merge gate` job turns on a squash auto-merge if it touches no human-only path (`docs/agents/auto-merge.md`). A new push removes it. |
 
 The life of an issue:
 

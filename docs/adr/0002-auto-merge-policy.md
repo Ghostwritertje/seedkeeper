@@ -1,4 +1,4 @@
-# Low-risk agent pull requests merge without the maintainer, through a deterministic gate
+# Low-risk implementer pull requests merge without the maintainer, through a deterministic gate
 
 An implementer pull request merges without the maintainer when the reviewer judges it a two-way door with a small
 blast radius, approves it and adds `auto-merge`, and a gate script then finds that the implementer opened it, the
@@ -19,11 +19,11 @@ gate turns on a squash auto-merge with the workflow's own token, and the `main` 
   it, with the other hard-to-revert changes (migrations, persisted formats, config keys users have set), for the
   maintainer.
 - **Human-only paths in the gate, not in the reviewer.** The reviewer reads issue and pull request text, which a
-  prompt injection can steer, and an agent pull request could loosen its own guardrails (the workflows, the prompts,
-  the settings, the gate itself) and then approve its way in. The gate is a script with no network access, run from
-  the base branch, with table-driven tests: whatever the reviewer says, a pull request that touches `.github/`,
-  `.claude/`, `CLAUDE.md`, the APM files, the ADRs, the Docker directory or the migrations never merges itself. The
-  reviewer still judges what a path list can't: dependencies, security, Removal behaviour.
+  prompt injection can steer, and an implementer pull request could loosen its own guardrails (the workflows, the
+  prompts, the settings, the gate itself) and then approve its way in. The gate is a script with no network access,
+  run from the base branch, with table-driven tests: whatever the reviewer says, a pull request that touches
+  `.github/`, `.claude/`, `CLAUDE.md`, the APM files, the ADRs, the Docker directory or the migrations never merges
+  itself. The reviewer still judges what a path list can't: dependencies, security, Removal behaviour.
 - **The workflow's token merges, not an App.** The reviewer App's contents are read-only, so it can't merge even if
   its allowlist failed, and the implementer App never decides on its own work. The gate job uses the workflow's own
   token, as `dependabot-auto-merge.yml` does, in a job of its own, so the agent's job never holds a token that can

@@ -91,7 +91,7 @@ missing:
 gh label create needs-decision --color d93f0b --description "Needs a decision from the maintainer"
 gh label create agent:in-progress --color fbca04 --description "An agent is working on this issue"
 gh label create agent:blocked --color b60205 --description "An agent job failed; see the linked run"
-gh label create auto-merge --color 0e8a16 --description "The reviewer approved this agent pull request to merge without the maintainer"
+gh label create auto-merge --color 0e8a16 --description "The reviewer approved this implementer pull request to merge without the maintainer"
 ```
 
 ## Auto-merge

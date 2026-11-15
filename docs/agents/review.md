@@ -77,7 +77,8 @@ maintainer:
    that have no line in the summary review.
 2. **Fixing.** `ready-for-agent` on a pull request starts the implementer on that pull request's branch
    (`.github/workflows/address-review.yml`). It addresses the unresolved review threads and the latest summary
-   review, pushes, and resolves the threads it handled.
+   review, pushes, and resolves the threads it handled. It sees only what trusted authors wrote, the agents and
+   users with write access: a thread a stranger started stays unresolved for the maintainer to resolve.
 3. **Reviewing again.** The implementer's push starts a new review, the next round.
 
 **Rounds.** A round is one summary review by the reviewer App with the round marker. Before it reviews, the workflow
@@ -85,7 +86,7 @@ counts the earlier ones (`.github/scripts/review-round.sh`). After three rounds 
 instead of `ready-for-agent`, and asks whether to fix the remaining findings, accept the pull request as it is, or
 close it. The workflow only gives the reviewer the tool to add `ready-for-agent` while a handback is allowed.
 
-**Only agent pull requests are handed back.** On a pull request someone else wrote, the reviewer adds no
+**Only implementer pull requests are handed back.** On a pull request someone else wrote, the reviewer adds no
 `ready-for-agent`; the author can add it to have the implementer address the review.
 
 **Resuming after a decision.** Answer in a comment on the pull request, remove `needs-decision` and add

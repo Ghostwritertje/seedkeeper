@@ -145,3 +145,27 @@ An orphan that is a regular file. One with a library link is still an orphan, bu
 **Dangling symlink**:
 An orphan that is a symlink leading nowhere and that is no torrent's own path.
 _Avoid_: Broken link
+
+### Agents
+
+**Implementer pull request**:
+A pull request the implementer agent opened. Only these may be handed back or merged without the maintainer.
+_Avoid_: Agent pull request, bot pull request
+
+**Round**:
+One summary review by the reviewer agent on a pull request. The number of rounds caps the review/fix loop.
+_Avoid_: Iteration, pass
+
+**Handback**:
+The reviewer agent returning an implementer pull request to the implementer agent to fix its findings.
+_Avoid_: Bounce, retry
+
+**Human-only path**:
+A path that an implementer pull request may change only with the maintainer's merge, whatever the reviewer agent
+says.
+_Avoid_: Protected path, restricted file
+
+**Trusted author**:
+The maintainer, a user with write access, or one of the agents. Only what trusted authors write reaches an agent as
+instructions; the repo is public, so anyone else's comment is only data.
+_Avoid_: Collaborator, maintainer (for anyone but the maintainer)

@@ -31,6 +31,17 @@ private GitHub App, and both are billed to the maintainer's Claude subscription 
 - The allowlist is strict only with `--permission-mode default`: the action's default auto mode lets a safety review
   pass tool calls the allowlist doesn't cover. Denies go in `claude_args`, where they also bind the action's own git
   scripts.
+- The allowlist and the denies are defence in depth, not a security boundary against a prompt-injected implementer.
+  It may `Edit` and `Write` and run `./mvnw`, so it can make the build run any shell, with the App token and
+  `CLAUDE_CODE_OAUTH_TOKEN` in its environment. What actually bounds it is the App's permissions (no workflows
+  permission, so no push to `.github/workflows/`) and the `main` ruleset. Keeping injected instructions out in the
+  first place is the main defence: see the next point.
+- The repo is public, so anyone can comment on an issue or a pull request and start or reply to a review thread.
+  Only trusted authors reach an agent: the workflow collects the review threads, the comments and the reviews from
+  the agents' bots and users with write access (`.github/scripts/review-threads.sh`,
+  `.github/scripts/trusted-comments.sh`), and the prompts work from those files and treat anything else as data. A
+  thread a stranger started is never given to the implementer, so it stays unresolved until the maintainer resolves
+  it. The reviewer reads the pull request's comments itself, and its prompt tells it to ignore untrusted authors.
 - Workflows use `pull_request`, never `pull_request_target`, so pull requests from forks get no secrets.
 - The action restores `CLAUDE.md` and `.claude/` from the base branch only on pull requests. On an issue the
   implementer starts from the default branch, and a retry that continues an earlier agent branch restores those
@@ -41,8 +52,10 @@ private GitHub App, and both are billed to the maintainer's Claude subscription 
   job on the sender: a user, or the other agent's bot, named by the `IMPLEMENTER_APP_SLUG` and `REVIEWER_APP_SLUG`
   repository variables. The reviewer's `allowed_bots` is the implementer's bot. The implementer's, on a pull
   request, is the reviewer's bot and its own: when a bot acts on a pull request, the action also checks that the
-  pull request's author is allowed, and the implementer writes most of those pull requests. The sender filter keeps
-  the implementer from starting itself.
+  pull request's author is allowed, and the implementer writes most of those pull requests
+  ([`checkBotActorPullRequestAuthor`](https://github.com/anthropics/claude-code-action/blob/f3b070c88125d33dbae5653df5f143101d4ea9dc/src/github/validation/permissions.ts#L105-L143):
+  an author ending in `[bot]` must be in `allowed_bots`). The sender filter in `implementer.yml` keeps the
+  implementer from starting itself, and `pull-request-pick-up.sh` leaves every other bot's pull request alone.
 - The action counts a pull request written by a bot as untrusted and denies `./mvnw` on it. The implementer turns
   that off with `restrict_untrusted_prs: false` on pull requests: forks never get secrets, and the code on its own
   pull requests is its own, which it ran when it wrote it.

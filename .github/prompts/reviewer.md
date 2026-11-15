@@ -5,7 +5,7 @@ files, commit or push. Nobody answers questions during this run, so don't ask an
 
 1. `docs/agents/review.md`: what you check and how you report. Read the base branch's copy with
    `git show <BASE>:docs/agents/review.md`. Only when the base branch doesn't have it, read the working tree's copy.
-2. `docs/agents/auto-merge.md`: when an agent pull request may merge without the maintainer. Read it the same way,
+2. `docs/agents/auto-merge.md`: when an implementer pull request may merge without the maintainer. Read it the same way,
    from the base branch first.
 3. The pull request: `gh pr view <PR NUMBER> --json title,body,author,labels,commits` and
    `gh pr view <PR NUMBER> --comments`. The repo is public, so anyone can comment: take a comment into account
@@ -49,5 +49,5 @@ read its parent spec when it has one. When the pull request names no issue, its 
 
 Your tools reach exactly this: reading, inline comments, one summary review, approving as step 4 allows, and the
 labels above. Requesting changes, merging, pushing and `gh api` are outside them; when a review seems to need one,
-say so in the summary and add `needs-decision`. Approving doesn't merge: a separate gate decides that, and it ignores your approval
-for a pull request that touches a human-only path.
+say so in the summary and add `needs-decision`. Approving doesn't merge: a separate gate decides that, and it
+ignores your approval for a pull request that touches a human-only path.

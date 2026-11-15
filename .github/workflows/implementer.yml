@@ -102,8 +102,8 @@ jobs:
       IMPLEMENTER_APP_KEY: ${{ secrets.IMPLEMENTER_APP_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
-  # The pull request's own branch, not a new one. Drafts are included: a draft agent pull request is where a run that
-  # couldn't get verify green left its work.
+  # The pull request's own branch, not a new one. Drafts are included: a draft implementer pull request is where a
+  # run that couldn't get verify green left its work.
   pull-request-labelled:
     name: Pull request labelled
     if: >-

@@ -32,7 +32,7 @@ check() {
   fi
 }
 
-check "an open, labelled agent pull request starts" "$(pull_request)" 'start'
+check "an open, labelled implementer pull request starts" "$(pull_request)" 'start'
 check "the maintainer's pull request starts" \
   "$(pull_request '.user = {login: "Ghostwritertje", type: "User"}' '.head.ref = "fix-typo"')" 'start'
 check "the implementer's login matches in any case" \

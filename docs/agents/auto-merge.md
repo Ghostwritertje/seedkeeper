@@ -1,6 +1,6 @@
 # Auto-merge
 
-When an agent pull request may merge without the maintainer. Two parts decide it: the reviewer agent judges the
+When an implementer pull request may merge without the maintainer. Two parts decide it: the reviewer agent judges the
 change against the criteria below, and a deterministic gate then checks paths and facts the reviewer can't be
 trusted with. The reviewer reads this doc from the pull request's base branch, so a change to it applies from the next
 pull request on. Why the policy is what it is: `docs/adr/0002-auto-merge-policy.md`.
