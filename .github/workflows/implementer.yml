@@ -59,6 +59,7 @@ jobs:
         with:
           app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
           private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          permission-issues: read
 
       - name: Find them
         id: find
@@ -69,22 +70,18 @@ jobs:
           CLOSER: ${{ github.event.sender.login }}
         run: |
           dependents='[]'
-          permission="$(gh api "repos/$GH_REPO/collaborators/$CLOSER/permission" --jq .permission)"
-          case "$permission" in
-            admin|write)
-              unblocked="$(gh api --paginate "repos/$GH_REPO/issues/$ISSUE/dependencies/blocking" \
-                | .github/scripts/unblocked-dependents.sh)"
-              for dependent in $unblocked; do
-                labeller="$(gh api --paginate "repos/$GH_REPO/issues/$dependent/events" \
-                  | .github/scripts/ready-for-agent-labeller.sh)"
-                dependents="$(jq -c --argjson issue "$dependent" --arg labeller "$labeller" \
-                  '. + [{issue: $issue, labeller: $labeller}]' <<<"$dependents")"
-              done
-              ;;
-            *)
-              echo "::notice::$CLOSER has $permission access, not write: starting no dependents."
-              ;;
-          esac
+          if [ "$(gh api "repos/$GH_REPO/collaborators/$CLOSER/permission" | .github/scripts/write-access.sh)" = true ]; then
+            unblocked="$(gh api --paginate "repos/$GH_REPO/issues/$ISSUE/dependencies/blocking" \
+              | .github/scripts/unblocked-dependents.sh)"
+            for dependent in $unblocked; do
+              labeller="$(gh api --paginate "repos/$GH_REPO/issues/$dependent/events" \
+                | .github/scripts/ready-for-agent-labeller.sh)"
+              dependents="$(jq -c --argjson issue "$dependent" --arg labeller "$labeller" \
+                '. + [{issue: $issue, labeller: $labeller}]' <<<"$dependents")"
+            done
+          else
+            echo "::notice::$CLOSER doesn't have write access: starting no dependents."
+          fi
           echo "Unblocked dependents of #$ISSUE: $dependents"
           echo "dependents=$dependents" >> "$GITHUB_OUTPUT"
 
@@ -105,8 +102,8 @@ jobs:
       IMPLEMENTER_APP_KEY: ${{ secrets.IMPLEMENTER_APP_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
-  # The pull request's own branch, not a new one. Drafts are included: a draft agent pull request is where a run that
-  # couldn't get verify green left its work.
+  # The pull request's own branch, not a new one. Drafts are included: a draft implementer pull request is where a
+  # run that couldn't get verify green left its work.
   pull-request-labelled:
     name: Pull request labelled
     if: >-

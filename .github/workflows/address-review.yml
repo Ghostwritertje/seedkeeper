@@ -57,6 +57,8 @@ jobs:
         with:
           app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
           private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          permission-issues: write
+          permission-pull-requests: write
 
       - name: Check the pull request can be worked on
         id: check
@@ -67,24 +69,21 @@ jobs:
           LABELLER: ${{ inputs.labeller }}
           REVIEWER: ${{ vars.REVIEWER_APP_SLUG }}[bot]
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          IMPLEMENTER: ${{ steps.app-token.outputs.app-slug }}[bot]
         run: |
           # Without REVIEWER_APP_SLUG, REVIEWER is "[bot]", which is nobody's login.
           if [ "$REVIEWER" != "[bot]" ] && [ "$LABELLER" = "$REVIEWER" ]; then
             echo "The reviewer App handed #$PR back."
           else
-            permission="$(gh api "repos/$GH_REPO/collaborators/$LABELLER/permission" --jq .permission)"
-            case "$permission" in
-              admin|write) ;;
-              *)
-                echo "::notice::$LABELLER has $permission access, not write: not starting."
-                echo "start=false" >> "$GITHUB_OUTPUT"
-                exit 0
-                ;;
-            esac
+            if [ "$(gh api "repos/$GH_REPO/collaborators/$LABELLER/permission" | .github/scripts/write-access.sh)" != true ]; then
+              echo "::notice::$LABELLER doesn't have write access: not starting."
+              echo "start=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
           fi
 
           pr="$(gh api "repos/$GH_REPO/pulls/$PR")"
-          decision="$(.github/scripts/pull-request-pick-up.sh "$DEFAULT_BRANCH" <<<"$pr")"
+          decision="$(.github/scripts/pull-request-pick-up.sh "$DEFAULT_BRANCH" "$IMPLEMENTER" <<<"$pr")"
           if [ "$decision" != start ]; then
             echo "::notice::Not starting on #$PR: ${decision#skip: }."
             echo "start=false" >> "$GITHUB_OUTPUT"
@@ -125,15 +124,16 @@ jobs:
           persist-credentials: false
 
       # The prompt and the scripts come from the base branch, so a pull request can't rewrite its own implementer's
-      # instructions. Only the pull request that adds them reads its own.
+      # instructions or filters. A base branch without them fails the run: nothing falls back to the pull request's
+      # own copy.
       - name: Read the prompt and the scripts
         id: prompt
         env:
           BASE_REF: ${{ needs.pick-up.outputs.base }}
         run: |
-          for file in .github/prompts/implementer-fix.md .github/scripts/review-threads.sh; do
-            git show "origin/$BASE_REF:$file" > "$RUNNER_TEMP/$(basename "$file")" 2>/dev/null \
-              || cp "$file" "$RUNNER_TEMP/$(basename "$file")"
+          for file in .github/prompts/implementer-fix.md .github/scripts/review-threads.sh \
+            .github/scripts/trusted-comments.sh .github/scripts/write-access.sh; do
+            git show "origin/$BASE_REF:$file" > "$RUNNER_TEMP/$(basename "$file")"
           done
           {
             echo 'text<<IMPLEMENTER_PROMPT_EOF'
@@ -141,15 +141,23 @@ jobs:
             echo 'IMPLEMENTER_PROMPT_EOF'
           } >> "$GITHUB_OUTPUT"
 
-      # The unresolved review threads, as JSON the agent reads: these are what it addresses and the only threads it
-      # can resolve.
-      - name: List the unresolved review threads
+      # The review feedback, as JSON the agent reads, from trusted authors only: the repo is public, so anyone can
+      # comment or start a review thread. Trusted are the reviewer App's bot, the implementer App's own, and users
+      # with write access. The unresolved threads a trusted author started are what the agent addresses, and the
+      # only threads it can resolve.
+      - name: Collect the trusted review feedback
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
           PR: ${{ inputs.pull_request }}
+          REVIEWER: ${{ vars.REVIEWER_APP_SLUG }}[bot]
+          IMPLEMENTER: ${{ steps.app-token.outputs.app-slug }}[bot]
         run: |
+          threads="$RUNNER_TEMP/review-threads-all.json"
+          comments="$RUNNER_TEMP/comments-all.json"
+          reviews="$RUNNER_TEMP/reviews-all.json"
           # shellcheck disable=SC2016 # the $ are GraphQL variables
           gh api graphql --paginate -F owner="$OWNER" -F repo="$REPO" -F number="$PR" -f query='
             query($owner: String!, $repo: String!, $number: Int!, $endCursor: String) {
@@ -159,13 +167,34 @@ jobs:
                     pageInfo { hasNextPage endCursor }
                     nodes {
                       id isResolved isOutdated path line
-                      comments(first: 100) { nodes { author { login } body } }
+                      comments(first: 100) { nodes { author { __typename login } body } }
                     }
                   }
                 }
               }
-            }' | bash "$RUNNER_TEMP/review-threads.sh" unresolved > /tmp/review-threads.json
-          echo "$(jq length /tmp/review-threads.json) unresolved review threads on #$PR."
+            }' > "$threads"
+          gh api --paginate "repos/$GH_REPO/issues/$PR/comments" > "$comments"
+          gh api --paginate "repos/$GH_REPO/pulls/$PR/reviews" > "$reviews"
+
+          # Without REVIEWER_APP_SLUG, REVIEWER is "[bot]", which is nobody's login.
+          {
+            bash "$RUNNER_TEMP/review-threads.sh" authors < "$threads"
+            bash "$RUNNER_TEMP/trusted-comments.sh" authors < "$comments"
+            bash "$RUNNER_TEMP/trusted-comments.sh" authors < "$reviews"
+          } | sort -uf | while read -r login; do
+            if [ "${login,,}" = "${REVIEWER,,}" ] || [ "${login,,}" = "${IMPLEMENTER,,}" ]; then
+              echo "$login"
+            elif [[ "$login" != *"[bot]" ]] \
+              && [ "$(gh api "repos/$GH_REPO/collaborators/$login/permission" | bash "$RUNNER_TEMP/write-access.sh")" = true ]; then
+              echo "$login"
+            fi
+          done > "$RUNNER_TEMP/trusted.txt"
+
+          bash "$RUNNER_TEMP/review-threads.sh" unresolved "$RUNNER_TEMP/trusted.txt" < "$threads" > /tmp/review-threads.json
+          jq -n --slurpfile comments <(bash "$RUNNER_TEMP/trusted-comments.sh" keep "$RUNNER_TEMP/trusted.txt" < "$comments") \
+            --slurpfile reviews <(bash "$RUNNER_TEMP/trusted-comments.sh" keep "$RUNNER_TEMP/trusted.txt" < "$reviews") \
+            '{comments: $comments[0], reviews: $reviews[0]}' > /tmp/pull-request-conversation.json
+          echo "$(jq length /tmp/review-threads.json) unresolved review threads from trusted authors on #$PR."
 
       # As the Verify (JVM) job in ci.yml does.
       - uses: actions/setup-java@v6
@@ -178,10 +207,13 @@ jobs:
       # command line so they also bind the action's own git scripts. Pushes go to the pull request's branch only.
       # allowed_bots lets the reviewer App's label start a run; the implementer App's own bot is listed because the
       # action also checks the pull request's author when a bot acts on it, and the implementer writes most of these
-      # pull requests. Neither is a way in for other bots: implementer.yml only calls this for a user or the reviewer
-      # App. restrict_untrusted_prs is off because the action counts every bot-authored pull request as untrusted and
-      # would deny ./mvnw; forks never get here.
-      - uses: anthropics/claude-code-action@v1
+      # pull requests (checkBotActorPullRequestAuthor, see docs/adr/0001-agent-runner.md). Neither is a way in for
+      # other bots: implementer.yml only calls this for a user or the reviewer App. restrict_untrusted_prs is off
+      # because the action counts every bot-authored pull request as untrusted and would deny ./mvnw; forks never get
+      # here, and pull-request-pick-up.sh skips every other bot's pull request. The step's own timeout, under the
+      # job's, fails the job, so a timeout reaches the blocked job.
+      - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        timeout-minutes: 55
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.app-token.outputs.token }}
@@ -194,6 +226,7 @@ jobs:
             BRANCH: ${{ needs.pick-up.outputs.branch }}
             BASE: ${{ needs.pick-up.outputs.base }}
             REVIEW THREADS: /tmp/review-threads.json
+            CONVERSATION: /tmp/pull-request-conversation.json
             HANDLED THREADS: /tmp/handled-review-threads.txt
 
             ${{ steps.prompt.outputs.text }}
@@ -204,7 +237,7 @@ jobs:
             --allowedTools
             "Read,Glob,Grep,Edit,MultiEdit,Write,Agent,Skill,TodoWrite,Bash(./mvnw:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git branch --show-current),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git commit:*),Bash(git restore:*),Bash(git push origin ${{ needs.pick-up.outputs.branch }}),Bash(gh issue view:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment ${{ inputs.pull_request }}:*),Bash(gh pr edit ${{ inputs.pull_request }} --add-label needs-decision),Bash(gh pr edit ${{ inputs.pull_request }} --add-label agent:blocked)"
             --disallowedTools
-            "Bash(gh pr merge:*),Bash(gh api:*),Bash(git push --force:*),Bash(git push -f:*),Bash(git push --force-with-lease:*),Bash(git push * --force*),Bash(git push * -f*),Bash(git push *+*),Bash(git push --delete:*),Bash(git push * --delete*),Bash(git reset --hard:*),Bash(git rebase:*),Bash(./mvnw *-Dnative*),Bash(./mvnw *-Pnative*)"
+            "Bash(gh pr merge:*),Bash(gh pr review:*),Bash(gh pr edit *auto-merge*),Bash(gh api:*),Bash(git push --force:*),Bash(git push -f:*),Bash(git push --force-with-lease:*),Bash(git push * --force*),Bash(git push * -f*),Bash(git push *+*),Bash(git push --delete:*),Bash(git push * --delete*),Bash(git reset --hard:*),Bash(git rebase:*),Bash(./mvnw *-Dnative*),Bash(./mvnw *-Pnative*)"
 
       # Only threads that were unresolved when the run started, and that the agent listed as handled.
       - name: Resolve the handled review threads
@@ -242,6 +275,8 @@ jobs:
         with:
           app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
           private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          permission-issues: write
+          permission-pull-requests: write
       - name: Label the pull request agent:blocked and link the run
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}

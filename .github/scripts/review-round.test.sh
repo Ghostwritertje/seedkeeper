@@ -37,7 +37,7 @@ check() {
   fi
 }
 
-check "a first review of an agent pull request hands back" \
+check "a first review of an implementer pull request hands back" \
   '[]' "$implementer" $'round=1\nhandback=ready-for-agent'
 check "the third review still hands back" \
   "[$(round 1),$(round 2)]" "$implementer" $'round=3\nhandback=ready-for-agent'

@@ -44,12 +44,19 @@ jobs:
       start: ${{ steps.check.outputs.start }}
       branch: ${{ steps.branch.outputs.name }}
     steps:
+      # The scripts come from the default branch.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
       - name: Mint the implementer App token
         id: app-token
         uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
           private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          permission-issues: write
 
       - name: Check the issue can be started
         id: check
@@ -64,15 +71,11 @@ jobs:
             echo "start=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          permission="$(gh api "repos/$GH_REPO/collaborators/$LABELLER/permission" --jq .permission)"
-          case "$permission" in
-            admin|write) ;;
-            *)
-              echo "::notice::$LABELLER has $permission access, not write: not starting."
-              echo "start=false" >> "$GITHUB_OUTPUT"
-              exit 0
-              ;;
-          esac
+          if [ "$(gh api "repos/$GH_REPO/collaborators/$LABELLER/permission" | .github/scripts/write-access.sh)" != true ]; then
+            echo "::notice::$LABELLER doesn't have write access: not starting."
+            echo "start=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           issue="$(gh api "repos/$GH_REPO/issues/$ISSUE")"
           if ! jq -e '.state == "open" and any(.labels[]; .name == "ready-for-agent")' <<<"$issue" > /dev/null; then
@@ -143,6 +146,31 @@ jobs:
             echo 'IMPLEMENTER_PROMPT_EOF'
           } >> "$GITHUB_OUTPUT"
 
+      # The issue's comments, as JSON the agent reads, from trusted authors only: the repo is public, so anyone can
+      # comment. Trusted are the agents' bots and users with write access. Filtered with the default branch's
+      # scripts, before a retry switches to the agent branch.
+      - name: Collect the trusted comments
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ inputs.issue }}
+          REVIEWER: ${{ vars.REVIEWER_APP_SLUG }}[bot]
+          IMPLEMENTER: ${{ steps.app-token.outputs.app-slug }}[bot]
+        run: |
+          comments="$RUNNER_TEMP/comments-all.json"
+          gh api --paginate "repos/$GH_REPO/issues/$ISSUE/comments" > "$comments"
+          # Without REVIEWER_APP_SLUG, REVIEWER is "[bot]", which is nobody's login.
+          .github/scripts/trusted-comments.sh authors < "$comments" | sort -uf | while read -r login; do
+            if [ "${login,,}" = "${REVIEWER,,}" ] || [ "${login,,}" = "${IMPLEMENTER,,}" ]; then
+              echo "$login"
+            elif [[ "$login" != *"[bot]" ]] \
+              && [ "$(gh api "repos/$GH_REPO/collaborators/$login/permission" | .github/scripts/write-access.sh)" = true ]; then
+              echo "$login"
+            fi
+          done > "$RUNNER_TEMP/trusted.txt"
+          .github/scripts/trusted-comments.sh keep "$RUNNER_TEMP/trusted.txt" < "$comments" > /tmp/issue-comments.json
+          echo "$(jq length /tmp/issue-comments.json) comments from trusted authors on #$ISSUE."
+
       # A retry continues on the branch an earlier run pushed. The action restores CLAUDE.md and .claude/ from the
       # base only on pull requests, so this step does it here: an earlier run can't loosen the next one's settings.
       - name: Check out the agent branch
@@ -166,8 +194,11 @@ jobs:
           cache: maven
 
       # The allowlist is exact: --permission-mode default denies whatever it doesn't list, and the denies are on the
-      # command line so they also bind the action's own git scripts. Pushes go to the agent branch only.
-      - uses: anthropics/claude-code-action@v1
+      # command line so they also bind the action's own git scripts. Pushes go to the agent branch only, and the
+      # pull request tools take the agent branch, so they reach only this issue's pull request. The step's own
+      # timeout, under the job's, fails the job, so a timeout reaches the blocked job.
+      - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        timeout-minutes: 55
         env:
           CLAUDE_BRANCH: ${{ needs.pick-up.outputs.branch }}
         with:
@@ -177,6 +208,7 @@ jobs:
           prompt: |
             REPO: ${{ github.repository }}
             ISSUE NUMBER: ${{ inputs.issue }}
+            ISSUE COMMENTS: /tmp/issue-comments.json
             BRANCH: ${{ needs.pick-up.outputs.branch }}
             BASE: ${{ github.event.repository.default_branch }}
 
@@ -186,9 +218,9 @@ jobs:
             --max-turns 150
             --permission-mode default
             --allowedTools
-            "Read,Glob,Grep,Edit,MultiEdit,Write,Agent,Skill,TodoWrite,Bash(./mvnw:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git branch --show-current),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git commit:*),Bash(git restore:*),Bash(git push origin ${{ needs.pick-up.outputs.branch }}),Bash(git push -u origin ${{ needs.pick-up.outputs.branch }}),Bash(gh issue view:*),Bash(gh issue comment ${{ inputs.issue }}:*),Bash(gh issue edit ${{ inputs.issue }}:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh pr ready:*)"
+            "Read,Glob,Grep,Edit,MultiEdit,Write,Agent,Skill,TodoWrite,Bash(./mvnw:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git branch --show-current),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git commit:*),Bash(git restore:*),Bash(git push origin ${{ needs.pick-up.outputs.branch }}),Bash(git push -u origin ${{ needs.pick-up.outputs.branch }}),Bash(gh issue view:*),Bash(gh issue comment ${{ inputs.issue }}:*),Bash(gh issue edit ${{ inputs.issue }}:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr comment ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr edit ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr ready ${{ needs.pick-up.outputs.branch }})"
             --disallowedTools
-            "Bash(gh pr merge:*),Bash(gh api:*),Bash(git push --force:*),Bash(git push -f:*),Bash(git push --force-with-lease:*),Bash(git push * --force*),Bash(git push * -f*),Bash(git push *+*),Bash(git push --delete:*),Bash(git push * --delete*),Bash(git reset --hard:*),Bash(git rebase:*),Bash(./mvnw *-Dnative*),Bash(./mvnw *-Pnative*)"
+            "Bash(gh pr merge:*),Bash(gh pr review:*),Bash(gh pr edit *auto-merge*),Bash(gh api:*),Bash(git push --force:*),Bash(git push -f:*),Bash(git push --force-with-lease:*),Bash(git push * --force*),Bash(git push * -f*),Bash(git push *+*),Bash(git push --delete:*),Bash(git push * --delete*),Bash(git reset --hard:*),Bash(git rebase:*),Bash(./mvnw *-Dnative*),Bash(./mvnw *-Pnative*)"
 
       # The issue's work is in its pull request, or the agent labelled it agent:blocked or needs-decision.
       - name: Clear agent:in-progress
@@ -212,6 +244,7 @@ jobs:
         with:
           app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
           private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          permission-issues: write
       - name: Label the issue agent:blocked and link the run
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The auto-merge gate: decides whether an agent pull request may merge without the maintainer. It may only if the
+# The auto-merge gate: decides whether an implementer pull request may merge without the maintainer. It may only if the
 # implementer opened it, the reviewer's latest review approves it, it carries `auto-merge`, and none of its changed
 # paths is human-only. Prints, as GITHUB_OUTPUT lines:
 #   merge=true|false
@@ -21,7 +21,7 @@ decide() {
 [ "$approves" = true ] || decide false "the reviewer's latest review doesn't approve it"
 grep -qxF auto-merge <<<"$labels" || decide false "it doesn't carry auto-merge"
 
-# The human-only paths: an agent pull request that touches one never merges itself, whatever the reviewer says.
+# The human-only paths: an implementer pull request that touches one never merges itself, whatever the reviewer says.
 # .github/, .claude/ and CLAUDE.md count at any depth, because Claude Code also reads nested ones; the others count
 # where they are in this repo.
 human_only() {

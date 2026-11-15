@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Table-driven tests for auto-merge-gate.sh: whether an agent pull request may merge without the maintainer, and why.
-# Each case is whether the implementer opened the pull request, whether the reviewer's latest review approves it, its
-# labels, its changed paths, and the expected decision. Needs only bash.
+# Table-driven tests for auto-merge-gate.sh: whether an implementer pull request may merge without the maintainer,
+# and why. Each case is whether the implementer opened the pull request, whether the reviewer's latest review
+# approves it, its labels, its changed paths, and the expected decision. Needs only bash.
 # Usage: auto-merge-gate.test.sh
 set -euo pipefail
 
