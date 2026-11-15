@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
+import java.nio.file.Files;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +33,11 @@ class UnreachableTransmissionTest {
             Map<String, String> config = TestSecrets.with("seedkeeper.transmission.url",
                     "http://127.0.0.1:" + unusedPort() + "/transmission/rpc");
             config.put("seedkeeper.library-roots", "/library");
+            try {
+                config.put("seedkeeper.data-dir", Files.createTempDirectory("seedkeeper-test-data").toString());
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
             return config;
         }
     }

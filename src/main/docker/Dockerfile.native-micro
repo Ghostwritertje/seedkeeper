@@ -10,10 +10,12 @@
 #
 #   docker build -f src/main/docker/Dockerfile.native-micro -t seedkeeper .
 #   docker run --rm -p 8080:8080 \
-#     -v "$PWD/seedkeeper.yaml:/work/config/application.yaml:ro" --env-file seedkeeper.env seedkeeper
+#     -v "$PWD/seedkeeper.yaml:/work/config/application.yaml:ro" -v "$PWD/data:/data" \
+#     --env-file seedkeeper.env seedkeeper
 #
 # The configuration is mounted as /work/config/application.yaml and the secrets come from the
-# environment (see the README); without them the application doesn't start.
+# environment (see the README); without them the application doesn't start. Nor does it without
+# a data dir it can write to: mount one at /data (seedkeeper.data-dir).
 #
 # `quay.io/quarkus/ubi9-quarkus-micro-image:2.0` is based on UBI 9. The builder image in pom.xml
 # (`ubi9-quarkus-mandrel-builder-image`) is UBI 9 too; keep both on the same UBI major, or the

@@ -42,7 +42,8 @@ public class GroupsPage {
      *
      * @param reason           "Library link (1 of 2 files)", "Missing data (1 of 2 files)", or the label alone
      * @param secondaryReasons every other reason that holds, written like the reason and separated by commas
-     * @param forecast         "2026-11-25 10:00" in the configured time zone, "clock stopped (paused)", or empty
+     * @param forecast         "2026-11-25 10:00" in the configured time zone, "clock stopped (paused)", "until 2027-03-01" (the
+     *                         end date of a keep override), or empty
      */
     public record Group(String verdict, String reason, String secondaryReasons, String libraryLinks, String forecast,
             List<Member> members) {
@@ -115,7 +116,8 @@ public class GroupsPage {
     private static Group group(GroupVerdict group) {
         String libraryLinks = group.libraryLinks() + " of " + group.files() + " files";
         String forecast = group.forecast()
-                .map(f -> f.date().map(FORECAST_DATE::format).orElse("clock stopped (paused)"))
+                .map(f -> f.until().map(endDate -> "until " + endDate)
+                        .orElseGet(() -> f.date().map(FORECAST_DATE::format).orElse("clock stopped (paused)")))
                 .orElse("");
         return new Group(group.verdict().label(), reason(group.reason(), group),
                 group.secondaryReasons().stream().map(r -> reason(r, group)).collect(Collectors.joining(", ")),

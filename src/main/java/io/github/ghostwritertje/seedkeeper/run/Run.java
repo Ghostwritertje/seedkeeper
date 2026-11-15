@@ -4,6 +4,9 @@ import io.github.ghostwritertje.seedkeeper.decide.Decide;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
 import io.github.ghostwritertje.seedkeeper.decide.Verdict;
+import io.github.ghostwritertje.seedkeeper.overrides.KeepOverride;
+import io.github.ghostwritertje.seedkeeper.overrides.OverrideStore;
+import io.github.ghostwritertje.seedkeeper.overrides.OverridesException;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Removal;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Status;
 import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot;
@@ -36,9 +39,11 @@ public final class Run {
     private final List<Path> libraryRoots;
     private final ZoneId timeZone;
     private final Remover remover;
+    private final OverrideStore overrides;
 
     public Run(Transmission transmission, TrackerRules trackers, Path downloadsRoot, List<Path> libraryRoots,
-            ZoneId timeZone) {
+            ZoneId timeZone, OverrideStore overrides) {
+        this.overrides = overrides;
         this.transmission = transmission;
         this.trackers = trackers;
         this.libraryRoots = List.copyOf(libraryRoots);
@@ -53,10 +58,12 @@ public final class Run {
         List<Removal> removals = new ArrayList<>();
         Optional<String> error = Optional.empty();
         try {
+            // Read at the start of every run (spec §7). A file that can't be read fails the run: nothing is removed.
+            List<KeepOverride> keepOverrides = overrides.reload();
             TransmissionSession session = transmission.session();
             Snapshot snapshot = SnapshotBuilder.build(transmission.torrents(), session.incompleteDir(),
                     libraryRoots);
-            verdicts = Decide.decide(snapshot, trackers, started);
+            verdicts = Decide.decide(snapshot, trackers, keepOverrides, started);
             Map<String, Torrent> byHash = snapshot.torrents().stream().map(SnapshotTorrent::torrent)
                     .collect(Collectors.toMap(Torrent::hash, Function.identity(), (first, second) -> first));
             for (GroupVerdict verdict : verdicts) {
@@ -68,7 +75,7 @@ public final class Run {
                     removals.add(remover.remove(verdict.reason(), group, session.incompleteDir()));
                 }
             }
-        } catch (TransmissionException | SnapshotException e) {
+        } catch (TransmissionException | SnapshotException | OverridesException e) {
             error = Optional.of(e.getMessage());
         } catch (RuntimeException e) {
             error = Optional.of("The run broke off: " + e);

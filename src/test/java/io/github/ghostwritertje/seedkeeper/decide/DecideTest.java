@@ -11,7 +11,9 @@ import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot.SnapshotTorrent;
 import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot.WantedFile;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent.Status;
+import io.github.ghostwritertje.seedkeeper.overrides.KeepOverride;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -620,6 +622,120 @@ class DecideTest {
         assertEquals(forecast, verdicts.get(0).forecast());
     }
 
+    /** An override on hash {@code a}; {@code until} is its inclusive end date, null for none. */
+    private static KeepOverride override(String until, String... hashes) {
+        return new KeepOverride("id-1", List.of(hashes), "Rewatching", Optional.ofNullable(until).map(LocalDate::parse),
+                Optional.empty());
+    }
+
+    private static Optional<Forecast> until(String date) {
+        return Optional.of(Forecast.until(LocalDate.parse(date)));
+    }
+
+    /** Now is 2026-11-15 10:00 in Brussels. The group is {@code a} and {@code b}, due for removal unless said. */
+    static Stream<Arguments> overrides() {
+        List<Case> due = List.of(a().seeded(30 * DAY), b().seeded(14 * DAY));
+        return Stream.of(
+                argumentSet("an override without an end date keeps a group that is due",
+                        due, List.of(override(null, "a", "b")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), NO_FORECAST),
+                argumentSet("an override with one of the group's hashes matches the whole group",
+                        due, List.of(override(null, "gone", "b")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), NO_FORECAST),
+                argumentSet("an override with an end date in the future keeps and shows the date",
+                        due, List.of(override("2027-03-01", "a")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), until("2027-03-01")),
+                argumentSet("on the end date itself the override still keeps",
+                        due, List.of(override("2026-11-15", "a")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), until("2026-11-15")),
+                argumentSet("the last second of the end date still keeps",
+                        due, List.of(override("2026-11-15", "a")),
+                        ZonedDateTime.parse("2026-11-15T23:59:59+01:00[Europe/Brussels]"),
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), until("2026-11-15")),
+                argumentSet("the day after the end date the override has expired: no effect",
+                        due, List.of(override("2026-11-14", "a")), NOW,
+                        Verdict.REMOVE, Reason.ALL_MET, List.of(), NO_FORECAST),
+                argumentSet("the end date is in the time zone of now: still the 15th in New York",
+                        due, List.of(override("2026-11-15", "a")),
+                        ZonedDateTime.parse("2026-11-15T23:00:00-05:00[America/New_York]"),
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), until("2026-11-15")),
+                argumentSet("the end date is in the time zone of now: already the 16th in Brussels",
+                        due, List.of(override("2026-11-15", "a")),
+                        ZonedDateTime.parse("2026-11-16T05:00:00+01:00[Europe/Brussels]"),
+                        Verdict.REMOVE, Reason.ALL_MET, List.of(), NO_FORECAST),
+                argumentSet("a stale override has no effect",
+                        due, List.of(override(null, "gone")), NOW,
+                        Verdict.REMOVE, Reason.ALL_MET, List.of(), NO_FORECAST),
+                argumentSet("an expired override next to an active one: the active one keeps",
+                        due, List.of(override("2026-01-01", "a"), override("2026-12-01", "b")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), until("2026-12-01")),
+                argumentSet("two active overrides: the one that keeps longest shows",
+                        due, List.of(override("2027-01-01", "a"), override("2026-12-01", "b")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), until("2027-01-01")),
+                argumentSet("two active overrides, one without an end date: no date",
+                        due, List.of(override("2027-01-01", "a"), override(null, "b")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE, List.of(), NO_FORECAST),
+                argumentSet("an override comes before a library link and the minimum",
+                        List.of(a().seeded(DAY).wanted(SHARED, IN_LIBRARY), b().seeded(DAY)),
+                        List.of(override(null, "a")), NOW,
+                        Verdict.KEEP, Reason.KEEP_OVERRIDE,
+                        List.of(Reason.LIBRARY_LINK, Reason.MINIMUM_NOT_REACHED), NO_FORECAST),
+                argumentSet("not finished comes before an override",
+                        List.of(a().percentDone(0.5, Status.DOWNLOADING), b()),
+                        List.of(override("2027-03-01", "a")), NOW,
+                        Verdict.KEEP, Reason.NOT_FINISHED,
+                        List.of(Reason.KEEP_OVERRIDE, Reason.MINIMUM_NOT_REACHED), NO_FORECAST),
+                argumentSet("an override does not manage an unmanaged group",
+                        List.of(a().seeded(400 * DAY), b().announce(UNKNOWN).seeded(400 * DAY)),
+                        List.of(override(null, "a")), NOW,
+                        Verdict.LEFT_ALONE, Reason.UNMANAGED, List.of(Reason.KEEP_OVERRIDE), NO_FORECAST),
+                argumentSet("an expired override does not show as a secondary reason",
+                        List.of(a().seeded(DAY), b().seeded(DAY)),
+                        List.of(override("2026-11-14", "a")), NOW,
+                        Verdict.KEEP, Reason.MINIMUM_NOT_REACHED, List.of(),
+                        on("2026-12-14T10:00:00+01:00[Europe/Brussels]")));
+    }
+
+    @ParameterizedTest
+    @MethodSource("overrides")
+    void aKeepOverrideOnlyPreventsARemoval(List<Case> members, List<KeepOverride> overrides, ZonedDateTime now,
+            Verdict verdict, Reason reason, List<Reason> secondaryReasons, Optional<Forecast> forecast) {
+        List<GroupVerdict> verdicts = Decide.decide(snapshot(members), RULES, overrides, now);
+
+        assertEquals(1, verdicts.size());
+        GroupVerdict group = verdicts.get(0);
+        assertEquals(verdict, group.verdict());
+        assertEquals(reason, group.reason());
+        assertEquals(secondaryReasons, group.secondaryReasons());
+        assertEquals(forecast, group.forecast());
+    }
+
+    /** Whatever the snapshot, adding overrides never turns a verdict into Remove. */
+    @Test
+    void anOverrideNeverCausesARemoval() {
+        Snapshot snapshot = snapshot(List.of(
+                a().seeded(20 * DAY), b().seeded(13 * DAY).paused(),
+                torrent().hash("c").announce(UNKNOWN).wanted(IN_LIBRARY),
+                torrent().hash("d").seeded(400 * DAY).wanted().missing(2).error(3),
+                torrent().hash("e").wanted(new FileId(1, 201)).status(Status.CHECKING),
+                torrent().hash("f").wanted(new FileId(1, 202)).percentDone(0.5, Status.DOWNLOADING),
+                torrent().hash("g").wanted(new FileId(1, 203)).seeded(30 * DAY)));
+        List<KeepOverride> overrides = List.of(
+                override(null, "a"), override("2026-11-14", "b", "c"), override("2026-11-15", "d", "e"),
+                override("2027-01-01", "f"), override(null, "gone"));
+
+        List<GroupVerdict> without = Decide.decide(snapshot, RULES, List.of(), NOW);
+        List<GroupVerdict> with = Decide.decide(snapshot, RULES, overrides, NOW);
+
+        for (int i = 0; i < without.size(); i++) {
+            if (with.get(i).verdict() == Verdict.REMOVE) {
+                assertEquals(Verdict.REMOVE, without.get(i).verdict(), "an override caused the removal of group " + i);
+            }
+        }
+        assertEquals(List.of(Reason.KEEP_OVERRIDE, Reason.UNMANAGED, Reason.MISSING_DATA, Reason.VERIFYING,
+                Reason.NOT_FINISHED, Reason.ALL_MET), with.stream().map(GroupVerdict::reason).toList());
+    }
+
     @Test
     void aMemberCarriesItsTrackerSeedTimeAndMinimum() {
         List<GroupVerdict> verdicts = Decide.decide(torrent().announce(TRACKER_B).seeded(3 * DAY).snapshot(), RULES, NOW);
@@ -648,8 +764,8 @@ class DecideTest {
     @Test
     void verdictsAndReasonsHaveKebabCaseCodes() {
         assertEquals(List.of("remove", "left-alone", "keep"), Stream.of(Verdict.values()).map(Verdict::code).toList());
-        assertEquals(List.of("unregistered", "unmanaged", "missing-data", "local-error", "verifying", "not-finished", "library-link",
-                "minimum-not-reached", "all-met"),
+        assertEquals(List.of("unregistered", "unmanaged", "missing-data", "local-error", "verifying", "not-finished",
+                "keep-override", "library-link", "minimum-not-reached", "all-met"),
                 Stream.of(Reason.values()).map(Reason::code).toList());
     }
 }

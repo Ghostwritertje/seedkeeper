@@ -29,7 +29,8 @@ public class GroupsApi {
      * @param libraryLinks how many wanted files of the members have a library link
      * @param missingFiles how many wanted files of finished members are not on disk
      * @param files        how many wanted files the members have
-     * @param forecast     null unless the reason is {@code minimum-not-reached}
+     * @param forecast     null unless the reason is {@code minimum-not-reached}, or {@code keep-override} with an
+     *                     end date
      */
     @RegisterForReflection
     public record Group(String verdict, String reason, List<String> secondaryReasons, int libraryLinks,
@@ -40,9 +41,11 @@ public class GroupsApi {
      * @param date         when every member is expected to have met its minimum, as an ISO 8601 date and time with
      *                     the offset of the configured time zone; null when the clock is stopped
      * @param clockStopped true when the member that sets the date is paused
+     * @param until        the end date (inclusive) of the keep override that keeps the group, as an ISO 8601 date;
+     *                     null unless the reason is {@code keep-override}
      */
     @RegisterForReflection
-    public record Forecast(String date, boolean clockStopped) {
+    public record Forecast(String date, boolean clockStopped, String until) {
     }
 
     /**
@@ -96,7 +99,7 @@ public class GroupsApi {
     private static Forecast forecast(io.github.ghostwritertje.seedkeeper.decide.Forecast forecast) {
         return new Forecast(forecast.date()
                 .map(date -> date.truncatedTo(ChronoUnit.SECONDS).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
-                .orElse(null), forecast.clockStopped());
+                .orElse(null), forecast.clockStopped(), forecast.until().map(Object::toString).orElse(null));
     }
 
     private static Member member(GroupVerdict.Member member) {

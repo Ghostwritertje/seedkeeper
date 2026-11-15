@@ -25,6 +25,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import io.github.ghostwritertje.seedkeeper.overrides.OverrideStore;
 
 /** What a run logs (spec §10): one line per run start and end, removal, deleted file and error. */
 class RunLogTest {
@@ -112,7 +113,8 @@ class RunLogTest {
         TrackerRules trackers = new TrackerRules(
                 List.of(new ManagedTracker("tracker-a", List.of("tracker-a.example"), Optional.empty())),
                 Duration.ofDays(30), Optional.empty());
-        return new RunService(new Run(transmission, trackers, root, List.of(), ZoneOffset.UTC),
+        OverrideStore overrides = new OverrideStore(root.resolve("overrides.yaml"));
+        return new RunService(new Run(transmission, trackers, root, List.of(), ZoneOffset.UTC, overrides), overrides,
                 new RunMonitor(new SimpleMeterRegistry()));
     }
 
