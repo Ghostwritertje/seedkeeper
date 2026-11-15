@@ -35,7 +35,8 @@ public final class OrphanFinder {
      * @param incompleteDir Transmission's incomplete dir; empty when it is not enabled
      * @throws OrphansException with one reason when the downloads root can't be read
      */
-    public static Orphans find(Path downloadsRoot, List<Torrent> torrents, Optional<Path> incompleteDir) {
+    public static Orphans find(Path downloadsRoot, List<Path> libraryRoots, List<Torrent> torrents,
+            Optional<Path> incompleteDir) {
         Set<Path> referencedPaths = new HashSet<>();
         Set<FileId> referencedFiles = new HashSet<>();
         for (Torrent torrent : torrents) {
@@ -45,11 +46,24 @@ public final class OrphanFinder {
             }
         }
 
+        Set<FileId> libraryRootDirectories = new HashSet<>();
+        for (Path libraryRoot : libraryRoots) {
+            TorrentPaths.id(libraryRoot).ifPresent(libraryRootDirectories::add);
+        }
+
         List<Orphan> files = new ArrayList<>();
         List<Orphan> danglingSymlinks = new ArrayList<>();
         List<Path> unreadable = new ArrayList<>();
         try {
             Files.walkFileTree(downloadsRoot, new SimpleFileVisitor<>() {
+                /** What is under a library root is the media library's, never an orphan. */
+                @Override
+                public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attributes) {
+                    return TorrentPaths.id(directory, LinkOption.NOFOLLOW_LINKS)
+                            .filter(libraryRootDirectories::contains).isPresent()
+                                    ? FileVisitResult.SKIP_SUBTREE : FileVisitResult.CONTINUE;
+                }
+
                 @Override
                 public FileVisitResult visitFile(Path path, BasicFileAttributes attributes) {
                     Orphan orphan = new Orphan(path, attributes.size(), attributes.lastModifiedTime().toInstant());

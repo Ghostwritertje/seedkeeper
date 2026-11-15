@@ -103,9 +103,9 @@ class OrphanFinderTest {
         Path part = file(inside.resolve("other.mkv.part"));
         List<Torrent> torrents = List.of(torrent("a", wanted("movie.mkv")), torrent("b", wanted("other.mkv")));
 
-        assertEquals(List.of(), OrphanFinder.find(downloads, torrents, Optional.of(inside)).files());
+        assertEquals(List.of(), OrphanFinder.find(downloads, List.of(), torrents, Optional.of(inside)).files());
         assertEquals(List.of(whole, part),
-                paths(OrphanFinder.find(downloads, torrents, Optional.empty()).files()));
+                paths(OrphanFinder.find(downloads, List.of(), torrents, Optional.empty()).files()));
     }
 
     @Test
@@ -113,7 +113,7 @@ class OrphanFinderTest {
         file(incomplete.resolve("leftover.mkv"));
         file(root.resolve("elsewhere/leftover.mkv"));
 
-        Orphans orphans = OrphanFinder.find(downloads, List.of(), Optional.of(incomplete));
+        Orphans orphans = OrphanFinder.find(downloads, List.of(), List.of(), Optional.of(incomplete));
 
         assertEquals(List.of(), orphans.files());
     }
@@ -176,17 +176,31 @@ class OrphanFinderTest {
     }
 
     @Test
+    void aFileUnderALibraryRootInsideTheDownloadsRootIsNotAnOrphan() throws IOException {
+        Path library = Files.createDirectory(downloads.resolve("library"));
+        file(library.resolve("tv/Show.S01E01.mkv"));
+        symlink(library.resolve("tv/gone.mkv"), downloads.resolve("gone.mkv"));
+        Path leftover = file(downloads.resolve("leftover.mkv"));
+
+        Orphans orphans = OrphanFinder.find(downloads, List.of(library), List.of(), Optional.empty());
+
+        assertEquals(List.of(leftover), paths(orphans.files()));
+        assertEquals(List.of(), orphans.danglingSymlinks());
+        assertEquals(4, orphans.totalSize());
+    }
+
+    @Test
     void aDownloadsRootThatIsMissingGivesTheReason() {
         Path missing = root.resolve("not-mounted");
 
         OrphansException failure = org.junit.jupiter.api.Assertions.assertThrows(OrphansException.class,
-                () -> OrphanFinder.find(missing, List.of(), Optional.empty()));
+                () -> OrphanFinder.find(missing, List.of(), List.of(), Optional.empty()));
 
         assertEquals("Downloads root " + missing + " can't be read (NoSuchFileException)", failure.getMessage());
     }
 
     private Orphans find(Torrent... torrents) {
-        return OrphanFinder.find(downloads, Arrays.asList(torrents), Optional.empty());
+        return OrphanFinder.find(downloads, List.of(), Arrays.asList(torrents), Optional.empty());
     }
 
     private static List<Path> paths(List<Orphan> orphans) {

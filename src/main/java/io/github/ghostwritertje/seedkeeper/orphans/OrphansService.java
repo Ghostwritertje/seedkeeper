@@ -27,7 +27,7 @@ public class OrphansService {
     public Orphans orphans() {
         try {
             TransmissionSession session = transmission.session();
-            return OrphanFinder.find(config.downloadsRoot(), transmission.torrents(), session.incompleteDir());
+            return OrphanFinder.find(config.downloadsRoot(), config.libraryRoots(), transmission.torrents(), session.incompleteDir());
         } catch (TransmissionException | OrphansException e) {
             throw new OrphansUnavailable(e.getMessage(), e);
         }
