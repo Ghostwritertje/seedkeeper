@@ -92,20 +92,14 @@ jobs:
           persist-credentials: false
 
       # The prompt comes from the base branch, like the CLAUDE.md and .claude/ the action restores, so a pull
-      # request can't rewrite its own reviewer's instructions. Only a pull request whose base has no prompt at all,
-      # the one that adds it, reads its own; any other failure to read the base's copy fails the step.
+      # request can't rewrite its own reviewer's instructions. A base branch without it fails the step: nothing
+      # falls back to the pull request's own copy.
       - name: Read the reviewer prompt
         id: prompt
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
-          file=.github/prompts/reviewer.md
-          if git cat-file -e "origin/$BASE_REF:$file" 2>/dev/null; then
-            git show "origin/$BASE_REF:$file" > "$RUNNER_TEMP/reviewer.md"
-          else
-            echo "::notice::The base branch has no reviewer prompt: reading this pull request's own."
-            cp "$file" "$RUNNER_TEMP/reviewer.md"
-          fi
+          git show "origin/$BASE_REF:.github/prompts/reviewer.md" > "$RUNNER_TEMP/reviewer.md"
           {
             echo 'text<<REVIEWER_PROMPT_EOF'
             cat "$RUNNER_TEMP/reviewer.md"
@@ -115,7 +109,7 @@ jobs:
       # The round of this review: the reviewer's earlier summary reviews with a round marker, plus one. And how it
       # may hand a clear fix back: ready-for-agent on an implementer pull request for three rounds, then
       # needs-decision; on anybody else's pull request not at all. The script comes from the base branch, like the
-      # prompt, so a pull request can't lift its own cap; a base without it allows no handback at all.
+      # prompt, so a pull request can't lift its own cap; a base without it fails the step.
       - name: Count the review rounds
         id: round
         env:
@@ -127,13 +121,7 @@ jobs:
           AUTHOR: ${{ github.event.pull_request.user.login }}
           IMPLEMENTER: ${{ vars.IMPLEMENTER_APP_SLUG }}[bot]
         run: |
-          file=.github/scripts/review-round.sh
-          if ! git cat-file -e "origin/$BASE_REF:$file" 2>/dev/null; then
-            echo "::notice::The base branch has no round counter: no handback."
-            printf 'round=1\nhandback=none\n' | tee -a "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          git show "origin/$BASE_REF:$file" > "$RUNNER_TEMP/review-round.sh"
+          git show "origin/$BASE_REF:.github/scripts/review-round.sh" > "$RUNNER_TEMP/review-round.sh"
           gh api --paginate "repos/$GH_REPO/pulls/$PR/reviews" \
             | bash "$RUNNER_TEMP/review-round.sh" "$REVIEWER" "$AUTHOR" "$IMPLEMENTER" | tee -a "$GITHUB_OUTPUT"
 
@@ -196,10 +184,11 @@ jobs:
           REVIEWER: ${{ needs.review.outputs.reviewer }}
           IMPLEMENTER: ${{ vars.IMPLEMENTER_APP_SLUG }}[bot]
         run: |
+          # A base branch without the gate fails the step, so nothing merges.
           gate=.github/scripts/auto-merge-gate.sh inputs=.github/scripts/auto-merge-inputs.sh
           if [ ! -f "$gate" ] || [ ! -f "$inputs" ]; then
-            echo "::notice::Not merging: the base branch has no auto-merge gate."
-            exit 0
+            echo "::error::Not merging: the base branch has no auto-merge gate."
+            exit 1
           fi
 
           gh api "repos/$GH_REPO/pulls/$PR" > "$RUNNER_TEMP/pr.json"
