@@ -6,6 +6,7 @@ import io.smallrye.config.WithName;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -17,12 +18,24 @@ import java.util.Optional;
 @ConfigMapping(prefix = "seedkeeper")
 public interface SeedkeeperConfig {
 
+    /** When the scheduled run starts: a Quarkus cron expression, in {@link #timeZone()}. */
+    @WithDefault("0 0 6 * * ?")
+    String schedule();
+
+    /** The time zone of the schedule and of the end dates of keep overrides. */
+    @WithDefault("UTC")
+    ZoneId timeZone();
+
     Transmission transmission();
 
     Auth auth();
 
     /** Secret, env {@code SEEDKEEPER_API_KEY}. */
     String apiKey();
+
+    /** Orphans are looked for here; nothing outside it is deleted. */
+    @WithDefault("/downloads")
+    Path downloadsRoot();
 
     /** The roots of the media library. A downloaded file that is also linked under one of them has a library link. */
     List<Path> libraryRoots();
@@ -37,6 +50,10 @@ public interface SeedkeeperConfig {
     /** The tracker of the torrents that are not private; without it such torrents are unmanaged. */
     @WithName("public")
     Optional<PublicTracker> publicTracker();
+
+    /** Where seedkeeper keeps {@code overrides.yaml} and {@code seedkeeper.db}. */
+    @WithDefault("/data")
+    Path dataDir();
 
     interface Tracker {
 

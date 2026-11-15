@@ -4,7 +4,7 @@ import io.github.ghostwritertje.seedkeeper.transmission.Torrent.Status;
 import java.time.Duration;
 
 /** How a torrent's status and a seed time are written in the API and the UI. */
-final class StatusText {
+public final class StatusText {
 
     private StatusText() {
     }
@@ -36,7 +36,7 @@ final class StatusText {
     }
 
     /** A duration in its two largest units, rounded down: "40d", "2d 12h", "5h 3m", "0m". */
-    static String duration(Duration duration) {
+    public static String duration(Duration duration) {
         long days = duration.toDays();
         int hours = duration.toHoursPart();
         int minutes = duration.toMinutesPart();
