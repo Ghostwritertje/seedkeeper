@@ -147,7 +147,7 @@ class OverridesTest {
                 .contentType(containsString("text/html"))
                 .body("html.head.title", is("Overrides · seedkeeper"))
                 .body("html.body.main.table.thead.tr.th", contains("Status", "Note", "Until", "Created", "Group",
-                        "Hashes", "Id"))
+                        "Hashes", "Id", "Actions"))
                 .body("html.body.main.table.tbody.tr.size()", is(3))
                 // The created date is shown in the configured time zone, UTC+05:30.
                 .body("html.body.main.table.tbody.tr[0].td[0]", is("Active"))

@@ -110,7 +110,7 @@ class UnregisteredTest {
                 .statusCode(200)
                 .body("html.body.main.table.thead.tr.th", contains("Name", "Tracker", "Seed time / minimum",
                         "Status", "Tracker message", "Library links", "Verdict", "Reason", "Secondary reasons",
-                        "Forecast"))
+                        "Forecast", "Keep override"))
                 .body(cells(0), contains("Gone.Movie", "tracker-a", "1d / 30d", "Seeding",
                         "Unregistered: Unregistered torrent", "1 of 1 files", "Remove", "Unregistered",
                         "Library link (1 of 1 files), Minimum not reached", ""))
@@ -150,9 +150,9 @@ class UnregisteredTest {
                 FakeTransmissionResource.downloads(), announce, name);
     }
 
-    /** The text of every cell of a row of the table. */
+    /** The text of every cell of a row of the table, up to the form that sets a keep override. */
     private static String cells(int row) {
-        return "html.body.main.table.tbody.tr[" + row + "].td.collect { it.text() }";
+        return "html.body.main.table.tbody.tr[" + row + "].td.take(10).collect { it.text() }";
     }
 
     private static Path file(Path path) throws IOException {

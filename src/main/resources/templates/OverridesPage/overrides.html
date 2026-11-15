@@ -1,9 +1,13 @@
 {#include layout.html}
 {#title}Overrides{/title}
 <h1>Overrides</h1>
+{#if notice}
+<p role="alert" id="notice">{notice}</p>
+{/if}
 {#if unavailable}
 <p role="alert">{unavailable}</p>
-{#else if overrides.isEmpty}
+{#else}
+{#if overrides.isEmpty}
 <p>There are no keep overrides.</p>
 <p>A keep override is a manual instruction never to remove a group, until an optional
 end date. They are kept in <code>{file}</code>, which can be edited by hand.</p>
@@ -11,16 +15,40 @@ end date. They are kept in <code>{file}</code>, which can be edited by hand.</p>
 <p>A keep override is a manual instruction never to remove a group, until an optional end date (inclusive). It only
 prevents a removal. An <strong>expired</strong> override is past its end date, a <strong>stale</strong> one has no
 torrent left; neither has any effect, and they stay until someone deletes them. They are kept in
-<code>{file}</code>, which can be edited by hand: an edit shows here without a restart.</p>
+<code>{file}</code>, which can be edited by hand: an edit shows here without a restart. A change made here rewrites
+the file as a whole: comments added by hand are lost.</p>
 <table>
 <thead>
-<tr><th>Status</th><th>Note</th><th>Until</th><th>Created</th><th>Group</th><th>Hashes</th><th>Id</th></tr>
+<tr><th>Status</th><th>Note</th><th>Until</th><th>Created</th><th>Group</th><th>Hashes</th><th>Id</th><th>Actions</th></tr>
 </thead>
 <tbody>
 {#for override in overrides}
-<tr><td>{override.status}</td><td>{override.note}</td><td>{override.until}</td><td>{override.created}</td><td>{#if override.groups.isEmpty}no torrent{#else}{#for group in override.groups}<ul>{#for name in group}<li>{name}</li>{/for}</ul>{/for}{/if}</td><td>{override.hashes}</td><td>{override.id}</td></tr>
+<tr><td>{override.status}</td><td>{override.note}</td><td>{override.until}</td><td>{override.created}</td><td>{#if override.groups.isEmpty}no torrent{#else}{#for group in override.groups}<ul>{#for name in group}<li>{name}</li>{/for}</ul>{/for}{/if}</td><td>{override.hashes}</td><td>{override.id}</td><td><form id="edit-{override_index}" method="post" action="/overrides/edit">
+<input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<input type="hidden" name="id" value="{override.id}">
+<label>Note <input type="text" name="note" value="{override.note}"></label>
+<label>Until <input type="date" name="until" value="{override.untilDate}"></label>
+<button type="submit">Save</button>
+</form><form id="delete-{override_index}" method="post" action="/overrides/delete">
+<input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<input type="hidden" name="id" value="{override.id}">
+<button type="submit">Delete</button>
+</form></td></tr>
 {/for}
 </tbody>
 </table>
+{/if}
+<section id="add-override">
+<h2>Add a keep override</h2>
+<p>The info hashes of the torrents to keep, separated by commas or spaces. The override keeps every group that has
+one of them. To keep a group with all its members, use "Set a keep override" in the Groups view.</p>
+<form id="add" method="post" action="/overrides">
+<input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<label>Info hashes <textarea name="hashes" required></textarea></label>
+<label>Note <input type="text" name="note"></label>
+<label>Until (inclusive, optional) <input type="date" name="until"></label>
+<button type="submit">Add</button>
+</form>
+</section>
 {/if}
 {/include}
