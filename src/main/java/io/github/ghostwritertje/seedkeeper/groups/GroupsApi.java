@@ -3,6 +3,7 @@ package io.github.ghostwritertje.seedkeeper.groups;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.decide.Reason;
 import io.github.ghostwritertje.seedkeeper.decide.Tracker;
+import io.github.ghostwritertje.seedkeeper.decide.TrackerError;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsFilter.UnknownFilter;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsService.GroupsUnavailable;
 import jakarta.ws.rs.QueryParam;
@@ -47,10 +48,14 @@ public class GroupsApi {
     /**
      * @param tracker                null when the torrent is unmanaged
      * @param minimumSeedTimeSeconds null when the torrent is unmanaged
+     * @param trackerError           {@code unregistered}, {@code tracker-error} or {@code tracker-warning}; null
+     *                               when the tracker reports nothing wrong
+     * @param trackerMessage         what the tracker says, as Transmission reports it; null when there is no
+     *                               tracker error
      */
     @RegisterForReflection
     public record Member(String hash, String name, String tracker, String status, long seedTimeSeconds,
-            Long minimumSeedTimeSeconds) {
+            Long minimumSeedTimeSeconds, String trackerError, String trackerMessage) {
     }
 
     /** The body of a 503: why there are no verdicts right now. Of a 400: what is wrong with the filter. */
@@ -97,6 +102,8 @@ public class GroupsApi {
     private static Member member(GroupVerdict.Member member) {
         return new Member(member.hash(), member.name(), member.tracker().map(Tracker::name).orElse(null),
                 StatusText.code(member.status()), member.seedTime().toSeconds(),
-                member.tracker().map(tracker -> tracker.minimumSeedTime().toSeconds()).orElse(null));
+                member.tracker().map(tracker -> tracker.minimumSeedTime().toSeconds()).orElse(null),
+                member.trackerError().map(error -> error.kind().code()).orElse(null),
+                member.trackerError().map(TrackerError::message).orElse(null));
     }
 }
