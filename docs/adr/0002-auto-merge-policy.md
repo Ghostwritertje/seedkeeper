@@ -37,7 +37,9 @@ gate turns on a squash auto-merge with the workflow's own token, and the `main` 
   no approval, so any new push to an implementer pull request turns its auto-merge off and removes `auto-merge`
   before the next review. The gate only counts an approval on the current head, and turns auto-merge on for that head
   only (`--match-head-commit`).
-- Changing the criteria, the human-only paths or the gate is itself a human-only change.
+- Changing the human-only paths or the gate is itself a human-only change. Changing the criteria, in
+  `docs/agents/auto-merge.md`, isn't: the gate doesn't cover `docs/agents/`, so a change there is held back by the
+  reviewer's Agent setup criterion, not by the gate.
 - **An auto-merged pull request starts no dependents.** The issue-closed trigger in `implementer.yml` starts an
   issue's unblocked dependents only when a user with write access closed it. An auto-merge is made by
   `github-actions[bot]` through the workflow's own token, so it either starts no workflow at all (GitHub doesn't

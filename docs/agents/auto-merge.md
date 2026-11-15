@@ -74,6 +74,7 @@ contents, so it can't merge. GitHub then merges only once the `main` ruleset is 
 - **To stop an auto-merge:** turn off auto-merge on the pull request. Removing `auto-merge` stops the gate from
   turning it on, but doesn't turn off an auto-merge that is already on.
 - **To change the criteria or the human-only paths:** change this doc, the gate script and its tests, in a pull
-  request you merge yourself. Both are on human-only paths.
+  request you merge yourself. The gate script and its tests are on a human-only path. This doc isn't: the gate
+  doesn't cover `docs/agents/`, so a change to it is held back by the reviewer's **Agent setup** criterion.
 - **After an auto-merge:** the issues the merged one was blocking aren't started on their own. See
   `docs/agents/issue-tracker.md`, **Unblocked**.
