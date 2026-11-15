@@ -62,6 +62,10 @@ the same file on disk as a wanted file of the other, through a symlink or a hard
 torrent. A file deselected in Transmission joins no group. A torrent whose files are nowhere on disk is a group of
 its own.
 
+The torrents that get one verdict together are a **verdict group**: a cross-seed group, except that an
+[unregistered](#unregistered-torrents) torrent splits off into a verdict group of its own. Elsewhere in this README,
+on the pages and in the API, "group" means the verdict group; the [glossary](GLOSSARY.md) has the terms.
+
 A group gets one verdict. It is removed only when **every** member has met the minimum seed time of its own tracker,
 and a library link on a file of any member keeps the whole group. One unmanaged member leaves the whole group alone.
 
@@ -224,7 +228,7 @@ An environment variable also overrides a key of the file: `SEEDKEEPER_TRANSMISSI
 
 Every run that ends is written to `seedkeeper.db`, a SQLite database in `seedkeeper.data-dir`: its start, end, status
 and error, and each removal with its reason, its error, the space freed, the number of files deleted and its
-torrents (name, hash, tracker, what the tracker said, whether the download was unfinished, whether Transmission
+torrents (name, hash, tracker, what the tracker said, whether the download was not finished, whether Transmission
 removed it). The [Activity page](#pages), [`GET /api/v1/runs`](#get-apiv1runs) and
 [`GET /api/v1/removals`](#get-apiv1removals) show it. A run is deleted, with its removals, once it is more than a
 year older than the newest run.
@@ -493,8 +497,8 @@ Answers 503 with `{"reason": "…"}` when the history can't be read.
 
 ### `GET /api/v1/removals`
 
-What the runs removed, the removals of the newest run first: one entry per group that had to leave (or per torrent
-that had to leave alone), also when its removal went wrong. `since` works as in
+What the runs removed, the removals of the newest run first: one entry per verdict group that was due for removal (an
+unregistered torrent removed on its own is a verdict group of one), also when its removal went wrong. `since` works as in
 [`GET /api/v1/runs`](#get-apiv1runs) and goes by the start of the run.
 
 ```json
