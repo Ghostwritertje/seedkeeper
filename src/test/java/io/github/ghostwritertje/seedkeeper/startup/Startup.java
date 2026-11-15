@@ -15,7 +15,8 @@ final class Startup {
                 .addAsResource("templates/layout.html")
                 .addAsResource("templates/LoginPage/login.html")
                 .addAsResource("templates/SystemPage/system.html")
-                .addAsResource("templates/GroupsPage/groups.html");
+                .addAsResource("templates/GroupsPage/groups.html")
+                .addAsResource("templates/OrphansPage/orphans.html");
     }
 
     /** The messages of a failure and all its causes, one per line. */

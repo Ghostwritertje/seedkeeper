@@ -24,6 +24,9 @@ public interface SeedkeeperConfig {
     /** Secret, env {@code SEEDKEEPER_API_KEY}. */
     String apiKey();
 
+    /** Where Transmission keeps its downloads. Orphans are looked for here. */
+    Path downloadsRoot();
+
     /** The roots of the media library. A downloaded file that is also linked under one of them has a library link. */
     List<Path> libraryRoots();
 

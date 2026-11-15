@@ -1,0 +1,105 @@
+package io.github.ghostwritertje.seedkeeper.orphans;
+
+import io.github.ghostwritertje.seedkeeper.orphans.OrphansService.OrphansUnavailable;
+import io.quarkus.qute.CheckedTemplate;
+import io.quarkus.qute.TemplateInstance;
+import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.Locale;
+
+/** The Orphans view. */
+@Path("/orphans")
+public class OrphansPage {
+
+    @CheckedTemplate
+    static class Templates {
+
+        /**
+         * @param unavailable why the orphans can't be listed right now; null when they can
+         */
+        static native TemplateInstance orphans(Listing files, Listing danglingSymlinks, String unavailable);
+    }
+
+    /**
+     * One of the two lists, as text ready to show.
+     *
+     * @param total     "Total of 2 files"
+     * @param totalSize "2.0 KiB"
+     */
+    public record Listing(List<Row> rows, String total, String totalSize) {
+    }
+
+    /**
+     * @param size "1.5 KiB"
+     * @param age  how long ago it was last modified: "3d 2h"
+     */
+    public record Row(String path, String size, String age) {
+    }
+
+    private final OrphansService orphans;
+
+    OrphansPage(OrphansService orphans) {
+        this.orphans = orphans;
+    }
+
+    @GET
+    @Produces(MediaType.TEXT_HTML)
+    @RunOnVirtualThread
+    public TemplateInstance orphans() {
+        try {
+            Orphans found = orphans.orphans();
+            Instant now = Instant.now();
+            return Templates.orphans(listing(found.files(), "file", "files", now),
+                    listing(found.danglingSymlinks(), "dangling symlink", "dangling symlinks", now), null);
+        } catch (OrphansUnavailable e) {
+            return Templates.orphans(null, null, e.getMessage());
+        }
+    }
+
+    private static Listing listing(List<Orphans.Orphan> orphans, String one, String many, Instant now) {
+        List<Row> rows = orphans.stream()
+                .map(orphan -> new Row(orphan.path().toString(), size(orphan.size()),
+                        age(Duration.between(orphan.lastModified(), now))))
+                .toList();
+        return new Listing(rows, "Total of " + rows.size() + " " + (rows.size() == 1 ? one : many),
+                size(orphans.stream().mapToLong(Orphans.Orphan::size).sum()));
+    }
+
+    /** Bytes in the largest binary unit that keeps the number at 1 or more: "512 B", "1.5 KiB", "3.2 GiB". */
+    static String size(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        }
+        String[] units = {"KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};
+        double value = bytes / 1024.0;
+        int unit = 0;
+        while (value >= 1024 && unit < units.length - 1) {
+            value /= 1024;
+            unit++;
+        }
+        return String.format(Locale.ROOT, "%.1f %s", value, units[unit]);
+    }
+
+    /** An age in its two largest units, rounded down: "40d", "3d 2h", "5h 3m", "0m". */
+    static String age(Duration age) {
+        if (age.isNegative()) {
+            return "0m";
+        }
+        long days = age.toDays();
+        int hours = age.toHoursPart();
+        int minutes = age.toMinutesPart();
+        if (days > 0) {
+            return days + "d" + (hours > 0 ? " " + hours + "h" : "");
+        }
+        if (hours > 0) {
+            return hours + "h" + (minutes > 0 ? " " + minutes + "m" : "");
+        }
+        return minutes + "m";
+    }
+}

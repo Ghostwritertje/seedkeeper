@@ -14,6 +14,7 @@ cat > "$config/seedkeeper.yaml" <<'YAML'
 seedkeeper:
   transmission:
     url: http://127.0.0.1:9/transmission/rpc
+  downloads-root: /downloads
   library-roots: [/library/movies, /library/tv]
   trackers:
     tracker-a:
