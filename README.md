@@ -318,6 +318,7 @@ The same data as the System page. Always answers 200, also when Transmission is 
 | `transmission.reachable` | `true` when Transmission answered. |
 | `transmission.version` | The version as Transmission reports it; `null` when it didn't say. |
 | `transmission.reason` | Why seedkeeper can't work with this Transmission: it doesn't answer, it rejects the credentials, or it is older than 4.1 (then `reachable` is `true`). `null` when all is well. |
+| `transmission.incompleteDirWarning` | Set when Transmission's incomplete dir is enabled and outside `seedkeeper.downloads-root` (seedkeeper deletes part files there too), or is `/` (seedkeeper never deletes there); also shown on the System page. `null` otherwise. |
 | `running` | `true` while a [run](#runs-removing-and-deleting) is running. |
 | `lastRun` | The last run that ended; after a restart, the last run of the [run history](#run-history) until the next run. `null` when there has been none. For a run of the history, `removalErrors` says how many paths were refused but not which. |
 | `lastRun.started`, `lastRun.ended` | ISO 8601, to the second, with the offset of `seedkeeper.time-zone`. |

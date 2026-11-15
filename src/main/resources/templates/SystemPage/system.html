@@ -65,5 +65,8 @@
 {#if status.transmission.reason}
 <p role="alert">{status.transmission.reason}</p>
 {/if}
+{#if status.transmission.incompleteDirWarning}
+<p role="alert" id="incomplete-dir">{status.transmission.incompleteDirWarning}</p>
+{/if}
 </section>
 {/include}

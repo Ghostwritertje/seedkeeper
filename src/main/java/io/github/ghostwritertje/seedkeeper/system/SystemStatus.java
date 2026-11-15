@@ -20,9 +20,12 @@ public record SystemStatus(String version, TransmissionStatus transmission, bool
      * @param reachable Transmission answered
      * @param version   as Transmission reports it; null when it didn't say
      * @param reason    why seedkeeper can't work with this Transmission; null when it can
+     * @param incompleteDirWarning what is worth knowing about Transmission's incomplete dir, which seedkeeper deletes
+     *                             in: it is enabled and outside the downloads root, or it is {@code /}; null when
+     *                             there is nothing to tell
      */
     @RegisterForReflection
-    public record TransmissionStatus(boolean reachable, String version, String reason) {
+    public record TransmissionStatus(boolean reachable, String version, String reason, String incompleteDirWarning) {
 
         public boolean usable() {
             return reason == null;
