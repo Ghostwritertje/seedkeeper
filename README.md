@@ -7,7 +7,7 @@ read-only JSON API.
 
 **Status: under construction.** So far seedkeeper connects to Transmission, behind a login and an API key. It
 shows, per cross-seed group, the verdict it would give and when a group kept for its minimum seed time may leave. It
-removes nothing yet, and it doesn't know missing data, unregistered torrents or keep overrides yet; see the
+removes nothing yet, and it doesn't know unregistered torrents or keep overrides yet; see the
 [spec](https://github.com/Ghostwritertje/seedkeeper/issues/5) for what is being built and in which order.
 
 ## Configuration
@@ -70,6 +70,31 @@ its own.
 A group gets one verdict. It is removed only when **every** member has met the minimum seed time of its own tracker,
 and a library link on a file of any member keeps the whole group. One unmanaged member leaves the whole group alone.
 
+### Verdicts and reasons
+
+A verdict is **Remove** (`remove`), **Left alone** (`left-alone`: seedkeeper doesn't judge the group, someone should
+look at it) or **Keep** (`keep`: not yet). Each comes with a reason. The rules are tried in this order and the first
+that holds for any member decides; every other rule that holds too is listed as a **secondary reason**, in the same
+order.
+
+| Verdict | Reason | Code | Holds when |
+|---|---|---|---|
+| Left alone | Unmanaged | `unmanaged` | A member belongs to no tracker of the config. |
+| Left alone | Missing data (n of m files) | `missing-data` | A wanted file of a finished member is nowhere on disk. A member that isn't finished is never missing data: its files may not exist yet. |
+| Left alone | Local error | `local-error` | Transmission reports a local error on a member (its `error` is 3), for example files it can't read. |
+| Keep | Verifying | `verifying` | A member is being verified or is queued for it (status `check-wait` or `checking`). |
+| Keep | Not finished | `not-finished` | A member's download isn't complete. |
+| Keep | Library link (n of m files) | `library-link` | A wanted file of a member has a library link. |
+| Keep | Minimum not reached | `minimum-not-reached` | A member's seed time is below its tracker's minimum. |
+| Remove | All met | `all-met` | None of the above. |
+
+Two more reasons are in the spec and not built yet: `unregistered` (remove one member the tracker has deleted) and
+`keep-override` (keep, by hand).
+
+These play no part: a paused member (its seed time just stands still), a tracker warning or tracker error (`error` 1
+or 2), and data that was moved or renamed (groups are rebuilt from the disk every time). The same torrents and files
+always give the same verdicts: nothing seedkeeper remembers is an input.
+
 A group kept because a minimum is not reached has a **forecast**: now plus the longest seed time any member still has
 to go, which is when the group may leave if it keeps seeding. When the member with the longest time to go is paused
 there is no date: its clock is stopped.
@@ -106,7 +131,7 @@ Every form carries a CSRF token; a form POST without it is rejected with 400.
 
 | Page | Shows |
 |---|---|
-| `/groups` | Every [cross-seed group](#cross-seed-groups) with its members (name, tracker, seed time and minimum, status), its library links, the verdict seedkeeper would give it right now with the reason, and the forecast: a date in the configured time zone, or "clock stopped (paused)". Read from Transmission and the disk on every load. |
+| `/groups` | Every [cross-seed group](#cross-seed-groups) with its members (name, tracker, seed time and minimum, status), its library links, the verdict seedkeeper would give it right now with the [reason and the secondary reasons](#verdicts-and-reasons), and the forecast: a date in the configured time zone, or "clock stopped (paused)". The list can be filtered by verdict and by reason (`/groups?verdict=keep&reason=library-link`). Read from Transmission and the disk on every load. |
 | `/orphans` | The **orphans**: what is under the downloads root that no torrent references, as two lists, files and dangling symlinks, each with path, size, age (time since it was last modified) and a total. seedkeeper only shows them and never deletes them. |
 | `/settings` | The configuration seedkeeper runs with, read-only: every key of the [configuration](#configuration) with its default filled in, each tracker with its hosts and the minimum seed time that applies to it (marked "(default)" when it sets none of its own), and for each secret only whether it is set or missing, never its value. |
 | `/system` | seedkeeper's version, and whether Transmission is reachable, its version and, when seedkeeper can't work with it, the reason. |
@@ -156,12 +181,22 @@ The same data as the System page. Always answers 200, also when Transmission is 
 The same data as the Groups page: every [cross-seed group](#cross-seed-groups) with the verdict seedkeeper would
 give it right now. Groups are in the order of their first member in Transmission.
 
+| Query parameter | Meaning |
+|---|---|
+| `verdict` | Only the groups with this verdict: `remove`, `left-alone` or `keep`. |
+| `reason` | Only the groups with this reason, by its [code](#verdicts-and-reasons). It is compared with `reason`, not with `secondaryReasons`. |
+
+Both are optional and can be combined: `GET /api/v1/groups?verdict=keep&reason=library-link`. An empty value is no
+filter. A code that doesn't exist answers 400 with `{"reason": "…"}`.
+
 ```json
 [
   {
     "verdict": "keep",
     "reason": "minimum-not-reached",
+    "secondaryReasons": [],
     "libraryLinks": 0,
+    "missingFiles": 0,
     "files": 2,
     "forecast": {
       "date": "2026-11-25T10:00:00+01:00",
@@ -192,8 +227,10 @@ give it right now. Groups are in the order of their first member in Transmission
 | Field | Meaning |
 |---|---|
 | `verdict` | `remove`, `left-alone` or `keep`. |
-| `reason` | Why; the first of these that holds: `unmanaged` (left alone: a member belongs to no tracker), `not-finished` (keep: a member's download isn't complete), `library-link` (keep: a file has a library link), `minimum-not-reached` (keep: a member's seed time is below its tracker's minimum), `all-met` (remove). |
+| `reason` | Why: the code of the first [rule](#verdicts-and-reasons) that holds: `unmanaged`, `missing-data`, `local-error`, `verifying`, `not-finished`, `library-link`, `minimum-not-reached` or `all-met`. |
+| `secondaryReasons` | The codes of every other rule that holds too, in the same order; empty when there is none. |
 | `libraryLinks` | How many of the group's wanted files have a library link. |
+| `missingFiles` | How many wanted files of finished members are nowhere on disk; more than 0 means `missing-data` holds. |
 | `files` | How many wanted files the group has. A file that several members share counts once. Files deselected in Transmission are not counted anywhere. |
 | `forecast` | `null` unless the reason is `minimum-not-reached`. |
 | `forecast.date` | When every member is expected to have met its minimum if the group keeps seeding: ISO 8601, to the second, with the offset of `seedkeeper.time-zone`. `null` when the clock is stopped. |
