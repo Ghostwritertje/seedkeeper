@@ -181,6 +181,8 @@ jobs:
   gate:
     name: Auto-merge gate
     needs: review
+    # !cancelled(): without it the default success() also requires withdraw, which is skipped on every first review.
+    if: ${{ !cancelled() && needs.review.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
