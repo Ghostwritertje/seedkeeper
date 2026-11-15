@@ -20,12 +20,13 @@ File issues only into the user's own repo. Never file into `mattpocock/skills` (
 
 ## Agent labels
 
-The implementer and reviewer agents run in GitHub Actions (`.github/workflows/implementer.yml`,
-`.github/workflows/reviewer.yml`) and drive their work with these labels. Interactive sessions use them the same way.
+The implementer and reviewer agents run in GitHub Actions (`.github/workflows/implementer.yml`, which runs
+`.github/workflows/implement-issue.yml`, and `.github/workflows/reviewer.yml`) and drive their work with these
+labels. Interactive sessions use them the same way.
 
 | Label               | Who adds it                                                         | What it means                                                                                                       |
 |---------------------|---------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------|
-| `ready-for-agent`   | the maintainer, `to-spec`, `to-tickets`; the reviewer on a pull request | The implementer may take it. On an issue, adding it starts the implementer.                                       |
+| `ready-for-agent`   | the maintainer, `to-spec`, `to-tickets`; the reviewer on a pull request | The implementer may take it. On an issue, adding it starts the implementer, and so does closing its last open blocker. |
 | `agent:in-progress` | the implementer, when it starts                                     | An implementer run is working on the issue. It goes when the run ends.                                              |
 | `agent:blocked`     | the implementer, or a failed agent job                              | The run couldn't finish: `./mvnw verify` stayed red (a draft pull request says where it got stuck), or the job crashed, timed out or ran out of quota (a comment links the run). |
 | `needs-decision`    | either agent                                                        | A choice that is the maintainer's to make. The comment or review gives the question, the options and a recommendation. |
@@ -38,6 +39,12 @@ The life of an issue:
 2. **Picked up.** An issue with sub-issues is a spec: the implementer comments, removes `ready-for-agent`, and
    doesn't start; label its sub-issues instead. An issue with open blockers (see **Count open blockers**) gets a
    comment and keeps `ready-for-agent`. Otherwise the implementer swaps `ready-for-agent` for `agent:in-progress`.
+
+   **Unblocked.** When a user with write access closes an issue (or merges the pull request that closes it), each
+   issue it was blocking that is open, still labelled `ready-for-agent` and has no open blocker left is picked up
+   the same way, as if the user who last added its `ready-for-agent` had just added it. Dependents that are still
+   blocked, or carry no `ready-for-agent`, are left alone. The blocker's close reason doesn't matter: "not planned"
+   unblocks too.
 3. **Worked on.** On the branch `agent/issue-<n>-<slug>`, test-first, until `./mvnw verify` is green.
 4. **Ends** in one of these, and `agent:in-progress` goes:
    - a ready pull request that says `Closes #<n>` and lists "Decisions I made";

@@ -37,3 +37,8 @@ private GitHub App, and both are billed to the maintainer's Claude subscription 
   paths from the default branch itself, so an earlier run can't loosen the next one's settings.
 - The action's own branch for an issue is `issue-<n>`; the implementer sets `CLAUDE_BRANCH` to
   `agent/issue-<n>-<slug>` instead, and allows pushes to that branch only.
+- An issue's closing starts its unblocked dependents in the same workflow run, through the reusable
+  `implement-issue.yml`, rather than by dispatching a new run. A run dispatched with the default workflow token has
+  `github-actions[bot]` as its actor, which the action's access check rejects unless it is in `allowed_bots`. In the
+  same run the actor is whoever closed the blocker, so the action checks that user's access; the pick-up job checks
+  the access of whoever last added the dependent's `ready-for-agent`.
