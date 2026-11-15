@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
 import io.github.ghostwritertje.seedkeeper.TestSecrets;
+import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmission;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmissionResource;
 import io.quarkus.test.common.WithTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -271,6 +272,22 @@ class ManageOverridesTest {
         }
 
         assertFalse(Files.exists(file), "the overrides file was written");
+    }
+
+    @Test
+    void anOverrideCanBeAddedWhileTransmissionCannotBeUsed() {
+        FakeTransmissionResource.fake().behaviour(FakeTransmission.Behaviour.RPC_ERROR);
+        Session user = Session.login();
+        Response page = user.page("/overrides");
+
+        user.form(page, "add")
+                .formParam("hashes", "3c3c17")
+                .post("/overrides")
+                .then().statusCode(303);
+
+        Authenticated.withApiKey().when().get("/api/v1/overrides").then()
+                .statusCode(200)
+                .body("hashes", contains(List.of("3c3c17")));
     }
 
     /** Waits until the Overrides view shows the overrides with these ids: the file watcher may take a few seconds. */

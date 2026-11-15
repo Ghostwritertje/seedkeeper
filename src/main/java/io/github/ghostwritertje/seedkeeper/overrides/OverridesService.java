@@ -24,23 +24,31 @@ public class OverridesService {
     /**
      * One override and its state.
      *
-     * @param expired true when it is past its end date in the configured time zone
-     * @param groups  the members of every current group it matches; empty when it is stale
+     * @param expired       true when it is past its end date in the configured time zone
+     * @param groups        the members of every current group it matches; empty when it is stale, or when the groups
+     *                      are unknown
+     * @param groupsUnknown why the groups can't be known right now (Transmission can't be used, a library root can't
+     *                      be read); then whether it is stale, and so whether it is active, is unknown too
      */
-    public record Listed(KeepOverride override, boolean expired, List<List<GroupVerdict.Member>> groups) {
+    public record Listed(KeepOverride override, boolean expired, List<List<GroupVerdict.Member>> groups,
+            Optional<String> groupsUnknown) {
 
         public Listed {
             groups = List.copyOf(groups);
         }
 
-        /** True when none of its hashes is a torrent any more. */
-        public boolean stale() {
-            return groups.isEmpty();
+        public boolean groupsKnown() {
+            return groupsUnknown.isEmpty();
         }
 
-        /** True when it keeps a group: neither expired nor stale. */
+        /** True when none of its hashes is a torrent any more; false also when that is unknown. */
+        public boolean stale() {
+            return groupsKnown() && groups.isEmpty();
+        }
+
+        /** True when it keeps a group: neither expired nor stale; false also when that is unknown. */
         public boolean active() {
-            return !expired && !stale();
+            return !expired && groupsKnown() && !groups.isEmpty();
         }
     }
 
@@ -55,24 +63,33 @@ public class OverridesService {
     }
 
     /**
-     * Every override of the file, in its order, against a fresh snapshot of the groups.
+     * Every override of the file, in its order, against a fresh snapshot of the groups. When the groups can't be
+     * known, the overrides are still listed, each with the reason.
      *
-     * @throws OverridesUnavailable with one reason when the overrides file can't be read, or the groups can't be
-     *                              known because Transmission can't be used or a library root can't be read
+     * @throws OverridesUnavailable with one reason when the overrides file can't be read
      */
     public List<Listed> overrides() {
+        List<KeepOverride> overrides;
         try {
-            List<KeepOverride> overrides = store.overrides();
-            List<List<GroupVerdict.Member>> current = groups.groups().stream().map(GroupVerdict::members).toList();
-            LocalDate today = LocalDate.now(config.timeZone());
-            return overrides.stream()
-                    .map(override -> new Listed(override, override.expired(today), current.stream()
-                            .filter(members -> override.matches(hashes(members)))
-                            .toList()))
-                    .toList();
-        } catch (OverridesException | GroupsUnavailable e) {
+            overrides = store.overrides();
+        } catch (OverridesException e) {
             throw new OverridesUnavailable(e.getMessage(), e);
         }
+        LocalDate today = LocalDate.now(config.timeZone());
+        List<List<GroupVerdict.Member>> current;
+        try {
+            current = groups.groups().stream().map(GroupVerdict::members).toList();
+        } catch (GroupsUnavailable e) {
+            Optional<String> reason = Optional.of(e.getMessage());
+            return overrides.stream()
+                    .map(override -> new Listed(override, override.expired(today), List.of(), reason))
+                    .toList();
+        }
+        return overrides.stream()
+                .map(override -> new Listed(override, override.expired(today), current.stream()
+                        .filter(members -> override.matches(hashes(members)))
+                        .toList(), Optional.empty()))
+                .toList();
     }
 
     /**
