@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -67,6 +68,46 @@ class OrphansTest {
                 .body("totalSizeBytes", is(2048));
     }
 
+    /** The library root is shared with the other test classes: leave it as empty as it was found. */
+    @AfterEach
+    void emptyTheLibrary() throws IOException {
+        clear(FakeTransmissionResource.library());
+    }
+
+    @Test
+    void apiMarksAnOrphanFileWithALibraryLinkAndLeavesItOutOfTheTotal() throws IOException {
+        Path library = FakeTransmissionResource.library();
+        Files.createLink(Files.createDirectory(library.resolve("movies")).resolve("movie.mkv"),
+                downloads.resolve("Removed/movie.mkv"));
+
+        Authenticated.withApiKey()
+                .when().get("/api/v1/orphans")
+                .then()
+                .statusCode(200)
+                .body("files.path", contains(downloads.resolve("Removed/movie.mkv").toString(),
+                        downloads.resolve("leftover.nfo").toString()))
+                .body("files.libraryLink", contains(true, false))
+                .body("danglingSymlinks.libraryLink", contains(false))
+                .body("totalSizeBytes", is(512));
+    }
+
+    @Test
+    void pageMarksAnOrphanFileWithALibraryLinkAndLeavesItOutOfTheTotal() throws IOException {
+        Path library = FakeTransmissionResource.library();
+        Files.createLink(Files.createDirectory(library.resolve("movies")).resolve("movie.mkv"),
+                downloads.resolve("Removed/movie.mkv"));
+        String files = "html.body.main.section.find { it.@id == 'files' }";
+
+        Authenticated.asUser()
+                .when().get("/orphans")
+                .then()
+                .statusCode(200)
+                .body(files + ".table.thead.tr.th", contains("Path", "Size", "Age", "Library link"))
+                .body(files + ".table.tbody.tr[0].td[3]", is("Yes"))
+                .body(files + ".table.tbody.tr[1].td[3]", is(""))
+                .body(files + ".table.tfoot.tr.td[0]", is("512 B"));
+    }
+
     @Test
     void apiGivesEmptyListsWhenThereAreNoOrphans() throws IOException {
         clear(downloads);
@@ -101,12 +142,14 @@ class OrphansTest {
                 .contentType(containsString("text/html"))
                 .body("html.head.title", is("Orphans · seedkeeper"))
                 .body(files + ".h2", is("Files"))
-                .body(files + ".table.thead.tr.th", contains("Path", "Size", "Age"))
+                .body(files + ".table.thead.tr.th", contains("Path", "Size", "Age", "Library link"))
                 .body(files + ".table.tbody.tr.size()", is(2))
                 .body(files + ".table.tbody.tr[0].td[0]", is(downloads.resolve("Removed/movie.mkv").toString()))
                 .body(files + ".table.tbody.tr[0].td[1]", is("1.5 KiB"))
-                .body(files + ".table.tbody.tr[1].td", contains(downloads.resolve("leftover.nfo").toString(),
-                        "512 B", "3d 2h"))
+                .body(files + ".table.tbody.tr[1].td[0]", is(downloads.resolve("leftover.nfo").toString()))
+                .body(files + ".table.tbody.tr[1].td[1]", is("512 B"))
+                .body(files + ".table.tbody.tr[1].td[2]", is("3d 2h"))
+                .body(files + ".table.tbody.tr[1].td[3]", is(""))
                 .body(files + ".table.tfoot.tr.th", is("Total of 2 files"))
                 .body(files + ".table.tfoot.tr.td[0]", is("2.0 KiB"))
                 .body(symlinks + ".h2", is("Dangling symlinks"))

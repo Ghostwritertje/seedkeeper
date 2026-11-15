@@ -15,15 +15,15 @@
 {#else}
 <table>
 <thead>
-<tr><th>Path</th><th>Size</th><th>Age</th></tr>
+<tr><th>Path</th><th>Size</th><th>Age</th><th>Library link</th></tr>
 </thead>
 <tbody>
 {#for row in files.rows}
-<tr><td>{row.path}</td><td>{row.size}</td><td>{row.age}</td></tr>
+<tr><td>{row.path}</td><td>{row.size}</td><td>{row.age}</td><td>{row.libraryLink}</td></tr>
 {/for}
 </tbody>
 <tfoot>
-<tr><th>{files.total}</th><td>{files.totalSize}</td><td></td></tr>
+<tr><th>{files.total}</th><td>{files.totalSize}</td><td></td><td></td></tr>
 </tfoot>
 </table>
 {/if}
