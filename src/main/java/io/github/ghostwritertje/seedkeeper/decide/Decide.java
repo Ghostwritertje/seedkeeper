@@ -13,16 +13,19 @@ import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
  * The rules (spec §3.5): a pure function from a snapshot to a verdict per group. Two calls on the same snapshot with
  * the same now give the same verdicts.
  *
- * <p>The rules are those of {@link Reason}, in its order; unregistered doesn't exist yet. Each holds
+ * <p>The rules are those of {@link Reason}, in its order. Each holds
  * for the group when it holds for any member, so a group is removed only when every member has met its own tracker's
  * minimum. The first that holds decides the verdict, the others that hold are its secondary reasons.
  */
@@ -40,17 +43,50 @@ public final class Decide {
     }
 
     /**
-     * @param overrides the keep overrides, as read at the start of the run; expired and stale ones have no effect
+     * One verdict per group, in the order of each group's first member in the snapshot.
+     *
+     * <p>An unregistered torrent that is not verifying leaves its group (rule 1): it gets a verdict of its own,
+     * {@link Verdict#REMOVE} with {@link Reason#UNREGISTERED} and itself as the only member. The groups are built
+     * from the other torrents, so the rest of its group is judged without it. To carry out the verdicts, remove every
+     * member of every {@link Verdict#REMOVE} verdict, and nothing else.
+     *
+     * @param overrides the keep overrides, as read at the start of the run; expired and stale ones have no effect,
+     *                  and none keeps an unregistered torrent
      * @param now       the moment of the snapshot, in the configured time zone; the forecast counts from it and the
      *                  end date of an override is a date in its zone
      */
     public static List<GroupVerdict> decide(Snapshot snapshot, TrackerRules trackers, List<KeepOverride> overrides,
             ZonedDateTime now) {
-        return snapshot.groups().stream().map(group -> decide(group, snapshot, trackers, overrides, now)).toList();
+        Map<SnapshotTorrent, Integer> position = new IdentityHashMap<>();
+        snapshot.torrents().forEach(torrent -> position.put(torrent, position.size()));
+
+        Map<Boolean, List<SnapshotTorrent>> byRule1 = snapshot.torrents().stream()
+                .collect(Collectors.partitioningBy(member -> leavesItsGroup(member.torrent())));
+        Snapshot rest = new Snapshot(byRule1.get(false), snapshot.library());
+
+        Map<Integer, GroupVerdict> verdicts = new TreeMap<>();
+        for (SnapshotTorrent alone : byRule1.get(true)) {
+            verdicts.put(position.get(alone), decide(List.of(alone), true, snapshot, trackers,
+                    overrides, now));
+        }
+        for (List<SnapshotTorrent> group : rest.groups()) {
+            verdicts.put(position.get(group.getFirst()), decide(group, false, snapshot, trackers,
+                    overrides, now));
+        }
+        return List.copyOf(verdicts.values());
     }
 
-    private static GroupVerdict decide(List<SnapshotTorrent> group, Snapshot snapshot, TrackerRules trackers,
-            List<KeepOverride> overrides, ZonedDateTime now) {
+    /** Rule 1: unregistered and not verifying. */
+    private static boolean leavesItsGroup(Torrent torrent) {
+        return !verifying(torrent) && TrackerError.of(torrent.error(), torrent.errorString())
+                .filter(TrackerError::unregistered).isPresent();
+    }
+
+    /**
+     * @param unregistered true when the group is one unregistered torrent that left its group
+     */
+    private static GroupVerdict decide(List<SnapshotTorrent> group, boolean unregistered, Snapshot snapshot,
+            TrackerRules trackers, List<KeepOverride> overrides, ZonedDateTime now) {
         List<Member> members = group.stream().map(member -> member(member.torrent(), trackers)).toList();
 
         // A file that several members share is one file; a file that resolves to nothing is counted per member.
@@ -68,8 +104,12 @@ public final class Decide {
                 .filter(file -> file.id().isEmpty())
                 .count();
 
-        // Every reason that holds, in the order of precedence. Tracker errors (1 and 2) and paused are not inputs.
+        // Every reason that holds, in the order of precedence. Paused and tracker errors (1, and 2 that is not
+        // unregistered) are not inputs.
         Set<Reason> holding = EnumSet.noneOf(Reason.class);
+        if (unregistered) {
+            holding.add(Reason.UNREGISTERED);
+        }
         if (members.stream().anyMatch(member -> member.tracker().isEmpty())) {
             holding.add(Reason.UNMANAGED);
         }
@@ -123,7 +163,8 @@ public final class Decide {
 
     private static Member member(Torrent torrent, TrackerRules trackers) {
         return new Member(torrent.hash(), torrent.name(), trackers.attribute(torrent.trackers(), torrent.isPrivate()),
-                Duration.ofSeconds(torrent.secondsSeeding()), torrent.status());
+                Duration.ofSeconds(torrent.secondsSeeding()), torrent.status(),
+                TrackerError.of(torrent.error(), torrent.errorString()));
     }
 
     /**

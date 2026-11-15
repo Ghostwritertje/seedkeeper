@@ -16,7 +16,7 @@ import org.jboss.logging.Logger;
 
 /**
  * Starts runs, one at a time (spec §5, step 1), and remembers the last one. Everything that starts a run goes
- * through {@link #run()}: Run now, and later the schedule.
+ * through {@link #run()}: Run now and the {@link ScheduledRun}.
  */
 @ApplicationScoped
 public class RunService {
@@ -25,18 +25,20 @@ public class RunService {
 
     private final Run run;
     private final OverrideStore overrides;
+    private final RunMonitor monitor;
     private final AtomicBoolean running = new AtomicBoolean();
     private volatile RunOutcome lastRun;
 
     @Inject
-    RunService(Transmission transmission, SeedkeeperConfig config, OverrideStore overrides) {
+    RunService(Transmission transmission, SeedkeeperConfig config, OverrideStore overrides, RunMonitor monitor) {
         this(new Run(transmission, TrackerRules.of(config), config.downloadsRoot(), config.libraryRoots(),
-                config.timeZone(), overrides), overrides);
+                config.timeZone(), overrides), overrides, monitor);
     }
 
-    RunService(Run run, OverrideStore overrides) {
+    RunService(Run run, OverrideStore overrides, RunMonitor monitor) {
         this.run = run;
         this.overrides = overrides;
+        this.monitor = monitor;
     }
 
     /**
@@ -49,7 +51,9 @@ public class RunService {
             return Optional.empty();
         }
         try {
+            monitor.started();
             RunOutcome outcome = run.execute();
+            monitor.ended(outcome);
             // What follows a run (spec §5, steps 4 and 5) belongs here, while the lock is still held.
             growOverrides(outcome);
             lastRun = outcome;

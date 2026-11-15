@@ -10,6 +10,7 @@ import io.github.ghostwritertje.seedkeeper.overrides.OverrideStore;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Status;
 import io.github.ghostwritertje.seedkeeper.transmission.StubTransmission;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -156,6 +157,7 @@ class RunServiceTest {
     private RunService service() {
         TrackerRules trackers = new TrackerRules(List.of(), Duration.ofDays(30), Optional.empty());
         OverrideStore overrides = new OverrideStore(overridesFile());
-        return new RunService(new Run(transmission, trackers, root, List.of(), ZoneOffset.UTC, overrides), overrides);
+        return new RunService(new Run(transmission, trackers, root, List.of(), ZoneOffset.UTC, overrides), overrides,
+                new RunMonitor(new SimpleMeterRegistry()));
     }
 }

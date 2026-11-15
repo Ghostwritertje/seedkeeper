@@ -120,9 +120,9 @@ class OverridesTest {
                 .when().get("/groups")
                 .then()
                 .statusCode(200)
-                .body("html.body.main.table.tbody.tr[0].td[5]", is("Keep"))
-                .body("html.body.main.table.tbody.tr[0].td[6]", is("Keep override"))
-                .body("html.body.main.table.tbody.tr[0].td[8]", is("until 2999-12-31"));
+                .body("html.body.main.table.tbody.tr[0].td[6]", is("Keep"))
+                .body("html.body.main.table.tbody.tr[0].td[7]", is("Keep override"))
+                .body("html.body.main.table.tbody.tr[0].td[9]", is("until 2999-12-31"));
     }
 
     @Test

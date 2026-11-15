@@ -3,6 +3,7 @@ package io.github.ghostwritertje.seedkeeper.groups;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.decide.Reason;
 import io.github.ghostwritertje.seedkeeper.decide.Tracker;
+import io.github.ghostwritertje.seedkeeper.decide.TrackerError;
 import io.github.ghostwritertje.seedkeeper.decide.Verdict;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsFilter.UnknownFilter;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsService.GroupsUnavailable;
@@ -71,8 +72,10 @@ public class GroupsPage {
     /**
      * @param tracker  "unmanaged" when the torrent has no tracker
      * @param seedTime "40d / 30d": the seed time and the tracker's minimum; the seed time alone when unmanaged
+     * @param trackerMessage "Unregistered: Unregistered torrent", "Tracker error: Passkey does not exist!", or
+     *                       empty when the tracker reports nothing wrong
      */
-    public record Member(String name, String tracker, String seedTime, String status) {
+    public record Member(String name, String tracker, String seedTime, String status, String trackerMessage) {
     }
 
     private final GroupsService groups;
@@ -135,6 +138,11 @@ public class GroupsPage {
         return new Member(member.name(), member.tracker().map(Tracker::name).orElse("unmanaged"),
                 member.tracker().map(tracker -> seedTime + " / " + StatusText.duration(tracker.minimumSeedTime()))
                         .orElse(seedTime),
-                StatusText.label(member.status()));
+                StatusText.label(member.status()),
+                member.trackerError().map(GroupsPage::trackerMessage).orElse(""));
+    }
+
+    private static String trackerMessage(TrackerError error) {
+        return error.message().isBlank() ? error.kind().label() : error.kind().label() + ": " + error.message();
     }
 }
