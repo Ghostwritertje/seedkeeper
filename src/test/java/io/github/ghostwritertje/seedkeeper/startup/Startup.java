@@ -14,7 +14,8 @@ final class Startup {
         jar.addPackages(true, SeedkeeperConfig.class.getPackage())
                 .addAsResource("templates/layout.html")
                 .addAsResource("templates/LoginPage/login.html")
-                .addAsResource("templates/SystemPage/system.html");
+                .addAsResource("templates/SystemPage/system.html")
+                .addAsResource("templates/GroupsPage/groups.html");
     }
 
     /** The messages of a failure and all its causes, one per line. */

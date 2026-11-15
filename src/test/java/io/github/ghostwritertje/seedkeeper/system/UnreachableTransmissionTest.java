@@ -29,8 +29,10 @@ class UnreachableTransmissionTest {
 
         @Override
         public Map<String, String> getConfigOverrides() {
-            return TestSecrets.with("seedkeeper.transmission.url",
+            Map<String, String> config = TestSecrets.with("seedkeeper.transmission.url",
                     "http://127.0.0.1:" + unusedPort() + "/transmission/rpc");
+            config.put("seedkeeper.library-roots", "/library");
+            return config;
         }
     }
 
