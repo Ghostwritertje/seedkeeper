@@ -62,7 +62,7 @@ class RemoverTest {
         assertEquals(List.of("a"), transmission.removed());
         assertEquals(List.of(torrent), removal.removed());
         assertEquals(Optional.of("Removed from Transmission, but the torrent list could not be read again after 4"
-                + " tries (Transmission does not answer torrent_get), so no file was deleted: what the removed"
+                + " tries (Transmission does not answer torrent_get): what the removed"
                 + " torrents leave behind on disk is now an orphan"), removal.error());
         assertEquals(List.of(), removal.deleted().files());
         assertTrue(Files.exists(movie));

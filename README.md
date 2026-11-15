@@ -326,7 +326,7 @@ The same data as the System page. Always answers 200, also when Transmission is 
 | `running` | `true` while a [run](#runs-removing-and-deleting) is running. |
 | `lastRun` | The last run that ended since seedkeeper started; `null` when there has been none. |
 | `lastRun.started`, `lastRun.ended` | ISO 8601, to the second, with the offset of `seedkeeper.time-zone`. |
-| `lastRun.status` | `succeeded`, or `failed` when the run removed nothing because Transmission couldn't be used or a library root couldn't be read. |
+| `lastRun.status` | `succeeded`, or `failed` when the run could make no verdicts and removed nothing (Transmission couldn't be used, a library root or the overrides file couldn't be read, or there was something to remove while the downloads root or a library root couldn't be found), or when it broke off on an unexpected error; then the removals carried out before it are still listed. |
 | `lastRun.error` | The one reason of a failed run; `null` otherwise. |
 | `lastRun.groupsRemoved` | The removals carried out in full. |
 | `lastRun.torrentsRemoved` | The torrents removed from Transmission, also those of a group whose removal then failed. |
@@ -485,7 +485,7 @@ The runs of the [run history](#run-history), the newest first: the same data as 
 |---|---|
 | `id` | The run's number; a later run has a higher one. |
 | `started`, `ended` | ISO 8601, to the second, with the offset of `seedkeeper.time-zone`. |
-| `status` | `succeeded`, or `failed` when the run removed nothing because Transmission couldn't be used or a library root couldn't be read. |
+| `status` | `succeeded`, or `failed` when the run could make no verdicts and removed nothing (Transmission couldn't be used, a library root or the overrides file couldn't be read, or there was something to remove while the downloads root or a library root couldn't be found), or when it broke off on an unexpected error; then the removals carried out before it are still listed. |
 | `error` | The one reason of a failed run; `null` otherwise. |
 | `groupsRemoved` | The removals carried out in full. |
 | `torrentsRemoved` | The torrents removed from Transmission, also those of a removal that then failed. |
@@ -610,8 +610,9 @@ The counters start at 0 with every start of seedkeeper.
 
 seedkeeper logs to standard output, one JSON object per line (`timestamp`, `level`, `loggerName`, `message`, `mdc`,
 ...). A run logs one line when it starts and one when it ends, one per removal and one per deleted file, each with
-its kind in `mdc.event`: `run-start`, `run-end`, `removal` or `deleted-file`. What went wrong has level `ERROR`: a
-failed run (on its `run-end` line, with the reason), a removal that failed, and a path seedkeeper refused to delete.
+its kind in `mdc.event`: `run-start`, `run-end`, `removal`, `deleted-file`, or `refused-path` for a path seedkeeper
+refused to delete. What went wrong has level `ERROR`: a failed run (on its `run-end` line, with the reason), a
+removal that failed, and a refused path.
 The lines of a run are written when it ends, apart from `run-start`.
 
 ```json

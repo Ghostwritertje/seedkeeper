@@ -27,7 +27,10 @@ import org.jboss.logging.MDC;
 @Startup // the metrics are there from the start, not from the first run
 public class RunMonitor {
 
-    /** The MDC key of a line's kind: {@code run-start}, {@code run-end}, {@code removal}, {@code deleted-file}. */
+    /**
+     * The MDC key of a line's kind: {@code run-start}, {@code run-end}, {@code removal}, {@code deleted-file},
+     * {@code refused-path}.
+     */
     static final String EVENT = "event";
 
     private static final Logger LOG = Logger.getLogger(RunMonitor.class);
@@ -78,7 +81,7 @@ public class RunMonitor {
         for (Removal removal : outcome.removals()) {
             logRemoval(removal);
         }
-        long carriedOut = outcome.removals().stream().filter(removal -> removal.error().isEmpty()).count();
+        int carriedOut = outcome.groupsRemoved();
         runs.get(outcome.status()).increment();
         removedGroups.increment(carriedOut);
         spaceFreed.increment(outcome.spaceFreed());
@@ -111,7 +114,7 @@ public class RunMonitor {
             log("deleted-file", Logger.Level.INFO, "Deleted " + file);
         }
         for (Path refused : removal.deleted().refused()) {
-            log("deleted-file", Logger.Level.ERROR, "Refused to delete " + refused);
+            log("refused-path", Logger.Level.ERROR, "Refused to delete " + refused);
         }
     }
 

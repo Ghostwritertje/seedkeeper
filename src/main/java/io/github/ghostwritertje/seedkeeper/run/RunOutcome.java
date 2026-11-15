@@ -64,6 +64,21 @@ public record RunOutcome(ZonedDateTime started, ZonedDateTime ended, Status stat
         }
     }
 
+    /** The removals carried out in full. */
+    public int groupsRemoved() {
+        return (int) removals.stream().filter(removal -> removal.error().isEmpty()).count();
+    }
+
+    /** The torrents Transmission removed, also those of a removal that then went wrong. */
+    public int torrentsRemoved() {
+        return removals.stream().mapToInt(removal -> removal.removed().size()).sum();
+    }
+
+    /** The files and symlinks deleted by all removals together. */
+    public int filesDeleted() {
+        return removals.stream().mapToInt(removal -> removal.deleted().files().size()).sum();
+    }
+
     /** The space freed by all removals together, in bytes. */
     public long spaceFreed() {
         return removals.stream().mapToLong(removal -> removal.deleted().spaceFreed()).sum();

@@ -67,10 +67,7 @@ public class SystemService {
             }
         }
         return new LastRun(iso(run.started()), iso(run.ended()), run.status().code(), run.error().orElse(null),
-                (int) run.removals().stream().filter(removal -> removal.error().isEmpty()).count(),
-                run.removals().stream().mapToInt(removal -> removal.removed().size()).sum(),
-                run.removals().stream().mapToInt(removal -> removal.deleted().files().size()).sum(),
-                run.spaceFreed(), removalErrors);
+                run.groupsRemoved(), run.torrentsRemoved(), run.filesDeleted(), run.spaceFreed(), removalErrors);
     }
 
     private static String iso(ZonedDateTime moment) {
