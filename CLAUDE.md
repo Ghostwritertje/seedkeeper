@@ -17,3 +17,13 @@ gh run watch
 ```
 
 A pull request runs the same job.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in GitHub Issues for `Ghostwritertje/seedkeeper` (via `gh`). See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
