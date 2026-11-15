@@ -1,197 +1,100 @@
 name: Implementer
 
-# The implementer agent turns an issue labelled `ready-for-agent` into a pull request, as the implementer App. The
-# label lifecycle: docs/agents/issue-tracker.md. Setting up the App and the secrets: docs/agents/github-apps.md. Why
-# it runs this way: docs/adr/0001-agent-runner.md.
+# The implementer agent turns an issue labelled `ready-for-agent` into a pull request, as the implementer App. It
+# starts when the label is added, and when an issue closes, for each issue it was blocking that still carries the
+# label and no longer has an open blocker. Either way the issue goes through the same pick-up path,
+# implement-issue.yml. The label lifecycle: docs/agents/issue-tracker.md. Setting up the App and the secrets:
+# docs/agents/github-apps.md. Why it runs this way: docs/adr/0001-agent-runner.md.
 #
-# Only a user with write access starts it: the pick-up job checks the labeller's permission before it touches the
-# issue, and the action checks it again. Bots don't start it.
+# Only a user with write access starts it: the one who labelled the issue, and for a dependent also the one who
+# closed its blocker. Bots don't start it. The concurrency groups, one per issue, are on the jobs in
+# implement-issue.yml.
 
 on:
   issues:
-    types: [labeled]
+    types: [labeled, closed]
 
 permissions:
   contents: read
 
-# One run per issue, so several labelled issues run in parallel. A run in progress is never cancelled; relabelling
-# the same issue queues behind it.
-concurrency:
-  group: implementer-issue-${{ github.event.issue.number }}
-  cancel-in-progress: false
-
 jobs:
-  # Deterministic checks before any agent runs: who labelled it, sub-issues, open blockers. Only then swap the labels.
-  pick-up:
-    name: Pick up the issue
+  labelled:
+    name: Labelled
+    if: >-
+      github.event.action == 'labeled' && github.event.label.name == 'ready-for-agent'
+      && github.event.sender.type == 'User'
+    uses: ./.github/workflows/implement-issue.yml
+    with:
+      issue: ${{ github.event.issue.number }}
+      labeller: ${{ github.event.sender.login }}
+    secrets:
+      IMPLEMENTER_APP_ID: ${{ secrets.IMPLEMENTER_APP_ID }}
+      IMPLEMENTER_APP_KEY: ${{ secrets.IMPLEMENTER_APP_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+  # The issues the closed one was blocking that are open, labelled `ready-for-agent` and have no open blocker left,
+  # each with the user who last added the label. Still-blocked and unlabelled dependents are left alone.
+  dependents:
+    name: Find unblocked dependents
+    if: github.event.action == 'closed' && github.event.sender.type == 'User'
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: github.event.label.name == 'ready-for-agent' && github.event.sender.type == 'User'
     outputs:
-      start: ${{ steps.check.outputs.start }}
-      branch: ${{ steps.branch.outputs.name }}
+      dependents: ${{ steps.find.outputs.dependents }}
     steps:
-      - name: Mint the implementer App token
-        id: app-token
-        uses: actions/create-github-app-token@v3
-        with:
-          app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
-          private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
-
-      - name: Check the issue can be started
-        id: check
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          GH_REPO: ${{ github.repository }}
-          ISSUE: ${{ github.event.issue.number }}
-          SENDER: ${{ github.event.sender.login }}
-        run: |
-          permission="$(gh api "repos/$GH_REPO/collaborators/$SENDER/permission" --jq .permission)"
-          case "$permission" in
-            admin|write) ;;
-            *)
-              echo "::notice::$SENDER has $permission access, not write: not starting."
-              echo "start=false" >> "$GITHUB_OUTPUT"
-              exit 0
-              ;;
-          esac
-
-          issue="$(gh api "repos/$GH_REPO/issues/$ISSUE")"
-          sub_issues="$(jq '.sub_issues_summary.total // 0' <<<"$issue")"
-          open_blockers="$(jq '.issue_dependencies_summary.blocked_by // 0' <<<"$issue")"
-
-          if [ "$sub_issues" -gt 0 ]; then
-            gh issue edit "$ISSUE" --remove-label ready-for-agent
-            gh issue comment "$ISSUE" --body "The implementer doesn't take this issue: it has $sub_issues sub-issues, so it is a spec, not a ticket. Label its sub-issues \`ready-for-agent\` instead."
-            echo "start=false" >> "$GITHUB_OUTPUT"
-          elif [ "$open_blockers" -gt 0 ]; then
-            gh issue comment "$ISSUE" --body "The implementer is waiting: this issue has $open_blockers open blockers. \`ready-for-agent\` stays on; re-add it once every blocker is closed."
-            echo "start=false" >> "$GITHUB_OUTPUT"
-          else
-            gh issue edit "$ISSUE" --remove-label ready-for-agent --add-label agent:in-progress
-            echo "start=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      # agent/issue-<n>-<slug>: the slug is the title in lowercase, letters and digits only, at most 40 characters.
-      # Only [a-z0-9/-] reaches claude_args below.
-      - name: Name the branch
-        id: branch
-        if: steps.check.outputs.start == 'true'
-        env:
-          ISSUE: ${{ github.event.issue.number }}
-          TITLE: ${{ github.event.issue.title }}
-        run: |
-          slug="$(printf '%s' "$TITLE" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | cut -c1-40 | sed 's/^-*//; s/-*$//')"
-          echo "name=agent/issue-$ISSUE${slug:+-$slug}" >> "$GITHUB_OUTPUT"
-
-  implement:
-    name: Implement the issue
-    needs: pick-up
-    if: needs.pick-up.outputs.start == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - name: Mint the implementer App token
-        id: app-token
-        uses: actions/create-github-app-token@v3
-        with:
-          app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
-          private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
-
-      # The default branch, with history. Its CLAUDE.md and .claude/, including the hook that blocks native builds,
-      # are what the agent runs with.
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 0
           persist-credentials: false
+          sparse-checkout: .github/scripts
 
-      # The prompt comes from the default branch, read before a retry switches to the agent branch.
-      - name: Read the implementer prompt
-        id: prompt
-        run: |
-          {
-            echo 'text<<IMPLEMENTER_PROMPT_EOF'
-            cat .github/prompts/implementer.md
-            echo 'IMPLEMENTER_PROMPT_EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      # A retry continues on the branch an earlier run pushed. The action restores CLAUDE.md and .claude/ from the
-      # base only on pull requests, so this step does it here: an earlier run can't loosen the next one's settings.
-      - name: Check out the agent branch
-        env:
-          BRANCH: ${{ needs.pick-up.outputs.branch }}
-        run: |
-          base="$(git rev-parse HEAD)"
-          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
-            git fetch origin "$BRANCH"
-            git switch -c "$BRANCH" FETCH_HEAD
-            git restore --source "$base" --staged --worktree -- CLAUDE.md .claude
-          else
-            git switch -c "$BRANCH"
-          fi
-
-      # As the Verify (JVM) job in ci.yml does.
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: 25
-          cache: maven
-
-      # The allowlist is exact: --permission-mode default denies whatever it doesn't list, and the denies are on the
-      # command line so they also bind the action's own git scripts. Pushes go to the agent branch only.
-      - uses: anthropics/claude-code-action@v1
-        env:
-          CLAUDE_BRANCH: ${{ needs.pick-up.outputs.branch }}
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ steps.app-token.outputs.token }}
-          base_branch: ${{ github.event.repository.default_branch }}
-          prompt: |
-            REPO: ${{ github.repository }}
-            ISSUE NUMBER: ${{ github.event.issue.number }}
-            BRANCH: ${{ needs.pick-up.outputs.branch }}
-            BASE: ${{ github.event.repository.default_branch }}
-
-            ${{ steps.prompt.outputs.text }}
-          claude_args: >-
-            --model claude-opus-5-5
-            --max-turns 150
-            --permission-mode default
-            --allowedTools
-            "Read,Glob,Grep,Edit,MultiEdit,Write,Agent,Skill,TodoWrite,Bash(./mvnw:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git branch --show-current),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git commit:*),Bash(git restore:*),Bash(git push origin ${{ needs.pick-up.outputs.branch }}),Bash(git push -u origin ${{ needs.pick-up.outputs.branch }}),Bash(gh issue view:*),Bash(gh issue comment ${{ github.event.issue.number }}:*),Bash(gh issue edit ${{ github.event.issue.number }}:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh pr ready:*)"
-            --disallowedTools
-            "Bash(gh pr merge:*),Bash(gh api:*),Bash(git push --force:*),Bash(git push -f:*),Bash(git push --force-with-lease:*),Bash(git push * --force*),Bash(git push * -f*),Bash(git push *+*),Bash(git push --delete:*),Bash(git push * --delete*),Bash(git reset --hard:*),Bash(git rebase:*),Bash(./mvnw *-Dnative*),Bash(./mvnw *-Pnative*)"
-
-      # The issue's work is in its pull request, or the agent labelled it agent:blocked or needs-decision.
-      - name: Clear agent:in-progress
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          GH_REPO: ${{ github.repository }}
-          ISSUE: ${{ github.event.issue.number }}
-        run: gh issue edit "$ISSUE" --remove-label agent:in-progress
-
-  # A crash, a timeout or an exhausted quota fails the job. Nothing retries on its own.
-  blocked:
-    name: Report a failed run
-    needs: [pick-up, implement]
-    if: failure()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
       - name: Mint the implementer App token
         id: app-token
         uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
           private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
-      - name: Label the issue agent:blocked and link the run
+
+      - name: Find them
+        id: find
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
           ISSUE: ${{ github.event.issue.number }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CLOSER: ${{ github.event.sender.login }}
         run: |
-          gh issue edit "$ISSUE" --remove-label agent:in-progress --add-label agent:blocked
-          gh issue comment "$ISSUE" --body "The implementer agent failed: it crashed, timed out or ran out of quota. Nothing retries on its own. See the run: $RUN_URL
+          dependents='[]'
+          permission="$(gh api "repos/$GH_REPO/collaborators/$CLOSER/permission" --jq .permission)"
+          case "$permission" in
+            admin|write)
+              unblocked="$(gh api --paginate "repos/$GH_REPO/issues/$ISSUE/dependencies/blocking" \
+                | .github/scripts/unblocked-dependents.sh)"
+              for dependent in $unblocked; do
+                labeller="$(gh api --paginate "repos/$GH_REPO/issues/$dependent/events" \
+                  | .github/scripts/ready-for-agent-labeller.sh)"
+                dependents="$(jq -c --argjson issue "$dependent" --arg labeller "$labeller" \
+                  '. + [{issue: $issue, labeller: $labeller}]' <<<"$dependents")"
+              done
+              ;;
+            *)
+              echo "::notice::$CLOSER has $permission access, not write: starting no dependents."
+              ;;
+          esac
+          echo "Unblocked dependents of #$ISSUE: $dependents"
+          echo "dependents=$dependents" >> "$GITHUB_OUTPUT"
 
-          To retry, remove \`agent:blocked\` and add \`ready-for-agent\`."
+  unblocked:
+    name: Unblocked #${{ matrix.issue }}
+    needs: dependents
+    if: needs.dependents.outputs.dependents != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.dependents.outputs.dependents) }}
+    uses: ./.github/workflows/implement-issue.yml
+    with:
+      issue: ${{ matrix.issue }}
+      labeller: ${{ matrix.labeller }}
+    secrets:
+      IMPLEMENTER_APP_ID: ${{ secrets.IMPLEMENTER_APP_ID }}
+      IMPLEMENTER_APP_KEY: ${{ secrets.IMPLEMENTER_APP_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
