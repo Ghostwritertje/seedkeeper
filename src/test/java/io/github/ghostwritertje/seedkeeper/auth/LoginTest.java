@@ -68,6 +68,15 @@ class LoginTest {
     }
 
     @Test
+    void theSessionCookieIsHttpOnlyAndSameSiteStrict() {
+        io.restassured.http.Cookie session = post(TestSecrets.USERNAME, TestSecrets.PASSWORD)
+                .statusCode(302)
+                .extract().detailedCookie(Authenticated.SESSION_COOKIE);
+        org.junit.jupiter.api.Assertions.assertTrue(session.isHttpOnly(), "the session cookie is not HttpOnly");
+        org.junit.jupiter.api.Assertions.assertEquals("Strict", session.getSameSite());
+    }
+
+    @Test
     void wrongPasswordIsRejected() {
         ValidatableResponse rejected = post(TestSecrets.USERNAME, "not-the-password")
                 .statusCode(302)
