@@ -1,0 +1,72 @@
+{#include layout.html}
+{#title}System{/title}
+<h1>System</h1>
+<section id="seedkeeper">
+<h2>seedkeeper</h2>
+<dl>
+<dt>Version</dt>
+<dd>{status.version}</dd>
+</dl>
+</section>
+<section id="runs">
+<h2>Runs</h2>
+{#if notice}
+<p role="alert">{notice}</p>
+{/if}
+<dl>
+<dt>Status</dt>
+<dd>{#if status.running}Running now{#else}Idle{/if}</dd>
+<dt>Last run</dt>
+{#if lastRun}
+<dd>{#if status.lastRun.succeeded}Succeeded{#else}Failed{/if}</dd>
+<dt>Started</dt>
+<dd>{lastRun.started}</dd>
+<dt>Ended</dt>
+<dd>{lastRun.ended}</dd>
+<dt>Removed</dt>
+<dd>{lastRun.removed}</dd>
+<dt>Files deleted</dt>
+<dd>{status.lastRun.filesDeleted}</dd>
+<dt>Space freed</dt>
+<dd>{lastRun.spaceFreed}</dd>
+{#else}
+<dd>None yet</dd>
+{/if}
+<dt>Next run</dt>
+<dd>{nextRun ?: 'Not scheduled'}</dd>
+</dl>
+{#if lastRun}
+{#if status.lastRun.error}
+<p role="alert">{status.lastRun.error}</p>
+{/if}
+{#if !status.lastRun.removalErrors.isEmpty}
+<ul>
+{#for error in status.lastRun.removalErrors}
+<li>{error}</li>
+{/for}
+</ul>
+{/if}
+{/if}
+{! Carries out the verdicts of the Groups view: removes the groups that are due and deletes their files. !}
+<form method="post" action="/system/run">
+<input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<button type="submit">Run now</button>
+</form>
+</section>
+{! Asks Transmission again every 30 s and swaps in this section of the fresh page. !}
+<section id="transmission" hx-get="/system" hx-select="#transmission" hx-trigger="every 30s" hx-swap="outerHTML">
+<h2>Transmission</h2>
+<dl>
+<dt>Status</dt>
+<dd>{#if status.transmission.usable}Reachable{#else if status.transmission.reachable}Reachable, not usable{#else}Unreachable{/if}</dd>
+<dt>Version</dt>
+<dd>{status.transmission.version ?: 'unknown'}</dd>
+</dl>
+{#if status.transmission.reason}
+<p role="alert">{status.transmission.reason}</p>
+{/if}
+{#if status.transmission.incompleteDirWarning}
+<p role="alert" id="incomplete-dir">{status.transmission.incompleteDirWarning}</p>
+{/if}
+</section>
+{/include}

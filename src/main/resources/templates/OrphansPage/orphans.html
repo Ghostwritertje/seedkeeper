@@ -1,0 +1,52 @@
+{#include layout.html}
+{#title}Orphans{/title}
+<h1>Orphans</h1>
+{#if unavailable}
+<p role="alert">{unavailable}</p>
+{#else}
+<p>What is under the downloads root that no torrent references. seedkeeper only shows it and never deletes it.</p>
+{#if unreadable}
+<p role="alert" id="unreadable">{unreadable}</p>
+{/if}
+<section id="files">
+<h2>Files</h2>
+{#if files.rows.isEmpty}
+<p>No file is an orphan.</p>
+{#else}
+<table>
+<thead>
+<tr><th>Path</th><th>Size</th><th>Age</th></tr>
+</thead>
+<tbody>
+{#for row in files.rows}
+<tr><td>{row.path}</td><td>{row.size}</td><td>{row.age}</td></tr>
+{/for}
+</tbody>
+<tfoot>
+<tr><th>{files.total}</th><td>{files.totalSize}</td><td></td></tr>
+</tfoot>
+</table>
+{/if}
+</section>
+<section id="dangling-symlinks">
+<h2>Dangling symlinks</h2>
+{#if danglingSymlinks.rows.isEmpty}
+<p>No dangling symlink is an orphan.</p>
+{#else}
+<table>
+<thead>
+<tr><th>Path</th><th>Size</th><th>Age</th></tr>
+</thead>
+<tbody>
+{#for row in danglingSymlinks.rows}
+<tr><td>{row.path}</td><td>{row.size}</td><td>{row.age}</td></tr>
+{/for}
+</tbody>
+<tfoot>
+<tr><th>{danglingSymlinks.total}</th><td>{danglingSymlinks.totalSize}</td><td></td></tr>
+</tfoot>
+</table>
+{/if}
+</section>
+{/if}
+{/include}
