@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.matchesPattern;
 
+import io.github.ghostwritertje.seedkeeper.Authenticated;
 import io.github.ghostwritertje.seedkeeper.TestSecrets;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
@@ -37,7 +38,7 @@ class UnreachableTransmissionTest {
 
     @Test
     void apiGivesTheReason() {
-        given()
+        Authenticated.withApiKey()
                 .when().get("/api/v1/system")
                 .then()
                 .statusCode(200)
@@ -48,7 +49,7 @@ class UnreachableTransmissionTest {
 
     @Test
     void pageGivesTheReason() {
-        given()
+        Authenticated.asUser()
                 .when().get("/system")
                 .then()
                 .statusCode(200)

@@ -66,6 +66,10 @@ public interface SeedkeeperConfig {
 
     interface Auth {
 
+        /** The name of the one user that can log in. */
+        @WithDefault("admin")
+        String username();
+
         /** Secret, env {@code SEEDKEEPER_AUTH_PASSWORD}. */
         String password();
     }

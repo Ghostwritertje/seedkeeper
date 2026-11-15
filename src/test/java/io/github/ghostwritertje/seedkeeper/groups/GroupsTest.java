@@ -1,6 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.groups;
 
-import static io.restassured.RestAssured.given;
+import io.github.ghostwritertje.seedkeeper.Authenticated;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
@@ -58,7 +58,7 @@ class GroupsTest {
 
     @Test
     void apiGivesEveryTorrentAsAGroupWithItsVerdictAndReason() {
-        given()
+        Authenticated.withApiKey()
                 .when().get("/api/v1/groups")
                 .then()
                 .statusCode(200)
@@ -85,14 +85,14 @@ class GroupsTest {
     void apiGivesAnEmptyListWhenThereAreNoTorrents() {
         FakeTransmissionResource.fake().torrents("[]");
 
-        given().when().get("/api/v1/groups").then().statusCode(200).body("$", empty());
+        Authenticated.withApiKey().when().get("/api/v1/groups").then().statusCode(200).body("$", empty());
     }
 
     @Test
     void apiGivesTheReasonWhenTransmissionCannotBeUsed() {
         FakeTransmissionResource.fake().version("4.0.6 (38c164933e)");
 
-        given()
+        Authenticated.withApiKey()
                 .when().get("/api/v1/groups")
                 .then()
                 .statusCode(503)
@@ -103,7 +103,7 @@ class GroupsTest {
 
     @Test
     void pageShowsEveryTorrentWithItsVerdictAndReason() {
-        given()
+        Authenticated.asUser()
                 .when().get("/groups")
                 .then()
                 .statusCode(200)
@@ -130,7 +130,7 @@ class GroupsTest {
     void pageGivesTheReasonWhenTransmissionCannotBeUsed() {
         FakeTransmissionResource.fake().behaviour(Behaviour.RPC_ERROR);
 
-        given()
+        Authenticated.asUser()
                 .when().get("/groups")
                 .then()
                 .statusCode(200)
@@ -141,7 +141,7 @@ class GroupsTest {
 
     @Test
     void theNavigationLeadsToTheGroupsView() {
-        given().when().get("/system").then()
+        Authenticated.asUser().when().get("/system").then()
                 .body("html.body.header.nav.a.find { it.@href == '/groups' }", is("Groups"));
     }
 

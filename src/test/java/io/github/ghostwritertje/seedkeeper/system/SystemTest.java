@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.nullValue;
 
+import io.github.ghostwritertje.seedkeeper.Authenticated;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmission.Behaviour;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmissionResource;
 import io.quarkus.test.common.WithTestResource;
@@ -25,7 +26,7 @@ class SystemTest {
 
     @Test
     void apiShowsSeedkeepersVersionAndTransmissionsVersion() {
-        given()
+        Authenticated.withApiKey()
                 .when().get("/api/v1/system")
                 .then()
                 .statusCode(200)
@@ -40,7 +41,7 @@ class SystemTest {
     void apiGivesTheReasonWhenTransmissionIsTooOld() {
         FakeTransmissionResource.fake().version("4.0.6 (38c164933e)");
 
-        given()
+        Authenticated.withApiKey()
                 .when().get("/api/v1/system")
                 .then()
                 .statusCode(200)
@@ -52,7 +53,7 @@ class SystemTest {
 
     @Test
     void pageShowsSeedkeepersVersionAndTransmissionsVersion() {
-        given()
+        Authenticated.asUser()
                 .when().get("/system")
                 .then()
                 .statusCode(200)
@@ -69,7 +70,7 @@ class SystemTest {
     void pageGivesTheReasonWhenTransmissionIsTooOld() {
         FakeTransmissionResource.fake().behaviour(Behaviour.LEGACY);
 
-        given()
+        Authenticated.asUser()
                 .when().get("/system")
                 .then()
                 .statusCode(200)
@@ -81,7 +82,7 @@ class SystemTest {
 
     @Test
     void pageUsesTheStylesheetAndHtmxShippedInTheApp() {
-        given()
+        Authenticated.asUser()
                 .when().get("/system")
                 .then()
                 .body("html.head.link.@href", is("/seedkeeper.css"))
