@@ -28,9 +28,11 @@ public class SystemPage {
 
         /**
          * @param lastRun the last run in words; null when there has been none
+         * @param nextRun "2026-11-21 06:00:00", in the configured time zone; null when no run is scheduled
          * @param notice  what to tell about the Run now that was just pressed; null when there is nothing to tell
          */
-        static native TemplateInstance system(SystemStatus status, LastRunText lastRun, String notice);
+        static native TemplateInstance system(SystemStatus status, LastRunText lastRun, String nextRun,
+                String notice);
     }
 
     /**
@@ -76,7 +78,8 @@ public class SystemPage {
 
     private TemplateInstance page(String notice) {
         SystemStatus status = system.status();
-        return Templates.system(status, status.lastRun() == null ? null : text(status.lastRun()), notice);
+        return Templates.system(status, status.lastRun() == null ? null : text(status.lastRun()),
+                status.nextRun() == null ? null : moment(status.nextRun()), notice);
     }
 
     private static LastRunText text(LastRun run) {

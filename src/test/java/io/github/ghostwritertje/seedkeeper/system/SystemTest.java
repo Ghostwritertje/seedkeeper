@@ -19,6 +19,8 @@ import org.junit.jupiter.api.Test;
 @WithTestResource(FakeTransmissionResource.class)
 class SystemTest {
 
+    private static final String RUNS = "html.body.main.section.find { it.@id == 'runs' }";
+
     @BeforeEach
     void healthyTransmission() {
         FakeTransmissionResource.fake().reset();
@@ -35,6 +37,26 @@ class SystemTest {
                 .body("transmission.reachable", is(true))
                 .body("transmission.version", is("4.1.0 (5e6a9e0a3d)"))
                 .body("transmission.reason", nullValue());
+    }
+
+    /** The schedule of {@link FakeTransmissionResource}: 06:00 on 1 January, in a time zone at UTC+05:30. */
+    @Test
+    void apiShowsTheNextRunOfTheScheduleInTheConfiguredTimeZone() {
+        Authenticated.withApiKey()
+                .when().get("/api/v1/system")
+                .then()
+                .statusCode(200)
+                .body("nextRun", matchesPattern("\\d{4}-01-01T06:00:00\\+05:30"));
+    }
+
+    @Test
+    void pageShowsTheNextRun() {
+        Authenticated.asUser()
+                .when().get("/system")
+                .then()
+                .statusCode(200)
+                .body(RUNS + ".dl.dt[-1]", is("Next run"))
+                .body(RUNS + ".dl.dd[-1]", matchesPattern("\\d{4}-01-01 06:00:00"));
     }
 
     @Test

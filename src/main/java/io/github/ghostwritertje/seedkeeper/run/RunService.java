@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Starts runs, one at a time (spec §5, step 1), and remembers the last one. Everything that starts a run goes
- * through {@link #run()}: Run now, and later the schedule.
+ * through {@link #run()}: Run now and the {@link ScheduledRun}.
  */
 @ApplicationScoped
 public class RunService {

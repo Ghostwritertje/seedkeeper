@@ -32,6 +32,8 @@
 {#else}
 <dd>None since seedkeeper started</dd>
 {/if}
+<dt>Next run</dt>
+<dd>{nextRun ?: 'Not scheduled'}</dd>
 </dl>
 {#if lastRun}
 {#if status.lastRun.error}
