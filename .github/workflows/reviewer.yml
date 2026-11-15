@@ -1,0 +1,107 @@
+name: Reviewer
+
+# The reviewer agent reviews every non-draft, non-Dependabot pull request as the reviewer App, and never writes
+# code. What it checks and how it reports: docs/agents/review.md. Setting up the App and the secrets:
+# docs/agents/github-apps.md. Why it runs this way: docs/adr/0001-agent-runner.md.
+#
+# Only `pull_request`, never `pull_request_target`: pull requests from forks get no secrets, and the action's
+# default check lets only users with write access (and no bots) start a review.
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    name: Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: >-
+      github.event.pull_request.draft == false
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    # One review per pull request: a new push cancels the review still in progress.
+    concurrency:
+      group: reviewer-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Mint the reviewer App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.REVIEWER_APP_ID }}
+          private-key: ${{ secrets.REVIEWER_APP_KEY }}
+
+      # The pull request's head, with history, so the review can diff it against its base.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The prompt comes from the base branch, like the CLAUDE.md and .claude/ the action restores, so a pull
+      # request can't rewrite its own reviewer's instructions. Only the pull request that adds it reads its own.
+      - name: Read the reviewer prompt
+        id: prompt
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          file=.github/prompts/reviewer.md
+          git show "origin/$BASE_REF:$file" > "$RUNNER_TEMP/reviewer.md" 2>/dev/null || cp "$file" "$RUNNER_TEMP/reviewer.md"
+          {
+            echo 'text<<REVIEWER_PROMPT_EOF'
+            cat "$RUNNER_TEMP/reviewer.md"
+            echo 'REVIEWER_PROMPT_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      # The allowlist is exact: read the code and the pull request, post inline comments, submit the summary
+      # review and add needs-decision. --permission-mode default denies whatever it doesn't list, and the denies
+      # are on the command line so they also bind the action's own git scripts.
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+            BASE: origin/${{ github.event.pull_request.base.ref }}
+            HEAD: ${{ github.event.pull_request.head.sha }}
+
+            ${{ steps.prompt.outputs.text }}
+          claude_args: >-
+            --model claude-opus-5-5
+            --max-turns 40
+            --permission-mode default
+            --allowedTools
+            "Read,Glob,Grep,Agent,Skill,mcp__github_inline_comment__create_inline_comment,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(gh pr view ${{ github.event.pull_request.number }}:*),Bash(gh pr diff ${{ github.event.pull_request.number }}:*),Bash(gh issue view:*),Bash(gh pr review ${{ github.event.pull_request.number }} --comment:*),Bash(gh pr edit ${{ github.event.pull_request.number }} --add-label needs-decision)"
+            --disallowedTools
+            "Edit,Write,NotebookEdit,Bash(git push:*),Bash(git commit:*),Bash(git add:*),Bash(git merge:*),Bash(git rebase:*),Bash(git reset:*),Bash(gh pr merge:*),Bash(gh api:*)"
+
+  # A crash, a timeout or an exhausted quota fails the review; a review cancelled by a new push doesn't.
+  blocked:
+    name: Report a failed review
+    needs: review
+    if: failure() && needs.review.result == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Mint the reviewer App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.REVIEWER_APP_ID }}
+          private-key: ${{ secrets.REVIEWER_APP_KEY }}
+      - name: Label the pull request agent:blocked and link the run
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh pr edit "$PR" --add-label agent:blocked
+          gh pr comment "$PR" --body "The reviewer agent failed: it crashed, timed out or ran out of quota. Nothing retries on its own. See the run: $RUN_URL
+
+          To retry, push a commit or close and reopen this pull request."
