@@ -43,7 +43,7 @@ public class FakeTransmissionResource implements QuarkusTestResourceLifecycleMan
         return library;
     }
 
-    /** The data dir of the application under test: where it keeps {@code overrides.yaml}. */
+    /** The data dir of the application under test: where it keeps {@code overrides.yaml} and {@code seedkeeper.db}. */
     public static Path dataDir() {
         return dataDir;
     }

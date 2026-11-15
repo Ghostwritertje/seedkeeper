@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Starts the image as an arbitrary non-root uid:gid, with a seedkeeper.yaml mounted the way the README says and the
 # secrets in the environment. There is no Transmission here, so it waits for liveness (readiness stays down) and
-# then checks that the API (with the API key) reports the Transmission URL from the mounted file as unreachable.
+# then checks that the API (with the API key) reports the Transmission URL from the mounted file as unreachable,
+# and that the run history is there: seedkeeper.db in the mounted data dir, read through GET /api/v1/runs.
 # Usage: smoke-test-image.sh <image>
 set -euo pipefail
 
@@ -25,8 +26,7 @@ seedkeeper:
     minimum-seed-time: 1d
 YAML
 chmod 644 "$config/seedkeeper.yaml"
-
-# The data dir (overrides.yaml): writable by whatever uid the container runs as.
+# The data dir (overrides.yaml, seedkeeper.db): writable by whatever uid the container runs as.
 data="$(mktemp -d)"
 chmod 777 "$data"
 
@@ -48,9 +48,17 @@ for _ in $(seq 1 30); do
     echo "$system"
     if echo "$system" | grep -q 'Transmission at http://127.0.0.1:9/transmission/rpc does not answer'; then
       echo "the mounted seedkeeper.yaml was read"
+    else
+      echo "GET /api/v1/system does not report the Transmission URL from the mounted seedkeeper.yaml" >&2
+      exit 1
+    fi
+    runs="$(curl -fsS -H 'X-Api-Key: smoke' http://127.0.0.1:8080/api/v1/runs)"
+    echo "$runs"
+    if [ "$runs" = "[]" ] && [ -f "$data/seedkeeper.db" ]; then
+      echo "the run history is in the mounted data dir"
       exit 0
     fi
-    echo "GET /api/v1/system does not report the Transmission URL from the mounted seedkeeper.yaml" >&2
+    echo "GET /api/v1/runs does not give an empty history, or seedkeeper.db is not in the mounted data dir" >&2
     exit 1
   fi
   sleep 1

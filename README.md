@@ -50,7 +50,7 @@ seedkeeper:
 | `seedkeeper.trackers.<name>.minimum-seed-time` | no | The seed time the tracker requires before a torrent may leave; the default when absent. |
 | `seedkeeper.public.minimum-seed-time` | no | Adds the tracker `public`: every torrent that is not private and belongs to no single managed tracker gets it, with this minimum. Without the `public` entry such torrents are unmanaged. |
 | `seedkeeper.auth.username` | no, `admin` | Username of seedkeeper's login. |
-| `seedkeeper.data-dir` | no, `/data` | The directory seedkeeper keeps its own files in: [`overrides.yaml`](#keep-overrides). Mount a directory seedkeeper can write to; it is created when it isn't there, and seedkeeper doesn't start when it can't be. |
+| `seedkeeper.data-dir` | no, `/data` | The directory seedkeeper keeps its own files in: [`overrides.yaml`](#keep-overrides) and `seedkeeper.db`, the [run history](#run-history). Mount a directory seedkeeper can write to, to keep them when the container is replaced; it is created when it isn't there, and seedkeeper doesn't start when it can't be or can't be written to. |
 
 The [Settings page](#pages) shows the value of every key seedkeeper runs with, defaults included.
 
@@ -194,7 +194,8 @@ anything under a library root, also not through a symlinked directory. A path it
 run. Only the paths of removed torrents are deleted, so data that a removed torrent reached through a symlink and
 that no torrent has as its own path any more stays behind as an [orphan](#get-apiv1orphans).
 
-The last run is kept in memory only: after a restart there is none until the next run.
+The System page shows the last run since seedkeeper started: after a restart there is none until the next run.
+Every run is kept in the [run history](#run-history).
 
 Secrets come from the environment only. seedkeeper doesn't start when one is missing:
 
@@ -208,6 +209,26 @@ Secrets come from the environment only. seedkeeper doesn't start when one is mis
 
 An environment variable also overrides a key of the file: `SEEDKEEPER_TRANSMISSION_URL` wins over
 `seedkeeper.transmission.url`.
+
+## Run history
+
+Every run that ends is written to `seedkeeper.db`, a SQLite database in `seedkeeper.data-dir`: its start, end, status
+and error, and each removal with its reason, its error, the space freed, the number of files deleted and its
+torrents (name, hash, tracker, what the tracker said, whether the download was unfinished, whether Transmission
+removed it). The [Activity page](#pages), [`GET /api/v1/runs`](#get-apiv1runs) and
+[`GET /api/v1/removals`](#get-apiv1removals) show it. A run is deleted, with its removals, once it is more than a
+year older than the newest run.
+
+A successful run also notes, per group, since when it has its reason: **`reasonSince`**, in
+[`GET /api/v1/groups`](#get-apiv1groups). It is the start of the first run that gave the group that reason, and it
+stays put for as long as every successful run since gave it the same one. When the reason changes, the next
+successful run starts it anew, also when an earlier reason comes back. Until that run the group has no `reasonSince`,
+and neither has a group no run has seen yet. A group is followed through its torrents, so it keeps its date when a
+member joins or leaves. A failed run changes nothing.
+
+The history is for display only: no verdict ever depends on it. A run that can't be written to it still counts and
+is only logged. Deleting `seedkeeper.db` (while seedkeeper is stopped) loses the history and nothing else; seedkeeper
+makes an empty one when it starts.
 
 ## Login
 
@@ -226,6 +247,7 @@ Every form carries a CSRF token; a form POST without it is rejected with 400.
 | Page | Shows |
 |---|---|
 | `/groups` | Every [cross-seed group](#cross-seed-groups) with its members (name, tracker, seed time and minimum, status, and the tracker message when the tracker reports an [error](#unregistered-torrents): "Unregistered: …", "Tracker error: …" or "Tracker warning: …"), its library links, the verdict seedkeeper would give it right now with the [reason and the secondary reasons](#verdicts-and-reasons), and the forecast: a date in the configured time zone, "clock stopped (paused)", or the end date of a keep override ("until 2027-03-01"). The list can be filtered by verdict and by reason (`/groups?verdict=keep&reason=library-link`). Read from Transmission and the disk on every load. |
+| `/activity` | The [run history](#run-history): every run of the last year, the newest first, with its start and end, whether it succeeded or failed and the reason, the torrents and groups it removed, the files deleted and the space freed; and per removal its torrents (with their tracker, and "not finished", what the tracker said and "not removed" where that applies), the reason, the files deleted, the space freed and what went wrong. |
 | `/overrides` | Every [keep override](#keep-overrides) of the overrides file, read-only: its status (active, expired, stale, or expired and stale), note, end date, when it was created (in the configured time zone), the members of the group or groups it matches, its hashes and its id. |
 | `/orphans` | The **orphans**: what is under the downloads root that no torrent references, as two lists, files and dangling symlinks, each with path, size, age (time since it was last modified) and a total. seedkeeper only shows them and never deletes them. |
 | `/settings` | The configuration seedkeeper runs with, read-only: every key of the [configuration](#configuration) with its default filled in, each tracker with its hosts and the minimum seed time that applies to it (marked "(default)" when it sets none of its own), and for each secret only whether it is set or missing, never its value. |
@@ -316,6 +338,7 @@ filter. A code that doesn't exist answers 400 with `{"reason": "…"}`.
   {
     "verdict": "keep",
     "reason": "minimum-not-reached",
+    "reasonSince": "2026-11-05T06:00:00+01:00",
     "secondaryReasons": [],
     "libraryLinks": 0,
     "missingFiles": 0,
@@ -354,6 +377,7 @@ filter. A code that doesn't exist answers 400 with `{"reason": "…"}`.
 |---|---|
 | `verdict` | `remove`, `left-alone` or `keep`. |
 | `reason` | Why: the code of the first [rule](#verdicts-and-reasons) that holds: `unregistered`, `unmanaged`, `missing-data`, `local-error`, `verifying`, `not-finished`, `keep-override`, `library-link`, `minimum-not-reached` or `all-met`. |
+| `reasonSince` | Since when the group has this reason: the start of the first of the successful runs, up to the last one, that gave it this reason without a break. ISO 8601, to the second, with the offset of `seedkeeper.time-zone`. `null` when the last successful run didn't see the group with this reason: the reason changed since, or the group is new. See [Run history](#run-history). |
 | `secondaryReasons` | The codes of every other rule that holds too, in the same order; empty when there is none. |
 | `libraryLinks` | How many of the group's wanted files have a library link. |
 | `missingFiles` | How many wanted files of finished members are nowhere on disk; more than 0 means `missing-data` holds. |
@@ -412,6 +436,98 @@ the file, against the groups as they are right now.
 Answers 503 with `{"reason": "…"}` when the overrides file can't be read, or when the groups can't be known:
 Transmission doesn't answer or is older than 4.1, or a library root can't be read. Overrides can't be changed through
 the API.
+
+### `GET /api/v1/runs`
+
+The runs of the [run history](#run-history), the newest first: the same data as the Activity page.
+
+| Query parameter | Meaning |
+|---|---|
+| `since` | Only the runs that started at or after this moment: a date (`2026-11-01`, the start of that day in `seedkeeper.time-zone`) or a date and time with an offset (`2026-11-01T06:00:00+01:00`, `2026-11-01T05:00:00Z`; write the `+` as `%2B` in a URL). Optional; without it, every run of the last year. Anything else answers 400 with `{"reason": "…"}`. |
+
+```json
+[
+  {
+    "id": 42,
+    "started": "2026-11-20T06:00:00+01:00",
+    "ended": "2026-11-20T06:00:04+01:00",
+    "status": "succeeded",
+    "error": null,
+    "groupsRemoved": 1,
+    "torrentsRemoved": 2,
+    "filesDeleted": 2,
+    "spaceFreedBytes": 1610612736
+  }
+]
+```
+
+| Field | Meaning |
+|---|---|
+| `id` | The run's number; a later run has a higher one. |
+| `started`, `ended` | ISO 8601, to the second, with the offset of `seedkeeper.time-zone`. |
+| `status` | `succeeded`, or `failed` when the run removed nothing because Transmission couldn't be used or a library root couldn't be read. |
+| `error` | The one reason of a failed run; `null` otherwise. |
+| `groupsRemoved` | The removals carried out in full. |
+| `torrentsRemoved` | The torrents removed from Transmission, also those of a removal that then failed. |
+| `filesDeleted` | The files and symlinks deleted. |
+| `spaceFreedBytes` | The space freed, in bytes. |
+
+Answers 503 with `{"reason": "…"}` when the history can't be read.
+
+### `GET /api/v1/removals`
+
+What the runs removed, the removals of the newest run first: one entry per group that had to leave (or per torrent
+that had to leave alone), also when its removal went wrong. `since` works as in
+[`GET /api/v1/runs`](#get-apiv1runs) and goes by the start of the run.
+
+```json
+[
+  {
+    "runId": 42,
+    "started": "2026-11-20T06:00:00+01:00",
+    "reason": "all-met",
+    "error": null,
+    "spaceFreedBytes": 1610612736,
+    "filesDeleted": 2,
+    "pathsRefused": 0,
+    "members": [
+      {
+        "hash": "0123456789abcdef0123456789abcdef01234567",
+        "name": "Some.Show.S01",
+        "tracker": "tracker-a",
+        "trackerMessage": null,
+        "unfinished": false,
+        "removed": true
+      },
+      {
+        "hash": "89abcdef0123456789abcdef0123456789abcdef",
+        "name": "Some.Show.S01.1080p",
+        "tracker": "tracker-b",
+        "trackerMessage": null,
+        "unfinished": false,
+        "removed": true
+      }
+    ]
+  }
+]
+```
+
+| Field | Meaning |
+|---|---|
+| `runId` | The `id` of the run that did the removal. |
+| `started` | When that run started. |
+| `reason` | Why the torrents had to leave, as the [code](#verdicts-and-reasons) of the reason. |
+| `error` | What went wrong when Transmission was asked to remove a torrent; the rest of the group then stayed and no file was deleted. `null` otherwise. |
+| `spaceFreedBytes` | The space this removal freed, in bytes. |
+| `filesDeleted` | The files and symlinks deleted. |
+| `pathsRefused` | The paths that were due but that seedkeeper did not delete: outside the downloads root and the incomplete dir, under a library root, or the filesystem refused. |
+| `members[].hash`, `members[].name` | The torrent's info hash and name. |
+| `members[].tracker` | The name of its tracker from the config, `public`, or `null` when it was unmanaged. |
+| `members[].trackerMessage` | What the tracker said about the torrent when it was removed (Transmission's error string of a tracker warning or tracker error); `null` when it said nothing. |
+| `members[].unfinished` | `true` when the download was not complete. |
+| `members[].removed` | `true` when Transmission removed the torrent; `false` when the removal went wrong at or before it. |
+
+Answers 400 and 503 like `GET /api/v1/runs`.
 
 ### `GET /api/v1/orphans`
 
@@ -510,7 +626,7 @@ docker run --rm -p 8080:8080 --user 1029:65536 \
 
 The image listens on port 8080 and runs as any non-root uid:gid. `seedkeeper.env` holds the secrets
 (see [Configuration](#configuration)). `/data` is the data dir: mount a directory that uid:gid can write to, or
-seedkeeper doesn't start.
+`overrides.yaml` and the run history go when the container goes.
 
 ## Continuous integration
 

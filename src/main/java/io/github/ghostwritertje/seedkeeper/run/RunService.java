@@ -8,10 +8,12 @@ import io.github.ghostwritertje.seedkeeper.overrides.OverrideStore;
 import io.github.ghostwritertje.seedkeeper.overrides.OverridesException;
 import io.github.ghostwritertje.seedkeeper.transmission.Transmission;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import org.jboss.logging.Logger;
 
 /**
@@ -26,19 +28,28 @@ public class RunService {
     private final Run run;
     private final OverrideStore overrides;
     private final RunMonitor monitor;
+    private final Consumer<RunOutcome> ended;
     private final AtomicBoolean running = new AtomicBoolean();
     private volatile RunOutcome lastRun;
 
     @Inject
-    RunService(Transmission transmission, SeedkeeperConfig config, OverrideStore overrides, RunMonitor monitor) {
+    RunService(Transmission transmission, SeedkeeperConfig config, OverrideStore overrides, RunMonitor monitor,
+            Event<RunOutcome> ended) {
         this(new Run(transmission, TrackerRules.of(config), config.downloadsRoot(), config.libraryRoots(),
-                config.timeZone(), overrides), overrides, monitor);
+                config.timeZone(), overrides), overrides, monitor, ended::fire);
     }
 
     RunService(Run run, OverrideStore overrides, RunMonitor monitor) {
+        this(run, overrides, monitor, outcome -> {
+        });
+    }
+
+    /** @param ended told of every run that ends, while the run lock is still held */
+    RunService(Run run, OverrideStore overrides, RunMonitor monitor, Consumer<RunOutcome> ended) {
         this.run = run;
         this.overrides = overrides;
         this.monitor = monitor;
+        this.ended = ended;
     }
 
     /**
@@ -56,6 +67,8 @@ public class RunService {
             monitor.ended(outcome);
             // What follows a run (spec §5, steps 4 and 5) belongs here, while the lock is still held.
             growOverrides(outcome);
+            // The history observes the outcome (history/HistoryKeeper).
+            ended.accept(outcome);
             lastRun = outcome;
             return Optional.of(outcome);
         } finally {

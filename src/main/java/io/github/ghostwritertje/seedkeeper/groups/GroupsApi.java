@@ -6,6 +6,11 @@ import io.github.ghostwritertje.seedkeeper.decide.Tracker;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerError;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsFilter.UnknownFilter;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsService.GroupsUnavailable;
+import io.github.ghostwritertje.seedkeeper.history.History;
+import io.github.ghostwritertje.seedkeeper.history.History.HistoryException;
+import io.github.ghostwritertje.seedkeeper.history.History.ReasonsSince;
+import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
+import java.time.ZoneId;
 import jakarta.ws.rs.QueryParam;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.common.annotation.RunOnVirtualThread;
@@ -31,10 +36,13 @@ public class GroupsApi {
      * @param files        how many wanted files the members have
      * @param forecast     null unless the reason is {@code minimum-not-reached}, or {@code keep-override} with an
      *                     end date
+     * @param reasonSince  the start of the first of the unbroken row of successful runs, up to the last one, that
+     *                     gave the group this reason, as an ISO 8601 date and time with the offset of the configured
+     *                     time zone; null when the last successful run didn't see the group with this reason
      */
     @RegisterForReflection
-    public record Group(String verdict, String reason, List<String> secondaryReasons, int libraryLinks,
-            int missingFiles, int files, Forecast forecast, List<Member> members) {
+    public record Group(String verdict, String reason, String reasonSince, List<String> secondaryReasons,
+            int libraryLinks, int missingFiles, int files, Forecast forecast, List<Member> members) {
     }
 
     /**
@@ -67,9 +75,13 @@ public class GroupsApi {
     }
 
     private final GroupsService groups;
+    private final History history;
+    private final ZoneId timeZone;
 
-    GroupsApi(GroupsService groups) {
+    GroupsApi(GroupsService groups, History history, SeedkeeperConfig config) {
         this.groups = groups;
+        this.history = history;
+        this.timeZone = config.timeZone();
     }
 
     @GET
@@ -78,8 +90,9 @@ public class GroupsApi {
     public Response groups(@QueryParam("verdict") String verdict, @QueryParam("reason") String reason) {
         try {
             GroupsFilter filter = GroupsFilter.parse(verdict, reason);
-            return Response.ok(groups.groups().stream().filter(filter::matches).map(GroupsApi::group).toList())
-                    .build();
+            List<GroupVerdict> verdicts = groups.groups().stream().filter(filter::matches).toList();
+            ReasonsSince since = reasonsSince();
+            return Response.ok(verdicts.stream().map(group -> group(group, since)).toList()).build();
         } catch (UnknownFilter e) {
             return Response.status(Response.Status.BAD_REQUEST).entity(new Unavailable(e.getMessage())).build();
         } catch (GroupsUnavailable e) {
@@ -88,8 +101,19 @@ public class GroupsApi {
         }
     }
 
-    private static Group group(GroupVerdict group) {
+    /** The history is for display only: when it can't be read the groups are given without {@code reasonSince}. */
+    private ReasonsSince reasonsSince() {
+        try {
+            return history.reasonsSince();
+        } catch (HistoryException e) {
+            return ReasonsSince.NONE;
+        }
+    }
+
+    private Group group(GroupVerdict group, ReasonsSince since) {
         return new Group(group.verdict().code(), group.reason().code(),
+                since.of(group).map(moment -> moment.atZone(timeZone).truncatedTo(ChronoUnit.SECONDS)
+                        .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)).orElse(null),
                 group.secondaryReasons().stream().map(Reason::code).toList(), group.libraryLinks(),
                 group.missingFiles(), group.files(),
                 group.forecast().map(GroupsApi::forecast).orElse(null),

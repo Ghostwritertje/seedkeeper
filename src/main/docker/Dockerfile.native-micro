@@ -14,21 +14,26 @@
 #     --env-file seedkeeper.env seedkeeper
 #
 # The configuration is mounted as /work/config/application.yaml and the secrets come from the
-# environment (see the README); without them the application doesn't start. Nor does it without
-# a data dir it can write to: mount one at /data (seedkeeper.data-dir).
+# environment (see the README); without them the application doesn't start. Its data dir is /data
+# (seedkeeper.data-dir): mount a directory there to keep what is in it.
 #
 # `quay.io/quarkus/ubi9-quarkus-micro-image:2.0` is based on UBI 9. The builder image in pom.xml
 # (`ubi9-quarkus-mandrel-builder-image`) is UBI 9 too; keep both on the same UBI major, or the
 # executable is linked against a newer glibc than the image has.
 #
 # The image must work as any non-root uid:gid (`docker run --user 1029:65536`): the executable is
-# world-readable and world-executable, and the application writes nothing under /work.
+# world-readable and world-executable, and the application writes nothing under /work. It writes its
+# data dir, /data (overrides.yaml and seedkeeper.db; see the README): mount a directory that uid:gid
+# can write to there.
+# Without a mount /data is a directory of the container that anyone can write to, and what is in it
+# goes when the container goes.
 ###
 FROM quay.io/quarkus/ubi9-quarkus-micro-image:2.0
 WORKDIR /work/
 RUN chown 1001 /work \
     && chmod "g+rwX" /work \
     && chown 1001:root /work
+RUN mkdir /data && chmod 1777 /data
 COPY --chown=1001:root --chmod=0755 target/*-runner /work/application
 
 EXPOSE 8080

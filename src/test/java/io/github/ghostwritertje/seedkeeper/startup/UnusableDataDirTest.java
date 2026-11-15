@@ -12,7 +12,8 @@ class UnusableDataDirTest {
 
     @RegisterExtension
     static final QuarkusUnitTest app = new QuarkusUnitTest()
-            .withApplicationRoot(Startup::application)
+            // With application.properties: that is where the database is put in the data dir.
+            .withApplicationRoot(jar -> Startup.application(jar.addAsResource("application.properties")))
             .overrideConfigKey("seedkeeper.transmission.url", "http://127.0.0.1:9091/transmission/rpc")
             .overrideConfigKey("seedkeeper.library-roots", "/library")
             .overrideConfigKey("seedkeeper.transmission.username", "transmission-user")
