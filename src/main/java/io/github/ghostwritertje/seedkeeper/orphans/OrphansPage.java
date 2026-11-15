@@ -73,7 +73,7 @@ public class OrphansPage {
     }
 
     /** Bytes in the largest binary unit that keeps the number at 1 or more: "512 B", "1.5 KiB", "3.2 GiB". */
-    static String size(long bytes) {
+    public static String size(long bytes) {
         if (bytes < 1024) {
             return bytes + " B";
         }

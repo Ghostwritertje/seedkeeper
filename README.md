@@ -102,6 +102,36 @@ there is no date: its clock is stopped.
 Transmission's paths must be the same inside seedkeeper's container: mount the downloads at the same path as in
 Transmission's container, and the library on the same filesystem as the downloads, or no library link is seen.
 
+## Runs: removing and deleting
+
+A **run** carries out the verdicts. For now it starts only from the **Run now** button on the System page; one run
+runs at a time, and Run now during a run answers "A run is already running." A run asks Transmission for its session
+first: when Transmission doesn't answer or is older than 4.1, or a library root can't be read, the run ends `failed`
+with that one reason and removes nothing.
+
+Otherwise every group with the verdict **Remove** leaves:
+
+1. Each member is removed from Transmission, which is told to leave the data alone. When one removal fails, the rest
+   of that group is skipped and none of its files is deleted; the error is shown with the last run, and the next run
+   finds the rest still due.
+2. The torrent list is read again. Then, for each path of each removed torrent (in its download dir or, when enabled,
+   the incomplete dir, with or without `.part`; deselected files too):
+   - a symlink is deleted, unless a remaining torrent has that exact path. What it leads to is never deleted;
+   - a regular file is deleted, unless a remaining torrent still uses that file under any path (a hardlink, or
+     through a symlink).
+3. Directories that became empty are deleted, up to but not including the torrent's download dir (or the incomplete
+   dir).
+
+**Space freed** counts a deleted file only when it was the last link of its data, once: a deleted symlink, or a file
+that lives on through a library link or another hardlink, frees nothing.
+
+seedkeeper never deletes anything outside `seedkeeper.downloads-root` and Transmission's incomplete dir, and never
+anything under a library root, also not through a symlinked directory. A path it refuses is counted with the last
+run. Only the paths of removed torrents are deleted, so data that a removed torrent reached through a symlink and
+that no torrent has as its own path any more stays behind as an [orphan](#get-apiv1orphans).
+
+The last run is kept in memory only: after a restart there is none until the next run.
+
 Secrets come from the environment only. seedkeeper doesn't start when one is missing:
 
 | Environment variable | Meaning |
@@ -134,7 +164,7 @@ Every form carries a CSRF token; a form POST without it is rejected with 400.
 | `/groups` | Every [cross-seed group](#cross-seed-groups) with its members (name, tracker, seed time and minimum, status), its library links, the verdict seedkeeper would give it right now with the [reason and the secondary reasons](#verdicts-and-reasons), and the forecast: a date in the configured time zone, or "clock stopped (paused)". The list can be filtered by verdict and by reason (`/groups?verdict=keep&reason=library-link`). Read from Transmission and the disk on every load. |
 | `/orphans` | The **orphans**: what is under the downloads root that no torrent references, as two lists, files and dangling symlinks, each with path, size, age (time since it was last modified) and a total. seedkeeper only shows them and never deletes them. |
 | `/settings` | The configuration seedkeeper runs with, read-only: every key of the [configuration](#configuration) with its default filled in, each tracker with its hosts and the minimum seed time that applies to it (marked "(default)" when it sets none of its own), and for each secret only whether it is set or missing, never its value. |
-| `/system` | seedkeeper's version, and whether Transmission is reachable, its version and, when seedkeeper can't work with it, the reason. |
+| `/system` | seedkeeper's version; whether a run is running and the outcome of the last [run](#runs-removing-and-deleting) (succeeded or failed with the reason, start and end, torrents and groups removed, files deleted, space freed, and the removals that went wrong); the **Run now** button; and whether Transmission is reachable, its version and, when seedkeeper can't work with it, the reason. |
 
 ## JSON API
 
@@ -165,6 +195,18 @@ The same data as the System page. Always answers 200, also when Transmission is 
     "reachable": true,
     "version": "4.1.0 (5e6a9e0a3d)",
     "reason": null
+  },
+  "running": false,
+  "lastRun": {
+    "started": "2026-11-20T06:00:00+01:00",
+    "ended": "2026-11-20T06:00:04+01:00",
+    "status": "succeeded",
+    "error": null,
+    "groupsRemoved": 1,
+    "torrentsRemoved": 2,
+    "filesDeleted": 2,
+    "spaceFreedBytes": 1610612736,
+    "removalErrors": []
   }
 }
 ```
@@ -175,6 +217,18 @@ The same data as the System page. Always answers 200, also when Transmission is 
 | `transmission.reachable` | `true` when Transmission answered. |
 | `transmission.version` | The version as Transmission reports it; `null` when it didn't say. |
 | `transmission.reason` | Why seedkeeper can't work with this Transmission: it doesn't answer, it rejects the credentials, or it is older than 4.1 (then `reachable` is `true`). `null` when all is well. |
+| `running` | `true` while a [run](#runs-removing-and-deleting) is running. |
+| `lastRun` | The last run that ended since seedkeeper started; `null` when there has been none. |
+| `lastRun.started`, `lastRun.ended` | ISO 8601, to the second, with the offset of `seedkeeper.time-zone`. |
+| `lastRun.status` | `succeeded`, or `failed` when the run removed nothing because Transmission couldn't be used or a library root couldn't be read. |
+| `lastRun.error` | The one reason of a failed run; `null` otherwise. |
+| `lastRun.groupsRemoved` | The removals carried out in full. |
+| `lastRun.torrentsRemoved` | The torrents removed from Transmission, also those of a group whose removal then failed. |
+| `lastRun.filesDeleted` | The files and symlinks deleted. |
+| `lastRun.spaceFreedBytes` | The space freed, in bytes. |
+| `lastRun.removalErrors` | One line per group whose removal failed (none of its files was deleted) or that left paths seedkeeper refused to delete. |
+
+Run now is not in the API: it is a button on the System page only.
 
 ### `GET /api/v1/groups`
 

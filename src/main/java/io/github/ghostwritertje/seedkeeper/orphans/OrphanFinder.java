@@ -2,6 +2,7 @@ package io.github.ghostwritertje.seedkeeper.orphans;
 
 import io.github.ghostwritertje.seedkeeper.orphans.Orphans.Orphan;
 import io.github.ghostwritertje.seedkeeper.snapshot.FileId;
+import io.github.ghostwritertje.seedkeeper.snapshot.TorrentPaths;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -14,7 +15,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -28,8 +28,6 @@ import java.util.Set;
  */
 public final class OrphanFinder {
 
-    private static final String DEV_AND_INO = "unix:dev,ino";
-
     private OrphanFinder() {
     }
 
@@ -42,9 +40,8 @@ public final class OrphanFinder {
         Set<FileId> referencedFiles = new HashSet<>();
         for (Torrent torrent : torrents) {
             for (Torrent.File file : torrent.files()) {
-                List<Path> candidates = candidates(torrent, file, incompleteDir);
-                referencedPaths.addAll(candidates);
-                candidates.stream().flatMap(path -> id(path).stream()).findFirst().ifPresent(referencedFiles::add);
+                referencedPaths.addAll(TorrentPaths.candidates(torrent, file, incompleteDir));
+                TorrentPaths.resolve(torrent, file, incompleteDir).ifPresent(referencedFiles::add);
             }
         }
 
@@ -59,8 +56,8 @@ public final class OrphanFinder {
                         if (Files.notExists(path) && !referencedPaths.contains(path.normalize())) {
                             danglingSymlinks.add(orphan);
                         }
-                    } else if (attributes.isRegularFile()
-                            && id(path, LinkOption.NOFOLLOW_LINKS).filter(referencedFiles::contains).isEmpty()) {
+                    } else if (attributes.isRegularFile() && TorrentPaths.id(path, LinkOption.NOFOLLOW_LINKS)
+                            .filter(referencedFiles::contains).isEmpty()) {
                         files.add(orphan);
                     }
                     return FileVisitResult.CONTINUE;
@@ -73,28 +70,5 @@ public final class OrphanFinder {
         files.sort(Comparator.comparing(Orphan::path));
         danglingSymlinks.sort(Comparator.comparing(Orphan::path));
         return new Orphans(files, danglingSymlinks);
-    }
-
-    /** The paths a torrent's file can be at, in the order of spec §3.1. The first that exists is the file. */
-    private static List<Path> candidates(Torrent torrent, Torrent.File file, Optional<Path> incompleteDir) {
-        List<Path> dirs = new ArrayList<>();
-        dirs.add(Path.of(torrent.downloadDir()));
-        incompleteDir.ifPresent(dirs::add);
-        List<Path> candidates = new ArrayList<>();
-        for (Path dir : dirs) {
-            candidates.add(dir.resolve(file.name()).normalize());
-            candidates.add(dir.resolve(file.name() + ".part").normalize());
-        }
-        return candidates;
-    }
-
-    /** Empty when the path doesn't exist, is a dangling symlink or can't be read. */
-    private static Optional<FileId> id(Path path, LinkOption... options) {
-        try {
-            Map<String, Object> attributes = Files.readAttributes(path, DEV_AND_INO, options);
-            return Optional.of(new FileId((Long) attributes.get("dev"), (Long) attributes.get("ino")));
-        } catch (IOException e) {
-            return Optional.empty();
-        }
     }
 }

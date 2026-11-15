@@ -72,6 +72,29 @@ class TransmissionClientTest {
     }
 
     @Test
+    void removesATorrentByItsHashAndLeavesItsDataAlone() {
+        fake.torrents("[{\"hash_string\": \"aaaa\", \"status\": 6}, {\"hash_string\": \"bbbb\", \"status\": 6}]");
+
+        transmission.remove("aaaa");
+
+        String body = fake.requests().getLast().body();
+        assertTrue(body.contains("\"method\":\"torrent_remove\""), body);
+        assertTrue(body.contains("\"ids\":[\"aaaa\"]"), body);
+        assertTrue(body.contains("\"delete_local_data\":false"), body);
+        assertEquals(List.of("bbbb"), transmission.torrents().stream().map(Torrent::hash).toList());
+    }
+
+    @Test
+    void saysWhenTransmissionRefusesToRemoveATorrent() {
+        fake.torrents("[{\"hash_string\": \"aaaa\", \"status\": 6}]").refuseRemovalOf("aaaa");
+
+        TransmissionException refused = assertThrows(TransmissionException.class, () -> transmission.remove("aaaa"));
+
+        assertEquals("Transmission at " + fake.url() + " refused torrent_remove: torrent is busy", refused.reason());
+        assertEquals(List.of("aaaa"), transmission.torrents().stream().map(Torrent::hash).toList());
+    }
+
+    @Test
     void saysWhenTransmissionRejectsTheCredentials() {
         transmission = new TransmissionClient(fake.url(), FakeTransmission.USERNAME, "wrong");
 

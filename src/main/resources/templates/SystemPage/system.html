@@ -8,6 +8,49 @@
 <dd>{status.version}</dd>
 </dl>
 </section>
+<section id="runs">
+<h2>Runs</h2>
+{#if notice}
+<p role="alert">{notice}</p>
+{/if}
+<dl>
+<dt>Status</dt>
+<dd>{#if status.running}Running now{#else}Idle{/if}</dd>
+<dt>Last run</dt>
+{#if lastRun}
+<dd>{#if status.lastRun.succeeded}Succeeded{#else}Failed{/if}</dd>
+<dt>Started</dt>
+<dd>{lastRun.started}</dd>
+<dt>Ended</dt>
+<dd>{lastRun.ended}</dd>
+<dt>Removed</dt>
+<dd>{lastRun.removed}</dd>
+<dt>Files deleted</dt>
+<dd>{status.lastRun.filesDeleted}</dd>
+<dt>Space freed</dt>
+<dd>{lastRun.spaceFreed}</dd>
+{#else}
+<dd>None since seedkeeper started</dd>
+{/if}
+</dl>
+{#if lastRun}
+{#if status.lastRun.error}
+<p role="alert">{status.lastRun.error}</p>
+{/if}
+{#if !status.lastRun.removalErrors.isEmpty}
+<ul>
+{#for error in status.lastRun.removalErrors}
+<li>{error}</li>
+{/for}
+</ul>
+{/if}
+{/if}
+{! Carries out the verdicts of the Groups view: removes the groups that are due and deletes their files. !}
+<form method="post" action="/system/run">
+<input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<button type="submit">Run now</button>
+</form>
+</section>
 {! Asks Transmission again every 30 s and swaps in this section of the fresh page. !}
 <section id="transmission" hx-get="/system" hx-select="#transmission" hx-trigger="every 30s" hx-swap="outerHTML">
 <h2>Transmission</h2>
