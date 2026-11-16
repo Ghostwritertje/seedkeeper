@@ -7,6 +7,7 @@
     <packaging>quarkus</packaging>
 
     <properties>
+        <archunit.version>1.4.1</archunit.version>
         <compiler-plugin.version>3.16.0</compiler-plugin.version>
         <error-prone.version>2.52.0</error-prone.version>
         <!-- Needs a JaCoCo release that reads Java 25 class files. Dependabot bumps it apart from Quarkus. -->
@@ -101,6 +102,13 @@
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
+        </dependency>
+        <!-- The deep-module rules (ModuleRulesTest): plain JUnit tests that read the compiled classes. -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit</artifactId>
+            <version>${archunit.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>

@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.ghostwritertje.seedkeeper.decide.Reason;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules.ManagedTracker;
-import io.github.ghostwritertje.seedkeeper.overrides.OverrideStore;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideStore;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Removal;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Status;
 import io.github.ghostwritertje.seedkeeper.transmission.StubTransmission;

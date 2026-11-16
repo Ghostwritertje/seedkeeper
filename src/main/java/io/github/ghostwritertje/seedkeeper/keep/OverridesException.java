@@ -1,4 +1,4 @@
-package io.github.ghostwritertje.seedkeeper.overrides;
+package io.github.ghostwritertje.seedkeeper.keep;
 
 /**
  * The overrides file can't be read or written. The message is the one reason, fit to show to the user as it is.

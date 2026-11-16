@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.overrides;
 
+import io.github.ghostwritertje.seedkeeper.keep.KeepOverride;
 import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.Listed;
 import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.OverridesUnavailable;
 import io.quarkus.runtime.annotations.RegisterForReflection;

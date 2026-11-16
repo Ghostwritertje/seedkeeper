@@ -10,6 +10,7 @@ import io.github.ghostwritertje.seedkeeper.groups.GroupsService.GroupsUnavailabl
 import io.github.ghostwritertje.seedkeeper.history.History;
 import io.github.ghostwritertje.seedkeeper.history.History.HistoryException;
 import io.github.ghostwritertje.seedkeeper.history.History.ReasonsSince;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.ws.rs.GET;
