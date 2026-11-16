@@ -23,6 +23,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Take the version from the tag
         id: version
         env:
@@ -33,11 +35,12 @@ jobs:
             exit 1
           fi
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+      # No Maven cache: a published image is built only from what Maven Central serves, never from a cache
+      # another workflow run could have written.
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: 25
-          cache: maven
       - name: Set the project version (not committed)
         env:
           VERSION: ${{ steps.version.outputs.version }}
