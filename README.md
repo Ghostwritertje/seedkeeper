@@ -677,7 +677,9 @@ The image listens on port 8080 and runs as any non-root uid:gid. `seedkeeper.env
 
 Every pull request and every push to `main` runs `./mvnw verify` on the JVM, the quality build
 `./mvnw verify -Pquality` (the `Verify (quality)` job), and the native build with the integration tests and a start of
-the image as a non-root user (`.github/workflows/ci.yml`). Dependabot proposes updates monthly.
+the image as a non-root user (`.github/workflows/ci.yml`). The `Lint (non-Java)` job runs shellcheck, actionlint,
+zizmor and hadolint, at pinned versions and offline, on the shell scripts, the workflows and the Dockerfile, and the
+`Test the CI scripts` job runs the table-driven tests of `.github/scripts/`. Dependabot proposes updates monthly.
 
 ## Releases
 
