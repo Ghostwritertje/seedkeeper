@@ -3,8 +3,11 @@
 ## Quality build
 
 `./mvnw verify` is the fast loop: compile and tests. `./mvnw verify -Pquality` adds the Java quality checks (today:
-formatting with Spotless/palantir-java-format, a sorted POM with sortpom, and PIT mutation testing). Run it once when
-the work is done and fix everything it reports before you push; CI's `Verify (quality)` job runs the same build.
+formatting with Spotless/palantir-java-format, a sorted POM with sortpom, JaCoCo's 80% line coverage floor and PIT
+mutation testing). Run it once when the work is done and fix everything it reports before you push; CI's
+`Verify (quality)` job runs the same build.
+
+JaCoCo's coverage counts the `@QuarkusTest` tests; the report is in `target/site/jacoco`.
 
 PIT mutates only the main classes changed since the merge base with `origin/main` (uncommitted changes count, new
 untracked files don't), and runs only the tests that don't start the app. The tests that reach those mutants must kill

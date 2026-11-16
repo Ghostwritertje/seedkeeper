@@ -18,7 +18,7 @@ jobs:
     if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'Ghostwritertje/seedkeeper'
     steps:
       # Confirms the pull request really comes from Dependabot; fails otherwise.
-      - uses: dependabot/fetch-metadata@v3
+      - uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
       # Squash keeps the linear history the ruleset requires.
       - run: gh pr merge --auto --squash "$PR_URL"
         env:

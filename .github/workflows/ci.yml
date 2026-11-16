@@ -19,8 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: 25
@@ -33,10 +35,11 @@ jobs:
     timeout-minutes: 20
     steps:
       # Full history: PIT (#54) compares the changed classes against main.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@v6
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: 25
@@ -48,8 +51,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: 25
@@ -67,6 +72,58 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # Each .github/scripts/*.test.sh is a table-driven shell test. They need only bash and jq: no Docker, no Maven.
       - run: for test in .github/scripts/*.test.sh; do "$test"; done
+
+  lint:
+    name: Lint (non-Java)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Pinned release binaries, each checked against its SHA-256: no Maven, no Docker, and the runner image's own
+      # shellcheck doesn't decide the result. Dependabot doesn't track these pins: bump one by hand, in a pull
+      # request, changing its version and its SHA-256 together.
+      - name: Install the linters
+        id: install
+        run: |
+          bin="$RUNNER_TEMP/lint-bin"
+          mkdir -p "$bin"
+          fetch() { # url sha256 file
+            curl -fsSL -o "$RUNNER_TEMP/$3" "$1"
+            echo "$2  $RUNNER_TEMP/$3" | sha256sum -c -
+          }
+          fetch https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz \
+            8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198 shellcheck.tar.xz
+          tar -xJf "$RUNNER_TEMP/shellcheck.tar.xz" -C "$bin" --strip-components=1 shellcheck-v0.11.0/shellcheck
+          fetch https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz \
+            8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8 actionlint.tar.gz
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$bin" actionlint
+          fetch https://github.com/zizmorcore/zizmor/releases/download/v1.32.0/zizmor-x86_64-unknown-linux-gnu.tar.gz \
+            bb110cc765eca9cd7efb2e284a956be5974c60027b0970f16397d86208a9957b zizmor.tar.gz
+          tar -xzf "$RUNNER_TEMP/zizmor.tar.gz" -C "$bin" zizmor
+          fetch https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-x86_64 \
+            c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507 hadolint
+          install -m 755 "$RUNNER_TEMP/hadolint" "$bin/hadolint"
+          echo "$bin" >> "$GITHUB_PATH"
+      # Each linter runs even when one before it failed, so one run lists every finding.
+      - name: shellcheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: shellcheck .github/scripts/*.sh .claude/hooks/*.sh
+      # actionlint also runs the shellcheck above on the workflows' run: scripts.
+      - name: actionlint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: actionlint
+      # Offline, so the result depends only on the commit, not on what GitHub's API says that day (#48). Dependabot's
+      # security alerts for github-actions cover vulnerable actions, without gating pull requests.
+      - name: zizmor
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: zizmor --offline --format=github .github/workflows
+      - name: hadolint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: hadolint src/main/docker/Dockerfile.native-micro
