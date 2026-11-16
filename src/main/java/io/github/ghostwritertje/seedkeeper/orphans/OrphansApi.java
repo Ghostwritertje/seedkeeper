@@ -13,7 +13,7 @@ import java.util.List;
 
 /** {@code GET /api/v1/orphans}: the same data as the Orphans view. */
 @Path("/api/v1/orphans")
-public class OrphansApi {
+class OrphansApi {
 
     /**
      * The orphans under the downloads root.

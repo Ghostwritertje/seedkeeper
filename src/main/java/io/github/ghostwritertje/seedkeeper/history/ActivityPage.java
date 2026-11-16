@@ -6,7 +6,7 @@ import io.github.ghostwritertje.seedkeeper.history.History.HistoryException;
 import io.github.ghostwritertje.seedkeeper.history.History.RecordedMember;
 import io.github.ghostwritertje.seedkeeper.history.History.RecordedRemoval;
 import io.github.ghostwritertje.seedkeeper.history.History.RecordedRun;
-import io.github.ghostwritertje.seedkeeper.orphans.OrphansPage;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.common.annotation.RunOnVirtualThread;
@@ -24,7 +24,7 @@ import java.util.stream.Stream;
 
 /** The Activity view: the runs of the last year and what each removed. */
 @Path("/activity")
-public class ActivityPage {
+class ActivityPage {
 
     private static final DateTimeFormatter MOMENT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -94,7 +94,7 @@ public class ActivityPage {
                 run.error().orElse(null),
                 count(run.torrentsRemoved(), "torrent") + " in " + count(run.groupsRemoved(), "group"),
                 run.filesDeleted(),
-                OrphansPage.size(run.spaceFreed()),
+                StatusText.size(run.spaceFreed()),
                 run.removals().stream().map(ActivityPage::removal).toList());
     }
 
@@ -110,7 +110,7 @@ public class ActivityPage {
                 removal.members().stream().map(ActivityPage::member).toList(),
                 reason(removal.reason()),
                 removal.filesDeleted(),
-                OrphansPage.size(removal.spaceFreed()),
+                StatusText.size(removal.spaceFreed()),
                 String.join(" ", errors));
     }
 
