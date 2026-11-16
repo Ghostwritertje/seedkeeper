@@ -30,7 +30,7 @@ import java.util.Set;
  * by its exact path. Every file of a torrent counts, also one that is not wanted: Transmission still keeps the
  * pieces it shares with its neighbours in it.
  */
-public final class OrphanFinder {
+final class OrphanFinder {
 
     private OrphanFinder() {}
 

@@ -19,7 +19,7 @@ import jakarta.enterprise.inject.Produces;
  * the session cookie.
  */
 @ApplicationScoped
-public class SingleUser {
+class SingleUser {
 
     private final SeedkeeperConfig config;
 
@@ -50,7 +50,7 @@ public class SingleUser {
     }
 
     /** Checks the username and password of a posted login form. */
-    public static class Login implements IdentityProvider<UsernamePasswordAuthenticationRequest> {
+    static class Login implements IdentityProvider<UsernamePasswordAuthenticationRequest> {
 
         private final SingleUser user;
 
@@ -77,7 +77,7 @@ public class SingleUser {
     }
 
     /** Accepts a session cookie Quarkus has decrypted, as long as it is for the configured user. */
-    public static class Session implements IdentityProvider<TrustedAuthenticationRequest> {
+    static class Session implements IdentityProvider<TrustedAuthenticationRequest> {
 
         private final SingleUser user;
 

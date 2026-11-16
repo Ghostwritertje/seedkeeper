@@ -7,10 +7,10 @@ import io.github.ghostwritertje.seedkeeper.decide.TrackerError;
 import io.github.ghostwritertje.seedkeeper.decide.Verdict;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsFilter.UnknownFilter;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsService.GroupsUnavailable;
-import io.github.ghostwritertje.seedkeeper.overrides.OverridesException;
-import io.github.ghostwritertje.seedkeeper.overrides.OverridesPage;
-import io.github.ghostwritertje.seedkeeper.overrides.OverridesService;
-import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.InvalidOverride;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideChanges;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideChanges.InvalidOverride;
+import io.github.ghostwritertje.seedkeeper.keep.OverridesException;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.common.annotation.RunOnVirtualThread;
@@ -32,7 +32,7 @@ import org.jspecify.annotations.Nullable;
 
 /** The Groups view, with its form to set a keep override on a group. */
 @Path("/groups")
-public class GroupsPage {
+class GroupsPage {
 
     @CheckedTemplate
     static class Templates {
@@ -97,9 +97,9 @@ public class GroupsPage {
     public record Member(String name, String tracker, String seedTime, String status, String trackerMessage) {}
 
     private final GroupsService groups;
-    private final OverridesService overrides;
+    private final OverrideChanges overrides;
 
-    GroupsPage(GroupsService groups, OverridesService overrides) {
+    GroupsPage(GroupsService groups, OverrideChanges overrides) {
         this.groups = groups;
         this.overrides = overrides;
     }
@@ -126,7 +126,7 @@ public class GroupsPage {
     @RunOnVirtualThread
     public Response keep(@RestForm List<String> hash, @RestForm String note, @RestForm String until) {
         try {
-            overrides.add(hash == null ? List.of() : hash, note, OverridesPage.date(until));
+            overrides.add(hash == null ? List.of() : hash, note, OverrideChanges.date(until));
             return Response.seeOther(URI.create("/groups")).build();
         } catch (InvalidOverride e) {
             return Response.status(Response.Status.BAD_REQUEST)

@@ -1,8 +1,8 @@
 package io.github.ghostwritertje.seedkeeper.system;
 
-import io.github.ghostwritertje.seedkeeper.orphans.OrphansPage;
 import io.github.ghostwritertje.seedkeeper.run.RunService;
 import io.github.ghostwritertje.seedkeeper.system.SystemStatus.LastRun;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.common.annotation.RunOnVirtualThread;
@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
 
 /** The System view, with its Run now button. */
 @Path("/system")
-public class SystemPage {
+class SystemPage {
 
     private static final DateTimeFormatter MOMENT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -91,7 +91,7 @@ public class SystemPage {
                 moment(run.started()),
                 moment(run.ended()),
                 count(run.torrentsRemoved(), "torrent") + " in " + count(run.groupsRemoved(), "group"),
-                OrphansPage.size(run.spaceFreedBytes()));
+                StatusText.size(run.spaceFreedBytes()));
     }
 
     private static String moment(String iso) {

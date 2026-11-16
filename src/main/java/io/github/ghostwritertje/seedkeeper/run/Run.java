@@ -4,9 +4,9 @@ import io.github.ghostwritertje.seedkeeper.decide.Decide;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
 import io.github.ghostwritertje.seedkeeper.decide.Verdict;
-import io.github.ghostwritertje.seedkeeper.overrides.KeepOverride;
-import io.github.ghostwritertje.seedkeeper.overrides.OverrideStore;
-import io.github.ghostwritertje.seedkeeper.overrides.OverridesException;
+import io.github.ghostwritertje.seedkeeper.keep.KeepOverride;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideStore;
+import io.github.ghostwritertje.seedkeeper.keep.OverridesException;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Removal;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Status;
 import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot;
@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
  * The steps of one run (spec §5, steps 2 and 3): ask Transmission for its session, build the snapshot, decide, and
  * carry out the removals. It holds no state and no lock; {@link RunService} sees to it that one runs at a time.
  */
-public final class Run {
+final class Run {
 
     private final Transmission transmission;
     private final TrackerRules trackers;

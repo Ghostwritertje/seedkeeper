@@ -8,8 +8,8 @@ import io.github.ghostwritertje.seedkeeper.decide.TrackerError;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsFilter.UnknownFilter;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsService.GroupsUnavailable;
 import io.github.ghostwritertje.seedkeeper.history.History;
-import io.github.ghostwritertje.seedkeeper.history.History.HistoryException;
 import io.github.ghostwritertje.seedkeeper.history.History.ReasonsSince;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.ws.rs.GET;
@@ -26,7 +26,7 @@ import org.jspecify.annotations.Nullable;
 
 /** {@code GET /api/v1/groups}: the same data as the Groups view. */
 @Path("/api/v1/groups")
-public class GroupsApi {
+class GroupsApi {
 
     /**
      * One cross-seed group and its verdict.
@@ -114,7 +114,7 @@ public class GroupsApi {
             GroupsFilter filter = GroupsFilter.parse(verdict, reason);
             List<GroupVerdict> verdicts =
                     groups.groups().stream().filter(filter::matches).toList();
-            ReasonsSince since = reasonsSince();
+            ReasonsSince since = history.reasonsSince();
             return Response.ok(
                             verdicts.stream().map(group -> group(group, since)).toList())
                     .build();
@@ -126,15 +126,6 @@ public class GroupsApi {
             return Response.status(Response.Status.SERVICE_UNAVAILABLE)
                     .entity(new Unavailable(e.getMessage()))
                     .build();
-        }
-    }
-
-    /** The history is for display only: when it can't be read the groups are given without {@code reasonSince}. */
-    private ReasonsSince reasonsSince() {
-        try {
-            return history.reasonsSince();
-        } catch (HistoryException e) {
-            return ReasonsSince.NONE;
         }
     }
 

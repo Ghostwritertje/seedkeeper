@@ -1,11 +1,12 @@
 package io.github.ghostwritertje.seedkeeper.groups;
 
+import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.decide.Decide;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
-import io.github.ghostwritertje.seedkeeper.overrides.OverrideStore;
-import io.github.ghostwritertje.seedkeeper.overrides.OverridesException;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideStore;
+import io.github.ghostwritertje.seedkeeper.keep.OverridesException;
 import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot;
 import io.github.ghostwritertje.seedkeeper.snapshot.SnapshotBuilder;
 import io.github.ghostwritertje.seedkeeper.snapshot.SnapshotException;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Objects;
 
 /** The groups and the verdict seedkeeper would give each right now; behind the Groups view and the API. */
+@ModuleApi
 @ApplicationScoped
 public class GroupsService {
 
@@ -51,6 +53,7 @@ public class GroupsService {
     }
 
     /** There are no verdicts right now. The message is the one reason, fit to show to the user as it is. */
+    @ModuleApi
     public static class GroupsUnavailable extends RuntimeException {
 
         private static final long serialVersionUID = 1L;

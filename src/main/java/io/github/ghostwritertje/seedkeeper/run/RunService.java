@@ -1,11 +1,12 @@
 package io.github.ghostwritertje.seedkeeper.run;
 
+import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
 import io.github.ghostwritertje.seedkeeper.decide.Verdict;
-import io.github.ghostwritertje.seedkeeper.overrides.OverrideStore;
-import io.github.ghostwritertje.seedkeeper.overrides.OverridesException;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideStore;
+import io.github.ghostwritertje.seedkeeper.keep.OverridesException;
 import io.github.ghostwritertje.seedkeeper.transmission.Transmission;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
@@ -21,6 +22,7 @@ import org.jspecify.annotations.Nullable;
  * Starts runs, one at a time (spec §5, step 1), and remembers the last one. Everything that starts a run goes
  * through {@link #run()}: Run now and the {@link ScheduledRun}.
  */
+@ModuleApi
 @ApplicationScoped
 public class RunService {
 

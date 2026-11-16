@@ -21,7 +21,7 @@ import org.jspecify.annotations.Nullable;
 
 /** {@link Transmission} over JSON-RPC 2.0, which Transmission speaks from 4.1 on. */
 @ApplicationScoped
-public class TransmissionClient implements Transmission {
+class TransmissionClient implements Transmission {
 
     private static final Pattern MAJOR_MINOR = Pattern.compile("(\\d+)\\.(\\d+)");
     private static final String TOO_OLD = "older than 4.1, the oldest version seedkeeper works with";
@@ -50,9 +50,9 @@ public class TransmissionClient implements Transmission {
                 config.transmission().password());
     }
 
-    public TransmissionClient(URI url, String username, String password) {
+    TransmissionClient(URI url, String username, String password) {
         // The URL goes into reasons, which are shown and logged: never with a password in it.
-        this.url = withoutUserInfo(url);
+        this.url = Transmission.withoutUserInfo(url);
         this.rpc = QuarkusRestClientBuilder.newBuilder()
                 .baseUri(url)
                 .connectTimeout(5, TimeUnit.SECONDS)
@@ -196,25 +196,6 @@ public class TransmissionClient implements Transmission {
     private TransmissionException notJsonRpc(@Nullable Throwable cause) {
         return TransmissionException.unreachable(
                 here() + " gave an answer that is not JSON-RPC; is the URL right?", cause);
-    }
-
-    /** The URL without a {@code user:password@} part, fit to show. */
-    public static URI withoutUserInfo(URI url) {
-        if (url.getRawUserInfo() == null) {
-            return url;
-        }
-        try {
-            return new URI(
-                    url.getScheme(),
-                    null,
-                    url.getHost(),
-                    url.getPort(),
-                    url.getPath(),
-                    url.getQuery(),
-                    url.getFragment());
-        } catch (java.net.URISyntaxException e) {
-            return URI.create(url.getScheme() + "://" + url.getHost());
-        }
     }
 
     private String here() {

@@ -4,23 +4,23 @@ import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsService;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsService.GroupsUnavailable;
+import io.github.ghostwritertje.seedkeeper.keep.KeepOverride;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideStore;
+import io.github.ghostwritertje.seedkeeper.keep.OverridesException;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-/** The keep overrides and what each does right now; behind the Overrides view and the API. */
+/**
+ * The keep overrides and what each does right now; behind the Overrides view and the API. Changes go through
+ * {@link io.github.ghostwritertje.seedkeeper.keep.OverrideChanges}.
+ */
 @ApplicationScoped
-public class OverridesService {
+class OverridesService {
 
     /**
      * One override and its state.
@@ -31,7 +31,7 @@ public class OverridesService {
      * @param groupsUnknown why the groups can't be known right now (Transmission can't be used, a library root can't
      *                      be read); then whether it is stale, and so whether it is active, is unknown too
      */
-    public record Listed(
+    record Listed(
             KeepOverride override,
             boolean expired,
             List<List<GroupVerdict.Member>> groups,
@@ -100,120 +100,17 @@ public class OverridesService {
                 .toList();
     }
 
-    /**
-     * Adds an override at the end of the file, with a generated id and created now in the configured time zone.
-     *
-     * @param hashes info hashes; trimmed, lower-cased, blanks and repeats dropped
-     * @return the override as it was added
-     * @throws InvalidOverride when no hash is left
-     * @throws OverridesException when the file can't be read or written
-     */
-    public KeepOverride add(Collection<String> hashes, String note, Optional<LocalDate> until) {
-        List<String> cleaned = hashes.stream()
-                .filter(hash -> hash != null && !hash.isBlank())
-                .map(hash -> hash.trim().toLowerCase(Locale.ROOT))
-                .distinct()
-                .toList();
-        if (cleaned.isEmpty()) {
-            throw new InvalidOverride("A keep override needs at least one info hash.");
-        }
-        KeepOverride added = new KeepOverride(
-                UUID.randomUUID().toString(),
-                cleaned,
-                clean(note),
-                until,
-                Optional.of(OffsetDateTime.now(config.timeZone()).truncatedTo(ChronoUnit.SECONDS)));
-        store.update(
-                overrides -> Stream.concat(overrides.stream(), Stream.of(added)).toList());
-        return added;
-    }
-
-    /**
-     * Changes the note and the end date of an override; its id, hashes and created stay.
-     *
-     * @throws NoSuchOverride when the file has no override with this id
-     * @throws OverridesException when the file can't be read or written
-     */
-    public void edit(String id, String note, Optional<LocalDate> until) {
-        store.update(overrides -> {
-            requireId(overrides, id);
-            return overrides.stream()
-                    .map(override -> override.id().equals(id)
-                            ? new KeepOverride(id, override.hashes(), clean(note), until, override.created())
-                            : override)
-                    .toList();
-        });
-    }
-
-    /**
-     * Deletes an override.
-     *
-     * @throws NoSuchOverride when the file has no override with this id
-     * @throws OverridesException when the file can't be read or written
-     */
-    public void delete(String id) {
-        store.update(overrides -> {
-            requireId(overrides, id);
-            return overrides.stream()
-                    .filter(override -> !override.id().equals(id))
-                    .toList();
-        });
-    }
-
-    private static String clean(String note) {
-        return note == null ? "" : note.strip();
-    }
-
-    private static void requireId(List<KeepOverride> overrides, String id) {
-        if (overrides.stream().noneMatch(override -> override.id().equals(id))) {
-            throw new NoSuchOverride("There is no keep override with id " + id
-                    + " any more: it was deleted, or its id was changed in the file.");
-        }
-    }
-
     private static Set<String> hashes(List<GroupVerdict.Member> members) {
         return members.stream().map(GroupVerdict.Member::hash).collect(Collectors.toSet());
     }
 
     /** The overrides can't be listed right now. The message is the one reason, fit to show as it is. */
-    public static class OverridesUnavailable extends RuntimeException {
+    static class OverridesUnavailable extends RuntimeException {
 
         private static final long serialVersionUID = 1L;
 
         OverridesUnavailable(String reason, Throwable cause) {
             super(reason, cause);
-        }
-
-        /** The reason; never null, as the constructor takes one. */
-        @Override
-        public String getMessage() {
-            return Objects.requireNonNull(super.getMessage());
-        }
-    }
-
-    /** What was asked for is not a keep override. The message says why, fit to show as it is. */
-    public static class InvalidOverride extends RuntimeException {
-
-        private static final long serialVersionUID = 1L;
-
-        InvalidOverride(String reason) {
-            super(reason);
-        }
-
-        /** The reason; never null, as the constructor takes one. */
-        @Override
-        public String getMessage() {
-            return Objects.requireNonNull(super.getMessage());
-        }
-    }
-
-    /** The override to change is not in the file. The message says so, fit to show as it is. */
-    public static class NoSuchOverride extends RuntimeException {
-
-        private static final long serialVersionUID = 1L;
-
-        NoSuchOverride(String reason) {
-            super(reason);
         }
 
         /** The reason; never null, as the constructor takes one. */

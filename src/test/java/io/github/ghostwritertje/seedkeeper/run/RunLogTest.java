@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules.ManagedTracker;
-import io.github.ghostwritertje.seedkeeper.overrides.OverrideStore;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideStore;
 import io.github.ghostwritertje.seedkeeper.transmission.StubTransmission;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;

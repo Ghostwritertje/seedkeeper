@@ -2,9 +2,13 @@ package io.github.ghostwritertje.seedkeeper.overrides;
 
 import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
-import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.InvalidOverride;
+import io.github.ghostwritertje.seedkeeper.keep.KeepOverride;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideChanges;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideChanges.InvalidOverride;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideChanges.NoSuchOverride;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideStore;
+import io.github.ghostwritertje.seedkeeper.keep.OverridesException;
 import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.Listed;
-import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.NoSuchOverride;
 import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.OverridesUnavailable;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
@@ -17,12 +21,9 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
-import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import org.jboss.resteasy.reactive.RestForm;
 import org.jspecify.annotations.Nullable;
 
@@ -31,7 +32,7 @@ import org.jspecify.annotations.Nullable;
  * page and need a login: changing overrides is not in the API.
  */
 @Path("/overrides")
-public class OverridesPage {
+class OverridesPage {
 
     @CheckedTemplate
     static class Templates {
@@ -63,7 +64,7 @@ public class OverridesPage {
      * @param hashes    separated by commas
      * @param untilDate "2027-03-01", or empty when it never ends: the value of the date field of the edit form
      */
-    public record Row(
+    record Row(
             String status,
             String note,
             String until,
@@ -75,10 +76,12 @@ public class OverridesPage {
             String untilDate) {}
 
     private final OverridesService overrides;
+    private final OverrideChanges changes;
     private final SeedkeeperConfig config;
 
-    OverridesPage(OverridesService overrides, SeedkeeperConfig config) {
+    OverridesPage(OverridesService overrides, OverrideChanges changes, SeedkeeperConfig config) {
         this.overrides = overrides;
+        this.changes = changes;
         this.config = config;
     }
 
@@ -100,8 +103,10 @@ public class OverridesPage {
     @Produces(MediaType.TEXT_HTML)
     @RunOnVirtualThread
     public Response add(@RestForm String hashes, @RestForm String note, @RestForm String until) {
-        return change(() ->
-                overrides.add(hashes == null ? List.of() : Arrays.asList(hashes.split("[\\s,]+")), note, date(until)));
+        return change(() -> changes.add(
+                hashes == null ? List.of() : Arrays.asList(hashes.split("[\\s,]+")),
+                note,
+                OverrideChanges.date(until)));
     }
 
     /** Changes the note and the end date of the override with this id, then sends the browser to the view. */
@@ -111,7 +116,7 @@ public class OverridesPage {
     @Produces(MediaType.TEXT_HTML)
     @RunOnVirtualThread
     public Response edit(@RestForm String id, @RestForm String note, @RestForm String until) {
-        return change(() -> overrides.edit(id, note, date(until)));
+        return change(() -> changes.edit(id, note, OverrideChanges.date(until)));
     }
 
     /** Deletes the override with this id, then sends the browser to the Overrides view. */
@@ -121,7 +126,7 @@ public class OverridesPage {
     @Produces(MediaType.TEXT_HTML)
     @RunOnVirtualThread
     public Response delete(@RestForm String id) {
-        return change(() -> overrides.delete(id));
+        return change(() -> changes.delete(id));
     }
 
     /** Makes the change and sends the browser to the Overrides view; or shows it with why nothing changed. */
@@ -141,22 +146,6 @@ public class OverridesPage {
             return Response.status(Response.Status.SERVICE_UNAVAILABLE)
                     .entity(page(e.getMessage()))
                     .build();
-        }
-    }
-
-    /**
-     * The end date of a form: empty or like 2027-03-01, as a date field sends it.
-     *
-     * @throws InvalidOverride when it is neither
-     */
-    public static Optional<LocalDate> date(@Nullable String text) {
-        if (text == null || text.isBlank()) {
-            return Optional.empty();
-        }
-        try {
-            return Optional.of(LocalDate.parse(text.strip()));
-        } catch (DateTimeParseException e) {
-            throw new InvalidOverride("The end date is not a date like 2027-03-01: " + text.strip());
         }
     }
 

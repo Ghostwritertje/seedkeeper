@@ -1,9 +1,11 @@
 package io.github.ghostwritertje.seedkeeper.transmission;
 
+import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /** Transmission can't be used right now. The message is the one reason, fit to show to the user as it is. */
+@ModuleApi
 public class TransmissionException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;

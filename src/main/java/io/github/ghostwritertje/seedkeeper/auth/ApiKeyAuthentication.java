@@ -23,7 +23,7 @@ import java.util.Set;
  * browser.
  */
 @ApplicationScoped
-public class ApiKeyAuthentication implements HttpAuthenticationMechanism {
+class ApiKeyAuthentication implements HttpAuthenticationMechanism {
 
     static final String HEADER = "X-Api-Key";
     static final String QUERY_PARAMETER = "apikey";

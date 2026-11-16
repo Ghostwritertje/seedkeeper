@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.snapshot;
 
+import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,6 +13,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /** Where a torrent's files can be on disk (spec §3.1), in one place for the snapshot, the orphans and deletion. */
+@ModuleApi
 public final class TorrentPaths {
 
     private static final String DEV_AND_INO = "unix:dev,ino";

@@ -14,7 +14,7 @@ import org.jspecify.annotations.Nullable;
  *                zone; null when there is none
  */
 @RegisterForReflection
-public record SystemStatus(
+record SystemStatus(
         String version,
         TransmissionStatus transmission,
         boolean running,

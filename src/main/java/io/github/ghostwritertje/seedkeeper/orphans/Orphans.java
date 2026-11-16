@@ -12,7 +12,7 @@ import java.util.List;
  * @param unreadable       files and directories under the downloads root that could not be read, and were skipped,
  *                         by path
  */
-public record Orphans(List<Orphan> files, List<Orphan> danglingSymlinks, List<Path> unreadable) {
+record Orphans(List<Orphan> files, List<Orphan> danglingSymlinks, List<Path> unreadable) {
 
     public Orphans {
         files = List.copyOf(files);

@@ -1,4 +1,4 @@
-package io.github.ghostwritertje.seedkeeper.overrides;
+package io.github.ghostwritertje.seedkeeper.keep;
 
 import java.util.Objects;
 

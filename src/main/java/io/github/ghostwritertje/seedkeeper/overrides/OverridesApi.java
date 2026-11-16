@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.overrides;
 
+import io.github.ghostwritertje.seedkeeper.keep.KeepOverride;
 import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.Listed;
 import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.OverridesUnavailable;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -15,7 +16,7 @@ import org.jspecify.annotations.Nullable;
 
 /** {@code GET /api/v1/overrides}: the same data as the Overrides view. */
 @Path("/api/v1/overrides")
-public class OverridesApi {
+class OverridesApi {
 
     /**
      * One keep override, with what it does to the current groups.
@@ -30,7 +31,7 @@ public class OverridesApi {
      * @param groupsUnknown why the groups can't be known right now; null when they can
      */
     @RegisterForReflection
-    public record ListedOverride(
+    record ListedOverride(
             String id,
             List<String> hashes,
             String note,
@@ -43,11 +44,11 @@ public class OverridesApi {
             @Nullable String groupsUnknown) {}
 
     @RegisterForReflection
-    public record Member(String hash, String name) {}
+    record Member(String hash, String name) {}
 
     /** The body of a 503: why the overrides file can't be read right now. */
     @RegisterForReflection
-    public record Unavailable(String reason) {}
+    record Unavailable(String reason) {}
 
     private final OverridesService overrides;
 
