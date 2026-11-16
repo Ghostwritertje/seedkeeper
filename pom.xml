@@ -8,7 +8,7 @@
 
     <properties>
         <compiler-plugin.version>3.15.0</compiler-plugin.version>
-        <!-- Keep on the JaCoCo version quarkus-jacoco brings, so both write the same data file format. -->
+        <!-- Needs a JaCoCo release that reads Java 25 class files. Dependabot bumps it apart from Quarkus. -->
         <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
         <maven.compiler.release>25</maven.compiler.release>
         <palantir-java-format.version>2.103.0</palantir-java-format.version>
@@ -287,7 +287,7 @@
                     </plugin>
                     <!--
                       quarkus-jacoco adds to the data file the agent writes, instead of starting it over, and
-                      leaves the report to the jacoco-maven-plugin above.
+                      leaves the report to the jacoco-maven-plugin below.
                     -->
                     <plugin>
                         <artifactId>maven-surefire-plugin</artifactId>
