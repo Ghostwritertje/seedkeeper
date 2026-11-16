@@ -85,6 +85,8 @@ public class GroupsPage {
     public record Option(String code, String label, boolean selected) {}
 
     /**
+     * One torrent of a group, as text ready to show.
+     *
      * @param tracker  "unmanaged" when the torrent has no tracker
      * @param seedTime "40d / 30d": the seed time and the tracker's minimum; the seed time alone when unmanaged
      * @param trackerMessage "Unregistered: Unregistered torrent", "Tracker error: Passkey does not exist!", or

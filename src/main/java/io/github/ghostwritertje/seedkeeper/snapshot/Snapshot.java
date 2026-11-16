@@ -23,6 +23,8 @@ public record Snapshot(List<SnapshotTorrent> torrents, Set<FileId> library) {
     }
 
     /**
+     * A torrent in Transmission, with where its wanted files are on disk.
+     *
      * @param wantedFiles the torrent's wanted files only; a file with {@code wanted = false} is not in here
      */
     public record SnapshotTorrent(Torrent torrent, List<WantedFile> wantedFiles) {
@@ -33,6 +35,8 @@ public record Snapshot(List<SnapshotTorrent> torrents, Set<FileId> library) {
     }
 
     /**
+     * A wanted file of a torrent, and the file on disk it resolves to.
+     *
      * @param name path relative to the download dir
      * @param id   the file it resolves to, following symlinks; empty when none of the candidate paths exists
      */

@@ -58,7 +58,7 @@ public final class Decide {
      */
     public static List<GroupVerdict> decide(
             Snapshot snapshot, TrackerRules trackers, List<KeepOverride> overrides, ZonedDateTime now) {
-        Map<SnapshotTorrent, Integer> position = new IdentityHashMap<>();
+        IdentityHashMap<SnapshotTorrent, Integer> position = new IdentityHashMap<>();
         snapshot.torrents().forEach(torrent -> position.put(torrent, position.size()));
 
         Map<Boolean, List<SnapshotTorrent>> byRule1 = snapshot.torrents().stream()

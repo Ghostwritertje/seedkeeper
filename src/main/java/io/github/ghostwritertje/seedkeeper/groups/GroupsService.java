@@ -51,6 +51,8 @@ public class GroupsService {
     /** There are no verdicts right now. The message is the one reason, fit to show to the user as it is. */
     public static class GroupsUnavailable extends RuntimeException {
 
+        private static final long serialVersionUID = 1L;
+
         GroupsUnavailable(String reason, Throwable cause) {
             super(reason, cause);
         }

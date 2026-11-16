@@ -21,6 +21,8 @@ public record Orphans(List<Orphan> files, List<Orphan> danglingSymlinks, List<Pa
     }
 
     /**
+     * One orphan file or dangling symlink.
+     *
      * @param size         in bytes; of a symlink, the size of the link itself
      * @param lastModified of a symlink, of the link itself
      * @param libraryLink  whether a hardlink of the file is under a library root: deleting it would free nothing.

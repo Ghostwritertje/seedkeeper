@@ -30,6 +30,8 @@ import java.util.Set;
 public final class Deletion {
 
     /**
+     * What one deletion did.
+     *
      * @param files      the files and symlinks that were deleted, in the order they went
      * @param spaceFreed the size of every deleted file that was the last link of its data, in bytes
      * @param refused    the paths that were due but not deleted: outside the downloads root and incomplete dir, under
@@ -47,6 +49,8 @@ public final class Deletion {
 
     /** The downloads root or a library root can't be used. The message says which and why, fit to show as it is. */
     public static class RootsUnavailable extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
 
         RootsUnavailable(String reason, Throwable cause) {
             super(reason, cause);
@@ -75,6 +79,8 @@ public final class Deletion {
     }
 
     /**
+     * Deletes the wanted files the removed torrents leave behind that no remaining torrent uses, within the guard.
+     *
      * @param removed       the torrents that have left Transmission
      * @param remaining     every torrent Transmission still has, read after the removal
      * @param incompleteDir Transmission's incomplete dir; empty when it is not enabled

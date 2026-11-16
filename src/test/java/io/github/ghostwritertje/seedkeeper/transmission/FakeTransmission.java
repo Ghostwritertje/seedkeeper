@@ -19,6 +19,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -56,7 +57,7 @@ public final class FakeTransmission implements AutoCloseable {
     private volatile String incompleteDir = "/incomplete";
     private volatile boolean incompleteDirEnabled = false;
     private volatile String torrents = "[]";
-    private volatile int sessionCounter = 1;
+    private final AtomicInteger sessionCounter = new AtomicInteger(1);
     private final Set<String> refusedRemovals = ConcurrentHashMap.newKeySet();
     private final AtomicReference<Hold> nextSessionGet = new AtomicReference<>();
 
@@ -147,11 +148,11 @@ public final class FakeTransmission implements AutoCloseable {
 
     /** Transmission restarted: the session id every client holds is no longer valid. */
     public void expireSession() {
-        sessionCounter++;
+        sessionCounter.incrementAndGet();
     }
 
     public String sessionId() {
-        return "session-" + sessionCounter;
+        return "session-" + sessionCounter.get();
     }
 
     public List<Request> requests() {

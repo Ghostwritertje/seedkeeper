@@ -3,7 +3,7 @@ package io.github.ghostwritertje.seedkeeper.startup;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import io.quarkus.test.QuarkusUnitTest;
+import io.quarkus.test.QuarkusExtensionTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -11,7 +11,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 class UnknownTimeZoneTest {
 
     @RegisterExtension
-    static final QuarkusUnitTest app = new QuarkusUnitTest()
+    static final QuarkusExtensionTest app = new QuarkusExtensionTest()
             .withApplicationRoot(Startup::application)
             .overrideConfigKey("seedkeeper.transmission.url", "http://127.0.0.1:9091/transmission/rpc")
             .overrideConfigKey("seedkeeper.library-roots", "/library")

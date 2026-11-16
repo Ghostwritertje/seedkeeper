@@ -17,6 +17,8 @@ import java.util.List;
 public class OverridesApi {
 
     /**
+     * One keep override, with what it does to the current groups.
+     *
      * @param until   the end date (inclusive, in the configured time zone) as an ISO 8601 date; null when it never
      *                ends
      * @param created ISO 8601 date and time with offset, as in the file; null when the file doesn't say
@@ -27,7 +29,7 @@ public class OverridesApi {
      * @param groupsUnknown why the groups can't be known right now; null when they can
      */
     @RegisterForReflection
-    public record Override(
+    public record ListedOverride(
             String id,
             List<String> hashes,
             String note,
@@ -68,9 +70,9 @@ public class OverridesApi {
         }
     }
 
-    private static Override override(Listed listed) {
+    private static ListedOverride override(Listed listed) {
         KeepOverride override = listed.override();
-        return new Override(
+        return new ListedOverride(
                 override.id(),
                 override.hashes(),
                 override.note(),
@@ -79,7 +81,7 @@ public class OverridesApi {
                         .map(DateTimeFormatter.ISO_OFFSET_DATE_TIME::format)
                         .orElse(null),
                 // Expired is enough to know it keeps nothing; otherwise, without the groups, it is unknown.
-                listed.groupsKnown() || listed.expired() ? listed.active() : null,
+                (listed.groupsKnown() || listed.expired()) ? listed.active() : null,
                 listed.expired(),
                 listed.groupsKnown() ? listed.stale() : null,
                 listed.groupsKnown()

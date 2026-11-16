@@ -6,6 +6,8 @@ package io.github.ghostwritertje.seedkeeper.overrides;
  */
 public class OverridesException extends RuntimeException {
 
+    private static final long serialVersionUID = 1L;
+
     OverridesException(String reason, Throwable cause) {
         super(reason, cause);
     }
