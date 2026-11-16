@@ -12,8 +12,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Deletes what torrents that have left Transmission leave behind on disk (spec §4, steps 3 and 4).
@@ -52,8 +54,14 @@ public final class Deletion {
 
         private static final long serialVersionUID = 1L;
 
-        RootsUnavailable(String reason, Throwable cause) {
+        RootsUnavailable(String reason, @Nullable Throwable cause) {
             super(reason, cause);
+        }
+
+        /** The reason; never null, as the constructor takes one. */
+        @Override
+        public String getMessage() {
+            return Objects.requireNonNull(super.getMessage());
         }
     }
 
@@ -182,7 +190,7 @@ public final class Deletion {
 
     /** Walks up from {@code directory} and deletes what is empty; stops at {@code stop}, which always stays. */
     private static void deleteEmptyDirectories(
-            Path directory, Path stop, List<Path> allowedRoots, List<Path> libraryRoots) {
+            @Nullable Path directory, Path stop, List<Path> allowedRoots, List<Path> libraryRoots) {
         for (Path current = directory;
                 current != null && !current.equals(stop) && current.startsWith(stop);
                 current = current.getParent()) {
@@ -206,7 +214,11 @@ public final class Deletion {
     private static boolean allowed(Path path, List<Path> allowedRoots, List<Path> libraryRoots) {
         Path real;
         try {
-            real = path.toAbsolutePath().getParent().toRealPath().resolve(path.getFileName());
+            Path parent = path.toAbsolutePath().getParent();
+            if (parent == null) {
+                return false;
+            }
+            real = parent.toRealPath().resolve(path.getFileName());
         } catch (IOException | RuntimeException e) {
             return false;
         }
@@ -216,7 +228,7 @@ public final class Deletion {
     }
 
     /** Null when there is nothing at the path. */
-    private static BasicFileAttributes attributes(Path path) {
+    private static @Nullable BasicFileAttributes attributes(Path path) {
         try {
             return Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
         } catch (IOException e) {

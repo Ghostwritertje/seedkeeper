@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import org.jspecify.annotations.Nullable;
 
 /** The Orphans view. */
 @Path("/orphans")
@@ -22,11 +23,16 @@ public class OrphansPage {
     static class Templates {
 
         /**
-         * @param unavailable why the orphans can't be listed right now; null when they can
-         * @param unreadable what could not be read and was skipped, as one line; null when everything was read
+         * @param files            null when the orphans can't be listed
+         * @param danglingSymlinks null when the orphans can't be listed
+         * @param unavailable      why the orphans can't be listed right now; null when they can
+         * @param unreadable       what could not be read and was skipped, as one line; null when everything was read
          */
         static native TemplateInstance orphans(
-                Listing files, Listing danglingSymlinks, String unavailable, String unreadable);
+                @Nullable Listing files,
+                @Nullable Listing danglingSymlinks,
+                @Nullable String unavailable,
+                @Nullable String unreadable);
     }
 
     /**
@@ -69,7 +75,7 @@ public class OrphansPage {
         }
     }
 
-    private static String unreadable(List<java.nio.file.Path> paths) {
+    private static @Nullable String unreadable(List<java.nio.file.Path> paths) {
         if (paths.isEmpty()) {
             return null;
         }

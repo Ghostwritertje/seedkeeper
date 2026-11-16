@@ -23,6 +23,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import org.jspecify.annotations.Nullable;
 
 /** {@code GET /api/v1/runs} and {@code GET /api/v1/removals}: the same data as the Activity view. */
 @Path("/api/v1")
@@ -44,7 +45,7 @@ public class HistoryApi {
             String started,
             String ended,
             String status,
-            String error,
+            @Nullable String error,
             int groupsRemoved,
             int torrentsRemoved,
             int filesDeleted,
@@ -64,7 +65,7 @@ public class HistoryApi {
             long runId,
             String started,
             String reason,
-            String error,
+            @Nullable String error,
             long spaceFreedBytes,
             int filesDeleted,
             int pathsRefused,
@@ -80,7 +81,12 @@ public class HistoryApi {
      */
     @RegisterForReflection
     public record Member(
-            String hash, String name, String tracker, String trackerMessage, boolean unfinished, boolean removed) {}
+            String hash,
+            String name,
+            @Nullable String tracker,
+            @Nullable String trackerMessage,
+            boolean unfinished,
+            boolean removed) {}
 
     /** The body of a 400: what is wrong with {@code since}. Of a 503: why the history can't be read. */
     @RegisterForReflection
@@ -98,7 +104,7 @@ public class HistoryApi {
     @Path("/runs")
     @Produces(MediaType.APPLICATION_JSON)
     @RunOnVirtualThread
-    public Response runs(@QueryParam("since") String since) {
+    public Response runs(@QueryParam("since") @Nullable String since) {
         return answer(since, from -> history.runs(from).stream().map(this::run).toList());
     }
 
@@ -106,13 +112,13 @@ public class HistoryApi {
     @Path("/removals")
     @Produces(MediaType.APPLICATION_JSON)
     @RunOnVirtualThread
-    public Response removals(@QueryParam("since") String since) {
+    public Response removals(@QueryParam("since") @Nullable String since) {
         return answer(
                 since,
                 from -> history.removals(from).stream().map(this::removal).toList());
     }
 
-    private Response answer(String since, Function<Optional<Instant>, List<?>> read) {
+    private Response answer(@Nullable String since, Function<Optional<Instant>, List<?>> read) {
         Optional<Instant> from;
         try {
             from = since(since);
@@ -134,7 +140,7 @@ public class HistoryApi {
     }
 
     /** A date is the start of that day in the configured time zone. Nothing, or an empty value, is no filter. */
-    private Optional<Instant> since(String since) {
+    private Optional<Instant> since(@Nullable String since) {
         if (since == null || since.isBlank()) {
             return Optional.empty();
         }

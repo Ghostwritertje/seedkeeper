@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.jboss.resteasy.reactive.RestForm;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The Overrides view, with its forms to add, edit and delete an override. The forms post with the CSRF token of the
@@ -42,7 +43,11 @@ public class OverridesPage {
          * @param notice        why the form that was just posted changed nothing; null when there is nothing to tell
          */
         static native TemplateInstance overrides(
-                List<Row> overrides, String file, String unavailable, String groupsUnknown, String notice);
+                List<Row> overrides,
+                String file,
+                @Nullable String unavailable,
+                @Nullable String groupsUnknown,
+                @Nullable String notice);
     }
 
     private static final DateTimeFormatter CREATED = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -144,7 +149,7 @@ public class OverridesPage {
      *
      * @throws InvalidOverride when it is neither
      */
-    public static Optional<LocalDate> date(String text) {
+    public static Optional<LocalDate> date(@Nullable String text) {
         if (text == null || text.isBlank()) {
             return Optional.empty();
         }
@@ -155,7 +160,7 @@ public class OverridesPage {
         }
     }
 
-    private TemplateInstance page(String notice) {
+    private TemplateInstance page(@Nullable String notice) {
         String file = config.dataDir().resolve(OverrideStore.FILE_NAME).toString();
         List<Listed> listed;
         try {

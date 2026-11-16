@@ -21,6 +21,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A stand-in for Transmission's RPC endpoint on the JDK's {@link HttpServer}. Like the real thing it answers 409 with
@@ -59,7 +60,7 @@ public final class FakeTransmission implements AutoCloseable {
     private volatile String torrents = "[]";
     private final AtomicInteger sessionCounter = new AtomicInteger(1);
     private final Set<String> refusedRemovals = ConcurrentHashMap.newKeySet();
-    private final AtomicReference<Hold> nextSessionGet = new AtomicReference<>();
+    private final AtomicReference<@Nullable Hold> nextSessionGet = new AtomicReference<>();
 
     public FakeTransmission() {
         try {

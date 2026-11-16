@@ -11,6 +11,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -182,6 +183,12 @@ public class OverridesService {
         OverridesUnavailable(String reason, Throwable cause) {
             super(reason, cause);
         }
+
+        /** The reason; never null, as the constructor takes one. */
+        @Override
+        public String getMessage() {
+            return Objects.requireNonNull(super.getMessage());
+        }
     }
 
     /** What was asked for is not a keep override. The message says why, fit to show as it is. */
@@ -192,6 +199,12 @@ public class OverridesService {
         InvalidOverride(String reason) {
             super(reason);
         }
+
+        /** The reason; never null, as the constructor takes one. */
+        @Override
+        public String getMessage() {
+            return Objects.requireNonNull(super.getMessage());
+        }
     }
 
     /** The override to change is not in the file. The message says so, fit to show as it is. */
@@ -201,6 +214,12 @@ public class OverridesService {
 
         NoSuchOverride(String reason) {
             super(reason);
+        }
+
+        /** The reason; never null, as the constructor takes one. */
+        @Override
+        public String getMessage() {
+            return Objects.requireNonNull(super.getMessage());
         }
     }
 }

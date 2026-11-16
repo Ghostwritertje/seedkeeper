@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -310,7 +311,7 @@ class RunTest {
 
         assertEquals(List.of("cross-seed"), transmission.removed());
         assertEquals(List.of("original"), transmission.hashes());
-        assertGone(link, link.getParent());
+        assertGone(link, Objects.requireNonNull(link.getParent()));
         assertTrue(Files.exists(original), "the data of the member that stays was deleted");
         assertEquals(
                 List.of(Reason.MINIMUM_NOT_REACHED, Reason.UNREGISTERED),

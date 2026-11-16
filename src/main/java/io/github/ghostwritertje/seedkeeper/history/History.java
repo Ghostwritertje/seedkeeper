@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import javax.sql.DataSource;
 
@@ -158,6 +159,12 @@ public class History {
 
         HistoryException(String what, Throwable cause) {
             super(what + ": " + cause.getMessage(), cause);
+        }
+
+        /** Never null, as the constructor always sets it. */
+        @Override
+        public String getMessage() {
+            return Objects.requireNonNull(super.getMessage());
         }
     }
 

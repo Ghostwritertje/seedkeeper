@@ -23,9 +23,11 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
 import org.jboss.logging.Logger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The keep overrides of {@code <data-dir>/overrides.yaml} (spec §7). The file is the truth: this keeps what it last
@@ -40,12 +42,14 @@ public class OverrideStore implements AutoCloseable {
 
     private static final Logger LOG = Logger.getLogger(OverrideStore.class);
 
-    /** What the file said when it was last read: the overrides, or why it can't be read. */
-    private record Loaded(List<KeepOverride> overrides, OverridesException failure) {}
+    /** What the file said when it was last read: the overrides, or why it can't be read (null when it can). */
+    private record Loaded(
+            List<KeepOverride> overrides, @Nullable OverridesException failure) {}
 
     private final Path file;
     private volatile Loaded loaded;
-    private WatchService watcher;
+    /** Null until {@link #watch()} and after {@link #close()}. */
+    private @Nullable WatchService watcher;
 
     @Inject
     OverrideStore(SeedkeeperConfig config) {
@@ -69,8 +73,9 @@ public class OverrideStore implements AutoCloseable {
      */
     public List<KeepOverride> overrides() {
         Loaded current = loaded;
-        if (current.failure() != null) {
-            throw current.failure();
+        OverridesException failure = current.failure();
+        if (failure != null) {
+            throw failure;
         }
         return current.overrides();
     }
@@ -129,10 +134,12 @@ public class OverrideStore implements AutoCloseable {
         if (watcher != null) {
             return;
         }
-        Path dataDir = file.getParent();
+        // The file is an absolute path to a file, so it has a parent.
+        Path dataDir = Objects.requireNonNull(file.getParent());
+        WatchService service;
         try {
             Files.createDirectories(dataDir);
-            WatchService service = dataDir.getFileSystem().newWatchService();
+            service = dataDir.getFileSystem().newWatchService();
             dataDir.register(
                     service,
                     StandardWatchEventKinds.ENTRY_CREATE,
@@ -147,7 +154,6 @@ public class OverrideStore implements AutoCloseable {
         }
         // What changed between the first read and the registration would otherwise go unseen.
         load();
-        WatchService service = watcher;
         Thread thread = new Thread(() -> watch(service), "overrides-watcher");
         thread.setDaemon(true);
         thread.start();
@@ -207,12 +213,13 @@ public class OverrideStore implements AutoCloseable {
             // Also a file that is not UTF-8 (MalformedInputException).
             now = new Loaded(List.of(), unreadable(e.toString(), e));
         }
+        // Null only while the constructor runs its first load.
         Loaded before = loaded;
-        if (now.failure() != null
-                && (before == null
-                        || before.failure() == null
-                        || !before.failure().getMessage().equals(now.failure().getMessage()))) {
-            LOG.warn(now.failure().getMessage());
+        OverridesException failure = now.failure();
+        OverridesException failedBefore = before == null ? null : before.failure();
+        if (failure != null
+                && (failedBefore == null || !failedBefore.getMessage().equals(failure.getMessage()))) {
+            LOG.warn(failure.getMessage());
         }
         loaded = now;
     }

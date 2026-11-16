@@ -22,6 +22,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /** {@code GET /api/v1/groups}: the same data as the Groups view. */
 @Path("/api/v1/groups")
@@ -46,12 +47,12 @@ public class GroupsApi {
     public record Group(
             String verdict,
             String reason,
-            String reasonSince,
+            @Nullable String reasonSince,
             List<String> secondaryReasons,
             int libraryLinks,
             int missingFiles,
             int files,
-            Forecast forecast,
+            @Nullable Forecast forecast,
             List<Member> members) {}
 
     /**
@@ -64,7 +65,10 @@ public class GroupsApi {
      *                     null unless the reason is {@code keep-override}
      */
     @RegisterForReflection
-    public record Forecast(String date, boolean clockStopped, String until) {}
+    public record Forecast(
+            @Nullable String date,
+            boolean clockStopped,
+            @Nullable String until) {}
 
     /**
      * One torrent of the group.
@@ -80,12 +84,12 @@ public class GroupsApi {
     public record Member(
             String hash,
             String name,
-            String tracker,
+            @Nullable String tracker,
             String status,
             long seedTimeSeconds,
-            Long minimumSeedTimeSeconds,
-            String trackerError,
-            String trackerMessage) {}
+            @Nullable Long minimumSeedTimeSeconds,
+            @Nullable String trackerError,
+            @Nullable String trackerMessage) {}
 
     /** The body of a 503: why there are no verdicts right now. Of a 400: what is wrong with the filter. */
     @RegisterForReflection
@@ -104,7 +108,8 @@ public class GroupsApi {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @RunOnVirtualThread
-    public Response groups(@QueryParam("verdict") String verdict, @QueryParam("reason") String reason) {
+    public Response groups(
+            @QueryParam("verdict") @Nullable String verdict, @QueryParam("reason") @Nullable String reason) {
         try {
             GroupsFilter filter = GroupsFilter.parse(verdict, reason);
             List<GroupVerdict> verdicts =

@@ -8,6 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZoneId;
 import java.util.Map;
+import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Starts a {@link FakeTransmission} and points the application at it, with every secret set, a downloads directory,
@@ -23,47 +25,59 @@ public class FakeTransmissionResource implements QuarkusTestResourceLifecycleMan
     /** 06:00 on 1 January: a schedule that is there, and that doesn't start a run in the middle of a test. */
     public static final String SCHEDULE = "0 0 6 1 1 ?";
 
-    private static volatile FakeTransmission fake;
-    private static volatile Path downloads;
-    private static volatile Path library;
-    private static volatile Path dataDir;
+    // Null until start().
+    private static volatile @Nullable FakeTransmission fake;
+    private static volatile @Nullable Path downloads;
+    private static volatile @Nullable Path library;
+    private static volatile @Nullable Path dataDir;
 
     /** The fake the application under test talks to. */
     public static FakeTransmission fake() {
-        return fake;
+        return started(fake);
     }
 
     /** The downloads root of the application under test: a directory to put downloaded files in. */
     public static Path downloads() {
-        return downloads;
+        return started(downloads);
     }
 
     /** The one library root of the application under test. */
     public static Path library() {
-        return library;
+        return started(library);
     }
 
     /** The data dir of the application under test: where it keeps {@code overrides.yaml} and {@code seedkeeper.db}. */
     public static Path dataDir() {
-        return dataDir;
+        return started(dataDir);
+    }
+
+    private static <T> T started(@Nullable T value) {
+        return Objects.requireNonNull(value, "FakeTransmissionResource has not started");
     }
 
     @Override
     public Map<String, String> start() {
-        fake = new FakeTransmission();
+        FakeTransmission transmission = new FakeTransmission();
+        fake = transmission;
+        Path downloadsRoot;
+        Path libraryRoot;
+        Path data;
         try {
             Path root = Files.createTempDirectory("seedkeeper-test");
-            downloads = Files.createDirectory(root.resolve("downloads"));
-            library = Files.createDirectory(root.resolve("library"));
-            dataDir = Files.createDirectory(root.resolve("data"));
+            downloadsRoot = Files.createDirectory(root.resolve("downloads"));
+            libraryRoot = Files.createDirectory(root.resolve("library"));
+            data = Files.createDirectory(root.resolve("data"));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        Map<String, String> config =
-                TestSecrets.with("seedkeeper.transmission.url", fake.url().toString());
-        config.put("seedkeeper.downloads-root", downloads.toString());
-        config.put("seedkeeper.library-roots", library.toString());
-        config.put("seedkeeper.data-dir", dataDir.toString());
+        downloads = downloadsRoot;
+        library = libraryRoot;
+        dataDir = data;
+        Map<String, String> config = TestSecrets.with(
+                "seedkeeper.transmission.url", transmission.url().toString());
+        config.put("seedkeeper.downloads-root", downloadsRoot.toString());
+        config.put("seedkeeper.library-roots", libraryRoot.toString());
+        config.put("seedkeeper.data-dir", data.toString());
         config.put("seedkeeper.time-zone", TIME_ZONE.getId());
         config.put("seedkeeper.schedule", SCHEDULE);
         config.put("seedkeeper.trackers.tracker-a.hosts", "tracker-a.example");
@@ -75,8 +89,9 @@ public class FakeTransmissionResource implements QuarkusTestResourceLifecycleMan
 
     @Override
     public void stop() {
-        if (fake != null) {
-            fake.close();
+        FakeTransmission started = fake;
+        if (started != null) {
+            started.close();
         }
     }
 }

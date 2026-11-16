@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.jboss.logging.Logger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Starts runs, one at a time (spec §5, step 1), and remembers the last one. Everything that starts a run goes
@@ -30,7 +31,7 @@ public class RunService {
     private final RunMonitor monitor;
     private final Consumer<RunOutcome> ended;
     private final AtomicBoolean running = new AtomicBoolean();
-    private volatile RunOutcome lastRun;
+    private volatile @Nullable RunOutcome lastRun;
 
     @Inject
     RunService(

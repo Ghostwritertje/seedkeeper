@@ -321,11 +321,11 @@ class OverrideStoreTest {
 
     @Test
     void theWatcherCreatesTheDataDirWhenItIsNotThere() throws Exception {
-        Path fresh = dataDir.resolve("not/there/yet/overrides.yaml");
-        try (OverrideStore other = new OverrideStore(fresh)) {
+        Path freshDir = dataDir.resolve("not/there/yet");
+        try (OverrideStore other = new OverrideStore(freshDir.resolve("overrides.yaml"))) {
             other.watch();
 
-            assertTrue(Files.isDirectory(fresh.getParent()));
+            assertTrue(Files.isDirectory(freshDir));
             assertEquals(List.of(), other.overrides());
         }
     }

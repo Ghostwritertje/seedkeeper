@@ -16,6 +16,7 @@ import jakarta.ws.rs.core.Response;
 import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import org.jspecify.annotations.Nullable;
 
 /** The System view, with its Run now button. */
 @Path("/system")
@@ -31,7 +32,8 @@ public class SystemPage {
          * @param nextRun "2026-11-21 06:00:00", in the configured time zone; null when no run is scheduled
          * @param notice  what to tell about the Run now that was just pressed; null when there is nothing to tell
          */
-        static native TemplateInstance system(SystemStatus status, LastRunText lastRun, String nextRun, String notice);
+        static native TemplateInstance system(
+                SystemStatus status, @Nullable LastRunText lastRun, @Nullable String nextRun, @Nullable String notice);
     }
 
     /**
@@ -76,13 +78,12 @@ public class SystemPage {
         return Response.seeOther(URI.create("/system")).build();
     }
 
-    private TemplateInstance page(String notice) {
+    private TemplateInstance page(@Nullable String notice) {
         SystemStatus status = system.status();
+        LastRun lastRun = status.lastRun();
+        String nextRun = status.nextRun();
         return Templates.system(
-                status,
-                status.lastRun() == null ? null : text(status.lastRun()),
-                status.nextRun() == null ? null : moment(status.nextRun()),
-                notice);
+                status, lastRun == null ? null : text(lastRun), nextRun == null ? null : moment(nextRun), notice);
     }
 
     private static LastRunText text(LastRun run) {

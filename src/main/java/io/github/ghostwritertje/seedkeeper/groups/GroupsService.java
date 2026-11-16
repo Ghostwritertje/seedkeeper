@@ -15,6 +15,7 @@ import io.github.ghostwritertje.seedkeeper.transmission.TransmissionSession;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Objects;
 
 /** The groups and the verdict seedkeeper would give each right now; behind the Groups view and the API. */
 @ApplicationScoped
@@ -44,7 +45,8 @@ public class GroupsService {
             return Decide.decide(
                     snapshot, TrackerRules.of(config), overrides.overrides(), ZonedDateTime.now(config.timeZone()));
         } catch (TransmissionException | SnapshotException | OverridesException e) {
-            throw new GroupsUnavailable(e.getMessage(), e);
+            // Each of these carries its reason as the message.
+            throw new GroupsUnavailable(Objects.requireNonNull(e.getMessage()), e);
         }
     }
 
@@ -55,6 +57,12 @@ public class GroupsService {
 
         GroupsUnavailable(String reason, Throwable cause) {
             super(reason, cause);
+        }
+
+        /** The reason; never null, as the constructor takes one. */
+        @Override
+        public String getMessage() {
+            return Objects.requireNonNull(super.getMessage());
         }
     }
 }
