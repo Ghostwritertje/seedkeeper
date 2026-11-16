@@ -48,6 +48,8 @@ public final class Deletion {
     /** The downloads root or a library root can't be used. The message says which and why, fit to show as it is. */
     public static class RootsUnavailable extends RuntimeException {
 
+        private static final long serialVersionUID = 1L;
+
         RootsUnavailable(String reason, Throwable cause) {
             super(reason, cause);
         }

@@ -55,6 +55,8 @@ public record GroupsFilter(Optional<Verdict> verdict, Optional<Reason> reason) {
     /** A filter names a verdict or a reason that doesn't exist. */
     public static class UnknownFilter extends RuntimeException {
 
+        private static final long serialVersionUID = 1L;
+
         UnknownFilter(String message) {
             super(message);
         }

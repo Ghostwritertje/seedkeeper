@@ -23,8 +23,8 @@ public class OrphansPage {
 
         /**
          * @param unavailable why the orphans can't be listed right now; null when they can
+         * @param unreadable what could not be read and was skipped, as one line; null when everything was read
          */
-        /** @param unreadable what could not be read and was skipped, as one line; null when everything was read */
         static native TemplateInstance orphans(
                 Listing files, Listing danglingSymlinks, String unavailable, String unreadable);
     }

@@ -152,6 +152,8 @@ public class History {
     /** The history can't be read or written. The message is fit to show to the user as it is. */
     public static class HistoryException extends RuntimeException {
 
+        private static final long serialVersionUID = 1L;
+
         HistoryException(String what, Throwable cause) {
             super(what + ": " + cause.getMessage(), cause);
         }

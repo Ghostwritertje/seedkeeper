@@ -177,6 +177,8 @@ public class OverridesService {
     /** The overrides can't be listed right now. The message is the one reason, fit to show as it is. */
     public static class OverridesUnavailable extends RuntimeException {
 
+        private static final long serialVersionUID = 1L;
+
         OverridesUnavailable(String reason, Throwable cause) {
             super(reason, cause);
         }
@@ -185,6 +187,8 @@ public class OverridesService {
     /** What was asked for is not a keep override. The message says why, fit to show as it is. */
     public static class InvalidOverride extends RuntimeException {
 
+        private static final long serialVersionUID = 1L;
+
         InvalidOverride(String reason) {
             super(reason);
         }
@@ -192,6 +196,8 @@ public class OverridesService {
 
     /** The override to change is not in the file. The message says so, fit to show as it is. */
     public static class NoSuchOverride extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
 
         NoSuchOverride(String reason) {
             super(reason);

@@ -190,6 +190,8 @@ final class OverridesFile {
     /** The text is not an overrides file. The message says what is wrong. */
     static final class Unreadable extends RuntimeException {
 
+        private static final long serialVersionUID = 1L;
+
         Unreadable(String problem) {
             super(problem);
         }
