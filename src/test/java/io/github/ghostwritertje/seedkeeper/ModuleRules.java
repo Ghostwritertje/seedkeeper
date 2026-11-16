@@ -75,7 +75,7 @@ final class ModuleRules {
                     @Override
                     public void check(JavaClass used, ConditionEvents events) {
                         String module = moduleOf(used).orElseThrow();
-                        if (exported(used)) {
+                        if (usableFromOtherModules(used)) {
                             return;
                         }
                         for (Dependency use : used.getDirectDependenciesToSelf()) {
@@ -125,17 +125,20 @@ final class ModuleRules {
                         + " module API behaviour types each");
     }
 
-    /** True when other modules may use the type: it is module API, or a record or enum one exports. */
-    private boolean exported(JavaClass type) {
+    /**
+     * True when the type is module API, so other modules may use it: it is marked {@code @ModuleApi}, or it is a
+     * record or enum in the public signature of a module API type of the same module.
+     */
+    private boolean usableFromOtherModules(JavaClass type) {
         String module = moduleOf(type).orElseThrow();
-        Set<JavaClass> exported = new HashSet<>();
+        Set<JavaClass> moduleApi = new HashSet<>();
         Deque<JavaClass> toVisit = new ArrayDeque<>();
         modulePackage(type).getClassesInPackageTree().stream()
                 .filter(ModuleRules::isModuleApi)
                 .forEach(toVisit::add);
         while (!toVisit.isEmpty()) {
             JavaClass next = toVisit.pop();
-            if (exported.add(next)) {
+            if (moduleApi.add(next)) {
                 publicSignatureTypes(next).stream()
                         .filter(signatureType -> isRecordOrEnum(signatureType)
                                 && moduleOf(signatureType)
@@ -144,7 +147,7 @@ final class ModuleRules {
                         .forEach(toVisit::add);
             }
         }
-        return exported.contains(type);
+        return moduleApi.contains(type);
     }
 
     /** The module of a type under the root; empty for a type of the root package itself or outside the root. */
