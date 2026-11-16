@@ -12,6 +12,10 @@ name: Implementer
 # `[bot]`, by labelling a pull request: that is the review/fix loop. Only `pull_request`, never
 # `pull_request_target`: pull requests from forks get no secrets. The concurrency groups, one per issue or pull
 # request, are on the jobs in implement-issue.yml and address-review.yml.
+#
+# The reusable workflows are called as `./`, not zizmor's preferred `$/`: actionlint 1.7.12 (the Lint job in ci.yml)
+# rejects `$/`, and a `./` reusable workflow is read from the caller's commit, not from the runner's filesystem, so a
+# step can't swap it.
 
 on:
   issues:
@@ -33,7 +37,7 @@ jobs:
     if: >-
       github.event_name == 'issues' && github.event.action == 'labeled'
       && github.event.label.name == 'ready-for-agent' && github.event.sender.type == 'User'
-    uses: ./.github/workflows/implement-issue.yml
+    uses: ./.github/workflows/implement-issue.yml # zizmor: ignore[self-repository] see the header
     with:
       issue: ${{ github.event.issue.number }}
       labeller: ${{ github.event.sender.login }}
@@ -98,7 +102,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.dependents.outputs.dependents) }}
-    uses: ./.github/workflows/implement-issue.yml
+    uses: ./.github/workflows/implement-issue.yml # zizmor: ignore[self-repository] see the header
     with:
       issue: ${{ matrix.issue }}
       labeller: ${{ matrix.labeller }}
@@ -117,7 +121,7 @@ jobs:
       && github.event.pull_request.user.login != 'dependabot[bot]'
       && (github.event.sender.type == 'User'
         || github.event.sender.login == format('{0}[bot]', vars.REVIEWER_APP_SLUG))
-    uses: ./.github/workflows/address-review.yml
+    uses: ./.github/workflows/address-review.yml # zizmor: ignore[self-repository] see the header
     with:
       pull_request: ${{ github.event.pull_request.number }}
       labeller: ${{ github.event.sender.login }}
