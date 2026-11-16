@@ -128,12 +128,11 @@ class OverridesPage {
             change.run();
             return Response.seeOther(URI.create("/overrides")).build();
         } catch (OverridesException e) {
-            Response.Status status =
-                    switch (e.problem()) {
-                        case INVALID -> Response.Status.BAD_REQUEST;
-                        case NO_SUCH_OVERRIDE -> Response.Status.NOT_FOUND;
-                        case FILE -> Response.Status.SERVICE_UNAVAILABLE;
-                    };
+            Response.Status status = switch (e.problem()) {
+                case INVALID -> Response.Status.BAD_REQUEST;
+                case NO_SUCH_OVERRIDE -> Response.Status.NOT_FOUND;
+                case FILE -> Response.Status.SERVICE_UNAVAILABLE;
+            };
             return Response.status(status).entity(page(e.getMessage())).build();
         }
     }

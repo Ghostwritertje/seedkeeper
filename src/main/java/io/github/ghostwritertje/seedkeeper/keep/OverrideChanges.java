@@ -110,8 +110,10 @@ public class OverrideChanges {
 
     private static void requireId(List<KeepOverride> overrides, String id) {
         if (overrides.stream().noneMatch(override -> override.id().equals(id))) {
-            throw new OverridesException(Problem.NO_SUCH_OVERRIDE, "There is no keep override with id " + id
-                    + " any more: it was deleted, or its id was changed in the file.");
+            throw new OverridesException(
+                    Problem.NO_SUCH_OVERRIDE,
+                    "There is no keep override with id " + id
+                            + " any more: it was deleted, or its id was changed in the file.");
         }
     }
 

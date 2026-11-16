@@ -54,8 +54,8 @@ class OverrideChangesTest {
 
     @Test
     void anOverrideWithoutHashesIsInvalid() {
-        OverridesException failure = assertThrows(
-                OverridesException.class, () -> changes.add(List.of(" "), "", Optional.empty()));
+        OverridesException failure =
+                assertThrows(OverridesException.class, () -> changes.add(List.of(" "), "", Optional.empty()));
 
         assertEquals(Problem.INVALID, failure.problem());
         assertEquals("A keep override needs at least one info hash.", failure.getMessage());
@@ -77,8 +77,8 @@ class OverrideChangesTest {
 
     @Test
     void editingOrDeletingAnOverrideThatIsGoneFindsNone() {
-        OverridesException edit = assertThrows(
-                OverridesException.class, () -> changes.edit("7f3c", "note", Optional.empty()));
+        OverridesException edit =
+                assertThrows(OverridesException.class, () -> changes.edit("7f3c", "note", Optional.empty()));
         OverridesException delete = assertThrows(OverridesException.class, () -> changes.delete("7f3c"));
 
         assertEquals(Problem.NO_SUCH_OVERRIDE, edit.problem());

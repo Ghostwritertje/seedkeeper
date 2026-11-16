@@ -127,10 +127,11 @@ class GroupsPage {
             return Response.seeOther(URI.create("/groups")).build();
         } catch (OverridesException e) {
             // Adding never looks for an existing override, so NO_SUCH_OVERRIDE can't happen here.
-            Response.Status status = e.problem() == Problem.INVALID
-                    ? Response.Status.BAD_REQUEST
-                    : Response.Status.SERVICE_UNAVAILABLE;
-            return Response.status(status).entity(page(null, null, e.getMessage())).build();
+            Response.Status status =
+                    e.problem() == Problem.INVALID ? Response.Status.BAD_REQUEST : Response.Status.SERVICE_UNAVAILABLE;
+            return Response.status(status)
+                    .entity(page(null, null, e.getMessage()))
+                    .build();
         }
     }
 

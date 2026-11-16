@@ -115,7 +115,8 @@ final class ModuleRules {
                     }
                 })
                 .allowEmptyShould(true)
-                .as("Rule 3: the modules of " + root + " have at most " + API_BUDGET + " module API behaviour types each");
+                .as("Rule 3: the modules of " + root + " have at most " + API_BUDGET
+                        + " module API behaviour types each");
     }
 
     /**
