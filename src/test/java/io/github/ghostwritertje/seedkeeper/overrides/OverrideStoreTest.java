@@ -30,11 +30,14 @@ import org.junit.jupiter.params.provider.MethodSource;
 @Timeout(120)
 class OverrideStoreTest {
 
-    private static final KeepOverride REWATCHING = new KeepOverride("7f3c", List.of("aaaa", "bbbb"),
-            "Rewatching this season", Optional.of(LocalDate.parse("2027-03-01")),
+    private static final KeepOverride REWATCHING = new KeepOverride(
+            "7f3c",
+            List.of("aaaa", "bbbb"),
+            "Rewatching this season",
+            Optional.of(LocalDate.parse("2027-03-01")),
             Optional.of(OffsetDateTime.parse("2026-11-20T10:12:00+01:00")));
-    private static final KeepOverride FOREVER = new KeepOverride("9d2e", List.of("cccc"), "", Optional.empty(),
-            Optional.empty());
+    private static final KeepOverride FOREVER =
+            new KeepOverride("9d2e", List.of("cccc"), "", Optional.empty(), Optional.empty());
 
     @TempDir
     Path dataDir;
@@ -91,9 +94,14 @@ class OverrideStoreTest {
         KeepOverride override = store.reload().getFirst();
 
         assertEquals("0123", override.id());
-        assertEquals(List.of("1234567890123456789012345678901234567890",
-                "12e4567890123456789012345678901234567890", "abcdef7890123456789012345678901234567890", "0x1f",
-                "true"), override.hashes());
+        assertEquals(
+                List.of(
+                        "1234567890123456789012345678901234567890",
+                        "12e4567890123456789012345678901234567890",
+                        "abcdef7890123456789012345678901234567890",
+                        "0x1f",
+                        "true"),
+                override.hashes());
         assertEquals("2027", override.note());
     }
 
@@ -119,8 +127,8 @@ class OverrideStoreTest {
         Files.writeString(file, content);
 
         OverridesException reload = assertThrows(OverridesException.class, store::reload);
-        assertTrue(reload.getMessage().startsWith("The overrides file " + file + " can't be read: "),
-                reload.getMessage());
+        assertTrue(
+                reload.getMessage().startsWith("The overrides file " + file + " can't be read: "), reload.getMessage());
         assertTrue(reload.getMessage().contains(problem), reload.getMessage());
         // An unreadable file must never read as "no overrides": that would let a kept group be removed.
         OverridesException overrides = assertThrows(OverridesException.class, store::overrides);
@@ -133,17 +141,23 @@ class OverrideStoreTest {
                 argumentSet("no overrides key", "keep: []\n", "'overrides'"),
                 argumentSet("overrides is not a list", "overrides: yes\n", "'overrides' is not a list"),
                 argumentSet("no id", "overrides:\n  - hashes: [aaaa]\n", "override 1 has no 'id'"),
-                argumentSet("the same id twice",
+                argumentSet(
+                        "the same id twice",
                         "overrides:\n  - id: a\n    hashes: [aaaa]\n  - id: a\n    hashes: [bbbb]\n",
                         "override 2 has the same 'id' as an earlier one: a"),
                 argumentSet("no hashes", "overrides:\n  - id: a\n", "override 1 (a) has no 'hashes'"),
-                argumentSet("empty hashes", "overrides:\n  - id: a\n    hashes: []\n",
-                        "override 1 (a) has no 'hashes'"),
-                argumentSet("hashes is not a list", "overrides:\n  - id: a\n    hashes: aaaa\n",
+                argumentSet(
+                        "empty hashes", "overrides:\n  - id: a\n    hashes: []\n", "override 1 (a) has no 'hashes'"),
+                argumentSet(
+                        "hashes is not a list",
+                        "overrides:\n  - id: a\n    hashes: aaaa\n",
                         "override 1 (a): 'hashes' is not a list"),
-                argumentSet("until is not a date", "overrides:\n  - id: a\n    hashes: [aaaa]\n    until: 1 March\n",
+                argumentSet(
+                        "until is not a date",
+                        "overrides:\n  - id: a\n    hashes: [aaaa]\n    until: 1 March\n",
                         "override 1 (a): 'until' is not a date like 2027-03-01: 1 March"),
-                argumentSet("created is not a date and time",
+                argumentSet(
+                        "created is not a date and time",
                         "overrides:\n  - id: a\n    hashes: [aaaa]\n    created: yesterday\n",
                         "override 1 (a): 'created' is not a date and time like 2026-11-20T10:12:00+01:00: yesterday"));
     }
@@ -181,8 +195,11 @@ class OverrideStoreTest {
 
     @Test
     void whatIsWrittenIsReadBackTheSameWhateverTheNoteSays() {
-        KeepOverride awkward = new KeepOverride("id: 1 #", List.of("12e4567890123456789012345678901234567890"),
-                "She said \"keep\" \\ don't: remove #1\nsecond line\ttab – ünïcödé 🎬 ", Optional.empty(),
+        KeepOverride awkward = new KeepOverride(
+                "id: 1 #",
+                List.of("12e4567890123456789012345678901234567890"),
+                "She said \"keep\" \\ don't: remove #1\nsecond line\ttab – ünïcödé 🎬 ",
+                Optional.empty(),
                 Optional.of(OffsetDateTime.parse("2026-11-20T10:12:00.123456789-05:30")));
 
         store.update(overrides -> List.of(awkward));
@@ -271,9 +288,10 @@ class OverrideStoreTest {
         String before = Files.readString(file);
         Files.setPosixFilePermissions(dataDir, PosixFilePermissions.fromString("r-xr-xr-x"));
         try {
-            OverridesException failure = assertThrows(OverridesException.class,
-                    () -> store.update(overrides -> List.of(FOREVER)));
-            assertTrue(failure.getMessage().startsWith("The overrides file " + file + " can't be written: "),
+            OverridesException failure =
+                    assertThrows(OverridesException.class, () -> store.update(overrides -> List.of(FOREVER)));
+            assertTrue(
+                    failure.getMessage().startsWith("The overrides file " + file + " can't be written: "),
                     failure.getMessage());
         } finally {
             Files.setPosixFilePermissions(dataDir, PosixFilePermissions.fromString("rwxr-xr-x"));

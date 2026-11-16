@@ -42,8 +42,13 @@ public final class Run {
     private final Remover remover;
     private final OverrideStore overrides;
 
-    public Run(Transmission transmission, TrackerRules trackers, Path downloadsRoot, List<Path> libraryRoots,
-            ZoneId timeZone, OverrideStore overrides) {
+    public Run(
+            Transmission transmission,
+            TrackerRules trackers,
+            Path downloadsRoot,
+            List<Path> libraryRoots,
+            ZoneId timeZone,
+            OverrideStore overrides) {
         this.overrides = overrides;
         this.transmission = transmission;
         this.trackers = trackers;
@@ -63,10 +68,10 @@ public final class Run {
             // Read at the start of every run (spec §7). A file that can't be read fails the run: nothing is removed.
             List<KeepOverride> keepOverrides = overrides.reload();
             TransmissionSession session = transmission.session();
-            Snapshot snapshot = SnapshotBuilder.build(transmission.torrents(), session.incompleteDir(),
-                    libraryRoots);
+            Snapshot snapshot = SnapshotBuilder.build(transmission.torrents(), session.incompleteDir(), libraryRoots);
             verdicts = Decide.decide(snapshot, trackers, keepOverrides, started);
-            Map<String, Torrent> byHash = snapshot.torrents().stream().map(SnapshotTorrent::torrent)
+            Map<String, Torrent> byHash = snapshot.torrents().stream()
+                    .map(SnapshotTorrent::torrent)
                     .collect(Collectors.toMap(Torrent::hash, Function.identity(), (first, second) -> first));
             if (verdicts.stream().anyMatch(verdict -> verdict.verdict() == Verdict.REMOVE)) {
                 // A torrent removed while its data can't be deleted leaves that data behind for good: fail first.
@@ -86,7 +91,12 @@ public final class Run {
         } catch (RuntimeException e) {
             error = Optional.of("The run broke off: " + e);
         }
-        return new RunOutcome(started, ZonedDateTime.now(timeZone),
-                error.isPresent() ? Status.FAILED : Status.SUCCEEDED, error, verdicts, removals);
+        return new RunOutcome(
+                started,
+                ZonedDateTime.now(timeZone),
+                error.isPresent() ? Status.FAILED : Status.SUCCEEDED,
+                error,
+                verdicts,
+                removals);
     }
 }

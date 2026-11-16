@@ -31,8 +31,7 @@ public class SystemPage {
          * @param nextRun "2026-11-21 06:00:00", in the configured time zone; null when no run is scheduled
          * @param notice  what to tell about the Run now that was just pressed; null when there is nothing to tell
          */
-        static native TemplateInstance system(SystemStatus status, LastRunText lastRun, String nextRun,
-                String notice);
+        static native TemplateInstance system(SystemStatus status, LastRunText lastRun, String nextRun, String notice);
     }
 
     /**
@@ -42,8 +41,7 @@ public class SystemPage {
      * @param removed    "2 torrents in 1 group"
      * @param spaceFreed "1.5 GiB"
      */
-    public record LastRunText(String started, String ended, String removed, String spaceFreed) {
-    }
+    public record LastRunText(String started, String ended, String removed, String spaceFreed) {}
 
     private final SystemService system;
     private final RunService runs;
@@ -71,19 +69,26 @@ public class SystemPage {
     @RunOnVirtualThread
     public Response runNow() {
         if (runs.run().isEmpty()) {
-            return Response.status(Response.Status.CONFLICT).entity(page("A run is already running.")).build();
+            return Response.status(Response.Status.CONFLICT)
+                    .entity(page("A run is already running."))
+                    .build();
         }
         return Response.seeOther(URI.create("/system")).build();
     }
 
     private TemplateInstance page(String notice) {
         SystemStatus status = system.status();
-        return Templates.system(status, status.lastRun() == null ? null : text(status.lastRun()),
-                status.nextRun() == null ? null : moment(status.nextRun()), notice);
+        return Templates.system(
+                status,
+                status.lastRun() == null ? null : text(status.lastRun()),
+                status.nextRun() == null ? null : moment(status.nextRun()),
+                notice);
     }
 
     private static LastRunText text(LastRun run) {
-        return new LastRunText(moment(run.started()), moment(run.ended()),
+        return new LastRunText(
+                moment(run.started()),
+                moment(run.ended()),
                 count(run.torrentsRemoved(), "torrent") + " in " + count(run.groupsRemoved(), "group"),
                 OrphansPage.size(run.spaceFreedBytes()));
     }

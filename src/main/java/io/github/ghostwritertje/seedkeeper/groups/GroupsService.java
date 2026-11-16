@@ -39,10 +39,10 @@ public class GroupsService {
     public List<GroupVerdict> groups() {
         try {
             TransmissionSession session = transmission.session();
-            Snapshot snapshot = SnapshotBuilder.build(transmission.torrents(), session.incompleteDir(),
-                    config.libraryRoots());
-            return Decide.decide(snapshot, TrackerRules.of(config), overrides.overrides(),
-                    ZonedDateTime.now(config.timeZone()));
+            Snapshot snapshot =
+                    SnapshotBuilder.build(transmission.torrents(), session.incompleteDir(), config.libraryRoots());
+            return Decide.decide(
+                    snapshot, TrackerRules.of(config), overrides.overrides(), ZonedDateTime.now(config.timeZone()));
         } catch (TransmissionException | SnapshotException | OverridesException e) {
             throw new GroupsUnavailable(e.getMessage(), e);
         }

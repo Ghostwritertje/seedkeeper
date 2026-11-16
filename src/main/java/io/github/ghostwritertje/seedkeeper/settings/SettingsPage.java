@@ -27,17 +27,24 @@ public class SettingsPage {
     }
 
     /** The configuration, as text ready to show. It holds no secret value. */
-    public record Settings(String schedule, String timeZone, String transmissionUrl, String downloadsRoot,
-            List<String> libraryRoots, String dataDir, String defaultMinimumSeedTime, List<Tracker> trackers,
-            boolean hasPublicTracker, String username, List<Secret> secrets) {
-    }
+    public record Settings(
+            String schedule,
+            String timeZone,
+            String transmissionUrl,
+            String downloadsRoot,
+            List<String> libraryRoots,
+            String dataDir,
+            String defaultMinimumSeedTime,
+            List<Tracker> trackers,
+            boolean hasPublicTracker,
+            String username,
+            List<Secret> secrets) {}
 
     /**
      * @param hosts           the announce hosts, comma-separated; for the public tracker, which torrents it gets
      * @param minimumSeedTime the minimum that applies, marked "(default)" when the tracker sets none of its own
      */
-    public record Tracker(String name, String hosts, String minimumSeedTime) {
-    }
+    public record Tracker(String name, String hosts, String minimumSeedTime) {}
 
     /**
      * @param variable the environment variable the secret comes from
@@ -53,7 +60,8 @@ public class SettingsPage {
     private final SeedkeeperConfig config;
     private final Optional<String> sessionEncryptionKey;
 
-    SettingsPage(SeedkeeperConfig config,
+    SettingsPage(
+            SeedkeeperConfig config,
             @ConfigProperty(name = "quarkus.http.auth.session.encryption-key") Optional<String> sessionEncryptionKey) {
         this.config = config;
         this.sessionEncryptionKey = sessionEncryptionKey;
@@ -62,19 +70,33 @@ public class SettingsPage {
     @GET
     @Produces(MediaType.TEXT_HTML)
     public TemplateInstance settings() {
-        return Templates.settings(new Settings(config.schedule(), config.timeZone().getId(),
-                io.github.ghostwritertje.seedkeeper.transmission.TransmissionClient
-                        .withoutUserInfo(config.transmission().url()).toString(), config.downloadsRoot().toString(),
-                config.libraryRoots().stream().map(Object::toString).toList(), config.dataDir().toString(),
-                StatusText.duration(config.defaultMinimumSeedTime()), trackers(),
-                config.publicTracker().isPresent(), config.auth().username(), secrets()));
+        return Templates.settings(new Settings(
+                config.schedule(),
+                config.timeZone().getId(),
+                io.github.ghostwritertje.seedkeeper.transmission.TransmissionClient.withoutUserInfo(
+                                config.transmission().url())
+                        .toString(),
+                config.downloadsRoot().toString(),
+                config.libraryRoots().stream().map(Object::toString).toList(),
+                config.dataDir().toString(),
+                StatusText.duration(config.defaultMinimumSeedTime()),
+                trackers(),
+                config.publicTracker().isPresent(),
+                config.auth().username(),
+                secrets()));
     }
 
     private List<Secret> secrets() {
         return List.of(
-                Secret.of("SEEDKEEPER_TRANSMISSION_USERNAME", Optional.ofNullable(config.transmission().username())),
-                Secret.of("SEEDKEEPER_TRANSMISSION_PASSWORD", Optional.ofNullable(config.transmission().password())),
-                Secret.of("SEEDKEEPER_AUTH_PASSWORD", Optional.ofNullable(config.auth().password())),
+                Secret.of(
+                        "SEEDKEEPER_TRANSMISSION_USERNAME",
+                        Optional.ofNullable(config.transmission().username())),
+                Secret.of(
+                        "SEEDKEEPER_TRANSMISSION_PASSWORD",
+                        Optional.ofNullable(config.transmission().password())),
+                Secret.of(
+                        "SEEDKEEPER_AUTH_PASSWORD",
+                        Optional.ofNullable(config.auth().password())),
                 Secret.of("SEEDKEEPER_API_KEY", Optional.ofNullable(config.apiKey())),
                 Secret.of("QUARKUS_HTTP_AUTH_SESSION_ENCRYPTION_KEY", sessionEncryptionKey));
     }
@@ -86,12 +108,14 @@ public class SettingsPage {
         List<Tracker> trackers = new ArrayList<>();
         rules.managed().stream()
                 .sorted(Comparator.comparing(ManagedTracker::name))
-                .map(tracker -> new Tracker(tracker.name(), String.join(", ", tracker.hosts()),
+                .map(tracker -> new Tracker(
+                        tracker.name(),
+                        String.join(", ", tracker.hosts()),
                         tracker.minimumSeedTime().map(StatusText::duration).orElse(defaultMinimum)))
                 .forEach(trackers::add);
         rules.publicMinimumSeedTime()
-                .map(minimum -> new Tracker(TrackerRules.PUBLIC, "Every torrent that is not private",
-                        StatusText.duration(minimum)))
+                .map(minimum -> new Tracker(
+                        TrackerRules.PUBLIC, "Every torrent that is not private", StatusText.duration(minimum)))
                 .ifPresent(trackers::add);
         return trackers;
     }

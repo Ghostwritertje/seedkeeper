@@ -13,7 +13,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class RequiredSecrets {
 
-    void check(@Observes StartupEvent start,
+    void check(
+            @Observes StartupEvent start,
             @ConfigProperty(name = "quarkus.http.auth.session.encryption-key") Optional<String> sessionEncryptionKey) {
         if (sessionEncryptionKey.filter(key -> !key.isBlank()).isEmpty()) {
             throw new IllegalStateException("The session encryption key is missing:"

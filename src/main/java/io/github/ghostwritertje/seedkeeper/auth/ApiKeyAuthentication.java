@@ -49,9 +49,10 @@ public class ApiKeyAuthentication implements HttpAuthenticationMechanism {
         if (!Secrets.same(key, config.apiKey())) {
             return Uni.createFrom().failure(new AuthenticationFailedException());
         }
-        return Uni.createFrom().item(QuarkusSecurityIdentity.builder()
-                .setPrincipal(new QuarkusPrincipal("api-key"))
-                .build());
+        return Uni.createFrom()
+                .item(QuarkusSecurityIdentity.builder()
+                        .setPrincipal(new QuarkusPrincipal("api-key"))
+                        .build());
     }
 
     @Override

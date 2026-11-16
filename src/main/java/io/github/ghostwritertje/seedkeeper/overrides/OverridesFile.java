@@ -23,8 +23,7 @@ import org.yaml.snakeyaml.resolver.Resolver;
 /** The text of {@code overrides.yaml} (spec §7): from YAML to overrides and back. No I/O. */
 final class OverridesFile {
 
-    private OverridesFile() {
-    }
+    private OverridesFile() {}
 
     /**
      * @throws Unreadable with what is wrong, when the text is not an overrides file
@@ -34,7 +33,8 @@ final class OverridesFile {
         try {
             document = textOnly().load(yaml);
         } catch (YAMLException e) {
-            throw new Unreadable("it is not valid YAML: " + e.getMessage().lines().findFirst().orElse(""));
+            throw new Unreadable("it is not valid YAML: "
+                    + e.getMessage().lines().findFirst().orElse(""));
         }
         if (document == null) {
             return List.of();
@@ -54,8 +54,7 @@ final class OverridesFile {
         for (int i = 0; i < items.size(); i++) {
             KeepOverride override = override(items.get(i), "override " + (i + 1));
             if (!ids.add(override.id())) {
-                throw new Unreadable("override " + (i + 1) + " has the same 'id' as an earlier one: "
-                        + override.id());
+                throw new Unreadable("override " + (i + 1) + " has the same 'id' as an earlier one: " + override.id());
             }
             overrides.add(override);
         }
@@ -74,11 +73,14 @@ final class OverridesFile {
         if (!blank(hashList) && !(hashList instanceof List<?>)) {
             throw new Unreadable(named + ": 'hashes' is not a list");
         }
-        List<String> hashes = blank(hashList) ? List.of() : ((List<?>) hashList).stream()
-                .filter(hash -> hash instanceof String text && !text.isBlank())
-                .map(hash -> ((String) hash).trim().toLowerCase(Locale.ROOT))
-                .distinct()
-                .toList();
+        List<String> hashes = blank(hashList)
+                ? List.of()
+                : ((List<?>) hashList)
+                        .stream()
+                                .filter(hash -> hash instanceof String text && !text.isBlank())
+                                .map(hash -> ((String) hash).trim().toLowerCase(Locale.ROOT))
+                                .distinct()
+                                .toList();
         if (hashes.isEmpty()) {
             throw new Unreadable(named + " has no 'hashes'");
         }
@@ -86,8 +88,12 @@ final class OverridesFile {
         if (note != null && !(note instanceof String)) {
             throw new Unreadable(named + ": 'note' is not text");
         }
-        return new KeepOverride(id.trim(), hashes, note == null ? "" : (String) note,
-                date(fields.get("until"), named), dateTime(fields.get("created"), named));
+        return new KeepOverride(
+                id.trim(),
+                hashes,
+                note == null ? "" : (String) note,
+                date(fields.get("until"), named),
+                dateTime(fields.get("created"), named));
     }
 
     private static Optional<LocalDate> date(Object value, String named) {
@@ -108,15 +114,14 @@ final class OverridesFile {
         try {
             return Optional.of(OffsetDateTime.parse(value.toString().trim()));
         } catch (DateTimeParseException e) {
-            throw new Unreadable(named + ": 'created' is not a date and time like 2026-11-20T10:12:00+01:00: "
-                    + value);
+            throw new Unreadable(named + ": 'created' is not a date and time like 2026-11-20T10:12:00+01:00: " + value);
         }
     }
 
     /** A key that is absent, or present without a value. */
     private static boolean blank(Object value) {
-        return value == null || value instanceof String text && (text.isBlank() || text.equals("~")
-                || text.equals("null"));
+        return value == null
+                || value instanceof String text && (text.isBlank() || text.equals("~") || text.equals("null"));
     }
 
     /**
@@ -145,12 +150,17 @@ final class OverridesFile {
         for (KeepOverride override : overrides) {
             yaml.append("  - id: ").append(quoted(override.id())).append('\n');
             yaml.append("    hashes: [")
-                    .append(override.hashes().stream().map(OverridesFile::quoted).collect(Collectors.joining(", ")))
+                    .append(override.hashes().stream()
+                            .map(OverridesFile::quoted)
+                            .collect(Collectors.joining(", ")))
                     .append("]\n");
             yaml.append("    note: ").append(quoted(override.note())).append('\n');
-            override.until().ifPresent(until -> yaml.append("    until: ").append(until).append('\n'));
-            override.created().ifPresent(created -> yaml.append("    created: ")
-                    .append(DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(created)).append('\n'));
+            override.until()
+                    .ifPresent(until -> yaml.append("    until: ").append(until).append('\n'));
+            override.created()
+                    .ifPresent(created -> yaml.append("    created: ")
+                            .append(DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(created))
+                            .append('\n'));
         }
         return yaml.toString();
     }

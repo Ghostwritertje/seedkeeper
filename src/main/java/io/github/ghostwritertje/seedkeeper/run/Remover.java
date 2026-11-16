@@ -64,12 +64,18 @@ public final class Remover {
                     .toList();
         } catch (TransmissionException e) {
             // Never the torrent list from before the removal: a torrent added since would lose its data.
-            return new Removal(reason, torrents, removed, Optional.of("Removed from Transmission, but the torrent"
-                    + " list could not be read again after " + READS + " tries (" + e.reason() + "): what the removed"
-                    + " torrents leave behind on disk is now an orphan"), Deleted.NOTHING);
+            return new Removal(
+                    reason,
+                    torrents,
+                    removed,
+                    Optional.of("Removed from Transmission, but the torrent"
+                            + " list could not be read again after " + READS + " tries (" + e.reason()
+                            + "): what the removed"
+                            + " torrents leave behind on disk is now an orphan"),
+                    Deleted.NOTHING);
         }
-        return new Removal(reason, torrents, removed, Optional.empty(),
-                deletion.delete(removed, remaining, incompleteDir));
+        return new Removal(
+                reason, torrents, removed, Optional.empty(), deletion.delete(removed, remaining, incompleteDir));
     }
 
     /** Reads the torrent list, and tries again a few times, waiting longer each time, when that fails. */

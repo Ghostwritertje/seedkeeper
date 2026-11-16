@@ -27,7 +27,10 @@ public class ScheduledRun {
         this.scheduler = scheduler;
     }
 
-    @Scheduled(identity = JOB, cron = "${seedkeeper.schedule}", timeZone = "${seedkeeper.time-zone}",
+    @Scheduled(
+            identity = JOB,
+            cron = "${seedkeeper.schedule}",
+            timeZone = "${seedkeeper.time-zone}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     @RunOnVirtualThread
     void start() {

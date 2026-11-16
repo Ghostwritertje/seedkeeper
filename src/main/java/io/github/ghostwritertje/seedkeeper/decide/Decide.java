@@ -1,12 +1,12 @@
 package io.github.ghostwritertje.seedkeeper.decide;
 
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict.Member;
+import io.github.ghostwritertje.seedkeeper.overrides.KeepOverride;
 import io.github.ghostwritertje.seedkeeper.snapshot.FileId;
 import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot;
 import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot.SnapshotTorrent;
 import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot.WantedFile;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
-import io.github.ghostwritertje.seedkeeper.overrides.KeepOverride;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
@@ -34,8 +34,7 @@ public final class Decide {
     /** Transmission's error number for a local error, such as files it can't read or write. */
     private static final int LOCAL_ERROR = 3;
 
-    private Decide() {
-    }
+    private Decide() {}
 
     /** The verdicts when there are no keep overrides. */
     public static List<GroupVerdict> decide(Snapshot snapshot, TrackerRules trackers, ZonedDateTime now) {
@@ -57,8 +56,8 @@ public final class Decide {
      * @param now       the moment of the snapshot, in the configured time zone; the forecast counts from it and the
      *                  end date of an override is a date in its zone
      */
-    public static List<GroupVerdict> decide(Snapshot snapshot, TrackerRules trackers, List<KeepOverride> overrides,
-            ZonedDateTime now) {
+    public static List<GroupVerdict> decide(
+            Snapshot snapshot, TrackerRules trackers, List<KeepOverride> overrides, ZonedDateTime now) {
         Map<SnapshotTorrent, Integer> position = new IdentityHashMap<>();
         snapshot.torrents().forEach(torrent -> position.put(torrent, position.size()));
 
@@ -68,12 +67,10 @@ public final class Decide {
 
         Map<Integer, GroupVerdict> verdicts = new TreeMap<>();
         for (SnapshotTorrent alone : byRule1.get(true)) {
-            verdicts.put(position.get(alone), decide(List.of(alone), true, snapshot, trackers,
-                    overrides, now));
+            verdicts.put(position.get(alone), decide(List.of(alone), true, snapshot, trackers, overrides, now));
         }
         for (List<SnapshotTorrent> group : rest.groups()) {
-            verdicts.put(position.get(group.getFirst()), decide(group, false, snapshot, trackers,
-                    overrides, now));
+            verdicts.put(position.get(group.getFirst()), decide(group, false, snapshot, trackers, overrides, now));
         }
         return List.copyOf(verdicts.values());
     }
@@ -85,8 +82,10 @@ public final class Decide {
 
     /** Unregistered and not verifying: removed when managed, a secondary reason when not. */
     private static boolean unregistered(Torrent torrent) {
-        return !verifying(torrent) && TrackerError.of(torrent.error(), torrent.errorString())
-                .filter(TrackerError::unregistered).isPresent();
+        return !verifying(torrent)
+                && TrackerError.of(torrent.error(), torrent.errorString())
+                        .filter(TrackerError::unregistered)
+                        .isPresent();
     }
 
     private static Optional<Tracker> attribute(Torrent torrent, TrackerRules trackers) {
@@ -96,9 +95,15 @@ public final class Decide {
     /**
      * @param unregistered true when the group is one unregistered torrent that left its group
      */
-    private static GroupVerdict decide(List<SnapshotTorrent> group, boolean unregistered, Snapshot snapshot,
-            TrackerRules trackers, List<KeepOverride> overrides, ZonedDateTime now) {
-        List<Member> members = group.stream().map(member -> member(member.torrent(), trackers)).toList();
+    private static GroupVerdict decide(
+            List<SnapshotTorrent> group,
+            boolean unregistered,
+            Snapshot snapshot,
+            TrackerRules trackers,
+            List<KeepOverride> overrides,
+            ZonedDateTime now) {
+        List<Member> members =
+                group.stream().map(member -> member(member.torrent(), trackers)).toList();
 
         // A file that several members share is one file; a file that resolves to nothing is counted per member.
         Set<FileId> seen = new HashSet<>();
@@ -151,15 +156,24 @@ public final class Decide {
         if (members.stream().anyMatch(member -> !member.remaining().isZero())) {
             holding.add(Reason.MINIMUM_NOT_REACHED);
         }
-        Reason reason = holding.stream().filter(held -> unregistered || held != Reason.UNREGISTERED).findFirst()
+        Reason reason = holding.stream()
+                .filter(held -> unregistered || held != Reason.UNREGISTERED)
+                .findFirst()
                 .orElse(Reason.ALL_MET);
         Optional<Forecast> forecast = switch (reason) {
             case MINIMUM_NOT_REACHED -> Optional.of(forecast(members, now));
             case KEEP_OVERRIDE -> endDate(keeping).map(Forecast::until);
             default -> Optional.empty();
         };
-        return new GroupVerdict(members, reason.verdict(), reason, libraryLinks, files.size(), forecast,
-                holding.stream().filter(held -> held != reason).toList(), missingFiles);
+        return new GroupVerdict(
+                members,
+                reason.verdict(),
+                reason,
+                libraryLinks,
+                files.size(),
+                forecast,
+                holding.stream().filter(held -> held != reason).toList(),
+                missingFiles);
     }
 
     /** The date the overrides keep the group until: the latest end date; empty when one of them never ends. */
@@ -175,8 +189,12 @@ public final class Decide {
     }
 
     private static Member member(Torrent torrent, TrackerRules trackers) {
-        return new Member(torrent.hash(), torrent.name(), attribute(torrent, trackers),
-                Duration.ofSeconds(torrent.secondsSeeding()), torrent.status(),
+        return new Member(
+                torrent.hash(),
+                torrent.name(),
+                attribute(torrent, trackers),
+                Duration.ofSeconds(torrent.secondsSeeding()),
+                torrent.status(),
                 TrackerError.of(torrent.error(), torrent.errorString()));
     }
 
@@ -185,7 +203,8 @@ public final class Decide {
      * paused: its seed time stands still.
      */
     private static Forecast forecast(List<Member> members, ZonedDateTime now) {
-        Duration largest = members.stream().map(Member::remaining).max(Duration::compareTo).orElse(Duration.ZERO);
+        Duration largest =
+                members.stream().map(Member::remaining).max(Duration::compareTo).orElse(Duration.ZERO);
         boolean setterPaused = members.stream()
                 .anyMatch(member -> member.remaining().equals(largest) && member.status() == Torrent.Status.STOPPED);
         return new Forecast(setterPaused ? Optional.empty() : Optional.of(now.plus(largest)));

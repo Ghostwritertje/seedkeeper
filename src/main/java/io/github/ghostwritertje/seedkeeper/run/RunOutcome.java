@@ -16,8 +16,13 @@ import java.util.Optional;
  * @param verdicts the verdict on every group of the snapshot; empty when the run failed
  * @param removals what was carried out, one per removal that was due, in the order of the verdicts
  */
-public record RunOutcome(ZonedDateTime started, ZonedDateTime ended, Status status, Optional<String> error,
-        List<GroupVerdict> verdicts, List<Removal> removals) {
+public record RunOutcome(
+        ZonedDateTime started,
+        ZonedDateTime ended,
+        Status status,
+        Optional<String> error,
+        List<GroupVerdict> verdicts,
+        List<Removal> removals) {
 
     public RunOutcome {
         verdicts = List.copyOf(verdicts);
@@ -55,8 +60,8 @@ public record RunOutcome(ZonedDateTime started, ZonedDateTime ended, Status stat
      *                 what they left on disk is an orphan
      * @param deleted  what was deleted on disk
      */
-    public record Removal(Reason reason, List<Torrent> torrents, List<Torrent> removed, Optional<String> error,
-            Deleted deleted) {
+    public record Removal(
+            Reason reason, List<Torrent> torrents, List<Torrent> removed, Optional<String> error, Deleted deleted) {
 
         public Removal {
             torrents = List.copyOf(torrents);
@@ -66,7 +71,8 @@ public record RunOutcome(ZonedDateTime started, ZonedDateTime ended, Status stat
 
     /** The removals carried out in full. */
     public int groupsRemoved() {
-        return (int) removals.stream().filter(removal -> removal.error().isEmpty()).count();
+        return (int)
+                removals.stream().filter(removal -> removal.error().isEmpty()).count();
     }
 
     /** The torrents Transmission removed, also those of a removal that then went wrong. */
@@ -76,11 +82,15 @@ public record RunOutcome(ZonedDateTime started, ZonedDateTime ended, Status stat
 
     /** The files and symlinks deleted by all removals together. */
     public int filesDeleted() {
-        return removals.stream().mapToInt(removal -> removal.deleted().files().size()).sum();
+        return removals.stream()
+                .mapToInt(removal -> removal.deleted().files().size())
+                .sum();
     }
 
     /** The space freed by all removals together, in bytes. */
     public long spaceFreed() {
-        return removals.stream().mapToLong(removal -> removal.deleted().spaceFreed()).sum();
+        return removals.stream()
+                .mapToLong(removal -> removal.deleted().spaceFreed())
+                .sum();
     }
 }

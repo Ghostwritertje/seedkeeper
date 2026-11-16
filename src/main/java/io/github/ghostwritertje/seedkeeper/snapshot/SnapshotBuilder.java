@@ -18,8 +18,7 @@ import java.util.Set;
 /** Reads the filesystem part of a snapshot (spec §3.1): where each wanted file is, and the library index. */
 public final class SnapshotBuilder {
 
-    private SnapshotBuilder() {
-    }
+    private SnapshotBuilder() {}
 
     /**
      * @param incompleteDir Transmission's incomplete dir; empty when it is not enabled
@@ -28,11 +27,13 @@ public final class SnapshotBuilder {
     public static Snapshot build(List<Torrent> torrents, Optional<Path> incompleteDir, List<Path> libraryRoots) {
         Set<FileId> library = libraryIndex(libraryRoots);
         List<SnapshotTorrent> resolved = torrents.stream()
-                .map(torrent -> new SnapshotTorrent(torrent, torrent.files().stream()
-                        .filter(Torrent.File::wanted)
-                        .map(file -> new WantedFile(file.name(),
-                                TorrentPaths.resolve(torrent, file, incompleteDir)))
-                        .toList()))
+                .map(torrent -> new SnapshotTorrent(
+                        torrent,
+                        torrent.files().stream()
+                                .filter(Torrent.File::wanted)
+                                .map(file ->
+                                        new WantedFile(file.name(), TorrentPaths.resolve(torrent, file, incompleteDir)))
+                                .toList()))
                 .toList();
         return new Snapshot(resolved, library);
     }
@@ -58,7 +59,9 @@ public final class SnapshotBuilder {
                 });
             } catch (IOException e) {
                 throw new SnapshotException(
-                        "Library root " + root + " can't be read (" + e.getClass().getSimpleName() + ")", e);
+                        "Library root " + root + " can't be read ("
+                                + e.getClass().getSimpleName() + ")",
+                        e);
             }
         }
         return index;

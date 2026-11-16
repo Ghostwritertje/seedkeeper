@@ -63,8 +63,8 @@ class SnapshotBuilderTest {
         Path original = file(downloads.resolve("original/movie.mkv"));
         hardlink(downloads.resolve("cross-seed/movie.mkv"), original);
 
-        Snapshot snapshot = build(torrent("a", wanted("original/movie.mkv")),
-                torrent("b", wanted("cross-seed/movie.mkv")));
+        Snapshot snapshot =
+                build(torrent("a", wanted("original/movie.mkv")), torrent("b", wanted("cross-seed/movie.mkv")));
 
         WantedFile first = snapshot.torrents().get(0).wantedFiles().get(0);
         WantedFile second = snapshot.torrents().get(1).wantedFiles().get(0);
@@ -79,8 +79,8 @@ class SnapshotBuilderTest {
         Path original = file(downloads.resolve("original/movie.mkv"));
         symlink(downloads.resolve("cross-seed/movie.mkv"), original);
 
-        Snapshot snapshot = build(torrent("a", wanted("original/movie.mkv")),
-                torrent("b", wanted("cross-seed/movie.mkv")));
+        Snapshot snapshot =
+                build(torrent("a", wanted("original/movie.mkv")), torrent("b", wanted("cross-seed/movie.mkv")));
 
         WantedFile first = snapshot.torrents().get(0).wantedFiles().get(0);
         WantedFile second = snapshot.torrents().get(1).wantedFiles().get(0);
@@ -118,8 +118,8 @@ class SnapshotBuilderTest {
         Path download = file(downloads.resolve("movie.mkv"));
         hardlink(secondLibrary.resolve("deep/down/movie.mkv"), download);
 
-        Snapshot snapshot = SnapshotBuilder.build(List.of(torrent("a", wanted("movie.mkv"))), Optional.empty(),
-                List.of(library, secondLibrary));
+        Snapshot snapshot = SnapshotBuilder.build(
+                List.of(torrent("a", wanted("movie.mkv"))), Optional.empty(), List.of(library, secondLibrary));
 
         assertTrue(snapshot.hasLibraryLink(onlyFile(snapshot)));
     }
@@ -132,8 +132,11 @@ class SnapshotBuilderTest {
 
         Snapshot snapshot = build(torrent("a", unwanted("Show/sample.mkv"), wanted("Show/episode.mkv")));
 
-        assertEquals(List.of("Show/episode.mkv"),
-                snapshot.torrents().get(0).wantedFiles().stream().map(WantedFile::name).toList());
+        assertEquals(
+                List.of("Show/episode.mkv"),
+                snapshot.torrents().get(0).wantedFiles().stream()
+                        .map(WantedFile::name)
+                        .toList());
         assertFalse(snapshot.hasLibraryLink(onlyFile(snapshot)));
     }
 
@@ -150,32 +153,46 @@ class SnapshotBuilderTest {
     void aFileInTheIncompleteDirIsFoundWhenTheIncompleteDirIsEnabled() throws IOException {
         Path inIncomplete = file(incomplete.resolve("movie.mkv"));
 
-        assertEquals(Optional.of(id(inIncomplete)),
-                onlyFile(buildWithIncompleteDir(torrent("a", wanted("movie.mkv")))).id());
-        assertEquals(Optional.empty(), onlyFile(build(torrent("a", wanted("movie.mkv")))).id());
+        assertEquals(
+                Optional.of(id(inIncomplete)),
+                onlyFile(buildWithIncompleteDir(torrent("a", wanted("movie.mkv"))))
+                        .id());
+        assertEquals(
+                Optional.empty(),
+                onlyFile(build(torrent("a", wanted("movie.mkv")))).id());
     }
 
     @Test
     void aPartFileInTheIncompleteDirIsFound() throws IOException {
         Path part = file(incomplete.resolve("movie.mkv.part"));
 
-        assertEquals(Optional.of(id(part)), onlyFile(buildWithIncompleteDir(torrent("a", wanted("movie.mkv")))).id());
+        assertEquals(
+                Optional.of(id(part)),
+                onlyFile(buildWithIncompleteDir(torrent("a", wanted("movie.mkv"))))
+                        .id());
     }
 
     @Test
     void theFirstCandidateThatExistsWins() throws IOException {
         Path inIncompletePart = file(incomplete.resolve("movie.mkv.part"));
         Torrent torrent = torrent("a", wanted("movie.mkv"));
-        assertEquals(Optional.of(id(inIncompletePart)), onlyFile(buildWithIncompleteDir(torrent)).id());
+        assertEquals(
+                Optional.of(id(inIncompletePart)),
+                onlyFile(buildWithIncompleteDir(torrent)).id());
 
         Path inIncomplete = file(incomplete.resolve("movie.mkv"));
-        assertEquals(Optional.of(id(inIncomplete)), onlyFile(buildWithIncompleteDir(torrent)).id());
+        assertEquals(
+                Optional.of(id(inIncomplete)),
+                onlyFile(buildWithIncompleteDir(torrent)).id());
 
         Path part = file(downloads.resolve("movie.mkv.part"));
-        assertEquals(Optional.of(id(part)), onlyFile(buildWithIncompleteDir(torrent)).id());
+        assertEquals(
+                Optional.of(id(part)), onlyFile(buildWithIncompleteDir(torrent)).id());
 
         Path complete = file(downloads.resolve("movie.mkv"));
-        assertEquals(Optional.of(id(complete)), onlyFile(buildWithIncompleteDir(torrent)).id());
+        assertEquals(
+                Optional.of(id(complete)),
+                onlyFile(buildWithIncompleteDir(torrent)).id());
         assertNotEquals(id(complete), id(part));
     }
 
@@ -191,14 +208,17 @@ class SnapshotBuilderTest {
     void aDanglingSymlinkResolvesToNothing() throws IOException {
         symlink(downloads.resolve("movie.mkv"), downloads.resolve("removed-original/movie.mkv"));
 
-        assertEquals(Optional.empty(), onlyFile(build(torrent("a", wanted("movie.mkv")))).id());
+        assertEquals(
+                Optional.empty(),
+                onlyFile(build(torrent("a", wanted("movie.mkv")))).id());
     }
 
     @Test
     void aLibraryRootThatIsMissingFailsTheSnapshot() {
         Path missing = root.resolve("not-mounted");
 
-        SnapshotException failure = assertThrows(SnapshotException.class,
+        SnapshotException failure = assertThrows(
+                SnapshotException.class,
                 () -> SnapshotBuilder.build(List.of(), Optional.empty(), List.of(library, missing)));
 
         assertEquals("Library root " + missing + " can't be read (NoSuchFileException)", failure.getMessage());
@@ -220,8 +240,18 @@ class SnapshotBuilderTest {
     }
 
     private Torrent torrent(String hash, Torrent.File... files) {
-        return new Torrent(hash, "Torrent " + hash, Status.SEEDING, 1.0, 0, "", 0, true, downloads.toString(),
-                List.of("https://tracker-a.example/announce"), List.of(files));
+        return new Torrent(
+                hash,
+                "Torrent " + hash,
+                Status.SEEDING,
+                1.0,
+                0,
+                "",
+                0,
+                true,
+                downloads.toString(),
+                List.of("https://tracker-a.example/announce"),
+                List.of(files));
     }
 
     private static Torrent.File wanted(String name) {

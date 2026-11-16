@@ -66,48 +66,77 @@ class RunNowTest {
         }
 
         FakeTransmissionResource.fake().reset();
-        FakeTransmissionResource.fake().torrents("[" + String.join(",",
-                torrent("due1", "RunNow.Due", 31 * DAY, downloads, "RunNow.Due/movie.mkv"),
-                torrent("linked", "RunNow.Linked", 400 * DAY, downloads, "RunNow.Linked/movie.mkv"),
-                torrent("due2", "RunNow.Due.cross-seed", 30 * DAY, downloads.resolve("RunNow.cross-seed"),
-                        "RunNow.Due/movie.mkv")) + "]");
+        FakeTransmissionResource.fake()
+                .torrents("["
+                        + String.join(
+                                ",",
+                                torrent("due1", "RunNow.Due", 31 * DAY, downloads, "RunNow.Due/movie.mkv"),
+                                torrent("linked", "RunNow.Linked", 400 * DAY, downloads, "RunNow.Linked/movie.mkv"),
+                                torrent(
+                                        "due2",
+                                        "RunNow.Due.cross-seed",
+                                        30 * DAY,
+                                        downloads.resolve("RunNow.cross-seed"),
+                                        "RunNow.Due/movie.mkv"))
+                        + "]");
     }
 
     @Test
     void runNowRemovesADueGroupDeletesItsFilesAndShowsTheOutcome() {
         Cookie session = Authenticated.login(TestSecrets.USERNAME, TestSecrets.PASSWORD);
         Response page = given().cookie(session).when().get("/system");
-        page.then().statusCode(200)
+        page.then()
+                .statusCode(200)
                 .body(RUNS + ".form.@action", is("/system/run"))
                 .body(RUNS + ".form.@method", is("post"))
                 .body(RUNS + ".form.button", is("Run now"));
 
-        Response ran = given().redirects().follow(false)
+        Response ran = given().redirects()
+                .follow(false)
                 .cookie(session)
                 .cookie(CSRF_COOKIE, page.cookie(CSRF_COOKIE))
                 .formParam("csrf-token", csrfToken(page))
-                .when().post("/system/run");
+                .when()
+                .post("/system/run");
 
         ran.then().statusCode(303).header("Location", endsWith("/system"));
         assertEquals(List.of("due1", "due2"), removalsAsked());
-        assertTrue(FakeTransmissionResource.fake().requests().stream()
-                .filter(request -> request.body().contains("\"method\":\"torrent_remove\""))
-                .allMatch(request -> request.body().contains("\"delete_local_data\":false")),
+        assertTrue(
+                FakeTransmissionResource.fake().requests().stream()
+                        .filter(request -> request.body().contains("\"method\":\"torrent_remove\""))
+                        .allMatch(request -> request.body().contains("\"delete_local_data\":false")),
                 "Transmission was asked to delete data");
         assertGone(due, dueLink, due.getParent(), dueLink.getParent());
         assertTrue(Files.exists(linked), "the file of a group with a library link was deleted");
         assertTrue(Files.exists(inLibrary), "a file in the library was deleted");
 
-        given().cookie(session).when().get("/system").then().statusCode(200)
-                .body(RUNS + ".dl.dt.collect { it.text() }", contains("Status", "Last run", "Started", "Ended",
-                        "Removed", "Files deleted", "Space freed", "Next run"))
+        given().cookie(session)
+                .when()
+                .get("/system")
+                .then()
+                .statusCode(200)
+                .body(
+                        RUNS + ".dl.dt.collect { it.text() }",
+                        contains(
+                                "Status",
+                                "Last run",
+                                "Started",
+                                "Ended",
+                                "Removed",
+                                "Files deleted",
+                                "Space freed",
+                                "Next run"))
                 .body(RUNS + ".dl.dd[0]", is("Idle"))
                 .body(RUNS + ".dl.dd[1]", is("Succeeded"))
                 .body(RUNS + ".dl.dd[2]", matchesPattern("\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"))
                 .body(RUNS + ".dl.dd[4]", is("2 torrents in 1 group"))
                 .body(RUNS + ".dl.dd[5]", is("2"))
                 .body(RUNS + ".dl.dd[6]", is("4 B"));
-        Authenticated.withApiKey().when().get("/api/v1/system").then().statusCode(200)
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/system")
+                .then()
+                .statusCode(200)
                 .body("running", is(false))
                 .body("lastRun.status", is("succeeded"))
                 .body("lastRun.error", nullValue())
@@ -127,11 +156,19 @@ class RunNowTest {
 
         assertEquals(List.of(), removalsAsked());
         assertTrue(Files.exists(due));
-        Authenticated.asUser().when().get("/system").then()
+        Authenticated.asUser()
+                .when()
+                .get("/system")
+                .then()
                 .body(RUNS + ".dl.dd[1]", is("Failed"))
-                .body(RUNS + ".p.find { it.@role == 'alert' }", is("Transmission 4.0.6 (38c164933e) is older than 4.1,"
-                        + " the oldest version seedkeeper works with"));
-        Authenticated.withApiKey().when().get("/api/v1/system").then()
+                .body(
+                        RUNS + ".p.find { it.@role == 'alert' }",
+                        is("Transmission 4.0.6 (38c164933e) is older than 4.1,"
+                                + " the oldest version seedkeeper works with"));
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/system")
+                .then()
                 .body("lastRun.status", is("failed"))
                 .body("lastRun.error", containsString("is older than 4.1"))
                 .body("lastRun.torrentsRemoved", is(0));
@@ -144,12 +181,17 @@ class RunNowTest {
         runNow().then().statusCode(303);
 
         assertTrue(Files.exists(due) && Files.isSymbolicLink(dueLink), "a file of the group that failed was deleted");
-        Authenticated.asUser().when().get("/system").then()
+        Authenticated.asUser()
+                .when()
+                .get("/system")
+                .then()
                 .body(RUNS + ".dl.dd[1]", is("Succeeded"))
                 .body(RUNS + ".dl.dd[4]", is("1 torrent in 0 groups"))
                 .body(RUNS + ".dl.dd[5]", is("0"))
-                .body(RUNS + ".ul.li[0]", matchesPattern("RunNow\\.Due, RunNow\\.Due\\.cross-seed: Transmission at .+"
-                        + " refused torrent_remove: torrent is busy\\. No files were deleted\\."));
+                .body(
+                        RUNS + ".ul.li[0]",
+                        matchesPattern("RunNow\\.Due, RunNow\\.Due\\.cross-seed: Transmission at .+"
+                                + " refused torrent_remove: torrent is busy\\. No files were deleted\\."));
     }
 
     @Test
@@ -161,7 +203,10 @@ class RunNowTest {
         CompletableFuture<Response> first = CompletableFuture.supplyAsync(() -> firstForm.post("/system/run"));
         assertTrue(hold.reached(10, TimeUnit.SECONDS), "the first run never asked Transmission for its session");
         try {
-            secondForm.post("/system/run").then().statusCode(409)
+            secondForm
+                    .post("/system/run")
+                    .then()
+                    .statusCode(409)
                     .body(RUNS + ".p.find { it.@role == 'alert' }", is("A run is already running."))
                     .body(RUNS + ".dl.dd[0]", is("Running now"));
             assertEquals(List.of(), removalsAsked());
@@ -178,12 +223,15 @@ class RunNowTest {
         Cookie session = Authenticated.login(TestSecrets.USERNAME, TestSecrets.PASSWORD);
         Response page = given().cookie(session).when().get("/system");
 
-        given().redirects().follow(false)
+        given().redirects()
+                .follow(false)
                 .cookie(session)
                 .cookie(CSRF_COOKIE, page.cookie(CSRF_COOKIE))
                 .contentType("application/x-www-form-urlencoded")
-                .when().post("/system/run")
-                .then().statusCode(400);
+                .when()
+                .post("/system/run")
+                .then()
+                .statusCode(400);
 
         assertEquals(List.of(), removalsAsked());
         assertTrue(Files.exists(due));
@@ -191,14 +239,20 @@ class RunNowTest {
 
     @Test
     void runNowIsNotInTheApi() {
-        Authenticated.withApiKey().redirects().follow(false)
+        Authenticated.withApiKey()
+                .redirects()
+                .follow(false)
                 .contentType("application/x-www-form-urlencoded")
-                .when().post("/system/run")
-                .then().statusCode(anyOf(is(302), is(400), is(401)));
+                .when()
+                .post("/system/run")
+                .then()
+                .statusCode(anyOf(is(302), is(400), is(401)));
         Authenticated.withApiKey()
                 .contentType("application/x-www-form-urlencoded")
-                .when().post("/api/v1/system/run")
-                .then().statusCode(not(anyOf(is(200), is(204), is(303))));
+                .when()
+                .post("/api/v1/system/run")
+                .then()
+                .statusCode(not(anyOf(is(200), is(204), is(303))));
 
         assertEquals(List.of(), removalsAsked());
         assertTrue(Files.exists(due));
@@ -213,7 +267,8 @@ class RunNowTest {
     private RequestSpecification runNowForm() {
         Cookie session = Authenticated.login(TestSecrets.USERNAME, TestSecrets.PASSWORD);
         Response page = given().cookie(session).when().get("/system");
-        return given().redirects().follow(false)
+        return given().redirects()
+                .follow(false)
                 .cookie(session)
                 .cookie(CSRF_COOKIE, page.cookie(CSRF_COOKIE))
                 .formParam("csrf-token", csrfToken(page));

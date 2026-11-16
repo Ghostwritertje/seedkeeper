@@ -63,11 +63,15 @@ class OverridesTest {
         file(downloads.resolve("Expired/movie.mkv"));
         file(downloads.resolve("Free/movie.mkv"));
         FakeTransmissionResource.fake().reset();
-        FakeTransmissionResource.fake().torrents("[" + String.join(",",
-                torrent("0a0a16", "Kept", "Kept/movie.mkv"),
-                torrent("0b0b16", "Kept.Elsewhere", "Kept.Elsewhere/movie.mkv"),
-                torrent("0c0c16", "Expired", "Expired/movie.mkv"),
-                torrent("0f0f16", "Free", "Free/movie.mkv")) + "]");
+        FakeTransmissionResource.fake()
+                .torrents("["
+                        + String.join(
+                                ",",
+                                torrent("0a0a16", "Kept", "Kept/movie.mkv"),
+                                torrent("0b0b16", "Kept.Elsewhere", "Kept.Elsewhere/movie.mkv"),
+                                torrent("0c0c16", "Expired", "Expired/movie.mkv"),
+                                torrent("0f0f16", "Free", "Free/movie.mkv"))
+                        + "]");
 
         file = FakeTransmissionResource.dataDir().resolve("overrides.yaml");
         edit(THREE_OVERRIDES);
@@ -84,7 +88,8 @@ class OverridesTest {
     @Test
     void apiGivesEveryOverrideMarkedActiveExpiredOrStaleWithTheGroupsItMatches() {
         Authenticated.withApiKey()
-                .when().get("/api/v1/overrides")
+                .when()
+                .get("/api/v1/overrides")
                 .then()
                 .statusCode(200)
                 .contentType("application/json")
@@ -106,7 +111,8 @@ class OverridesTest {
     @Test
     void onlyTheActiveOverrideKeepsItsGroup() {
         Authenticated.withApiKey()
-                .when().get("/api/v1/groups")
+                .when()
+                .get("/api/v1/groups")
                 .then()
                 .statusCode(200)
                 .body("reason", contains("keep-override", "all-met", "all-met"))
@@ -117,7 +123,8 @@ class OverridesTest {
                 .body("[1].forecast", nullValue());
 
         Authenticated.asUser()
-                .when().get("/groups")
+                .when()
+                .get("/groups")
                 .then()
                 .statusCode(200)
                 .body("html.body.main.table.tbody.tr[0].td[6]", is("Keep"))
@@ -130,24 +137,32 @@ class OverridesTest {
         edit("overrides:\n  - id: both\n    hashes: [0d0d16]\n    until: 2020-01-01\n");
         awaitIds("both");
 
-        Authenticated.withApiKey().when().get("/api/v1/overrides").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/overrides")
+                .then()
                 .body("[0].active", is(false))
                 .body("[0].expired", is(true))
                 .body("[0].stale", is(true));
-        Authenticated.asUser().when().get("/overrides").then()
+        Authenticated.asUser()
+                .when()
+                .get("/overrides")
+                .then()
                 .body("html.body.main.table.tbody.tr[0].td[0]", is("Expired, stale"));
     }
 
     @Test
     void pageShowsEveryOverrideWithItsStatusAndTheGroupItMatches() {
         Authenticated.asUser()
-                .when().get("/overrides")
+                .when()
+                .get("/overrides")
                 .then()
                 .statusCode(200)
                 .contentType(containsString("text/html"))
                 .body("html.head.title", is("Overrides · seedkeeper"))
-                .body("html.body.main.table.thead.tr.th", contains("Status", "Note", "Until", "Created", "Group",
-                        "Hashes", "Id", "Actions"))
+                .body(
+                        "html.body.main.table.thead.tr.th",
+                        contains("Status", "Note", "Until", "Created", "Group", "Hashes", "Id", "Actions"))
                 .body("html.body.main.table.tbody.tr.size()", is(3))
                 // The created date is shown in the configured time zone, UTC+05:30.
                 .body("html.body.main.table.tbody.tr[0].td[0]", is("Active"))
@@ -173,7 +188,8 @@ class OverridesTest {
         awaitIds();
 
         Authenticated.asUser()
-                .when().get("/overrides")
+                .when()
+                .get("/overrides")
                 .then()
                 .statusCode(200)
                 .body("html.body.main.p[0]", is("There are no keep overrides."))
@@ -186,14 +202,23 @@ class OverridesTest {
         String reason = "The overrides file " + file + " can't be read: override 1 (7f3c) has no 'hashes'";
         await(response -> response.statusCode() == 503);
 
-        Authenticated.withApiKey().when().get("/api/v1/overrides").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/overrides")
+                .then()
                 .statusCode(503)
                 .contentType("application/json")
                 .body("reason", is(reason));
-        Authenticated.withApiKey().when().get("/api/v1/groups").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/groups")
+                .then()
                 .statusCode(503)
                 .body("reason", is(reason));
-        Authenticated.asUser().when().get("/overrides").then()
+        Authenticated.asUser()
+                .when()
+                .get("/overrides")
+                .then()
                 .statusCode(200)
                 .body("html.body.main.p.find { it.@role == 'alert' }", is(reason))
                 .body("html.body.main.'**'.findAll { it.name() == 'table' }.size()", is(0));
@@ -207,7 +232,10 @@ class OverridesTest {
     void whileTransmissionCannotBeUsedTheOverridesAreListedWithTheirGroupsUnknown() {
         FakeTransmissionResource.fake().behaviour(Behaviour.RPC_ERROR);
 
-        Authenticated.withApiKey().when().get("/api/v1/overrides").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/overrides")
+                .then()
                 .statusCode(200)
                 .contentType("application/json")
                 .body("id", contains("7f3c", "9d2e", "1b5a"))
@@ -217,9 +245,13 @@ class OverridesTest {
                 .body("groups", contains(nullValue(), nullValue(), nullValue()))
                 .body("[0].groupsUnknown", containsString("refused session_get: Method not found"))
                 .body("[1].groupsUnknown", containsString("refused session_get: Method not found"));
-        Authenticated.asUser().when().get("/overrides").then()
+        Authenticated.asUser()
+                .when()
+                .get("/overrides")
+                .then()
                 .statusCode(200)
-                .body("html.body.main.p.find { it.@role == 'alert' }",
+                .body(
+                        "html.body.main.p.find { it.@role == 'alert' }",
                         containsString("refused session_get: Method not found"))
                 .body("html.body.main.table.tbody.tr.size()", is(3))
                 .body("html.body.main.table.tbody.tr[0].td[0]", is("Unknown"))
@@ -231,21 +263,37 @@ class OverridesTest {
 
     @Test
     void whenTheGroupsAreKnownNoOverrideSaysTheyAreUnknown() {
-        Authenticated.withApiKey().when().get("/api/v1/overrides").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/overrides")
+                .then()
                 .statusCode(200)
                 .body("groupsUnknown", contains(nullValue(), nullValue(), nullValue()));
     }
 
     @Test
     void theNavigationLeadsToTheOverridesView() {
-        Authenticated.asUser().when().get("/system").then()
+        Authenticated.asUser()
+                .when()
+                .get("/system")
+                .then()
                 .body("html.body.header.nav.a.find { it.@href == '/overrides' }", is("Overrides"));
     }
 
     @Test
     void theApiNeedsTheApiKeyAndThePageALogin() {
-        io.restassured.RestAssured.given().when().get("/api/v1/overrides").then().statusCode(401);
-        io.restassured.RestAssured.given().redirects().follow(false).when().get("/overrides").then().statusCode(302);
+        io.restassured.RestAssured.given()
+                .when()
+                .get("/api/v1/overrides")
+                .then()
+                .statusCode(401);
+        io.restassured.RestAssured.given()
+                .redirects()
+                .follow(false)
+                .when()
+                .get("/overrides")
+                .then()
+                .statusCode(302);
     }
 
     /** A hand edit: the file is overwritten where it is, as an editor would. */
@@ -255,7 +303,8 @@ class OverridesTest {
 
     /** Waits until the application has read the file and gives the overrides with these ids, in this order. */
     private static void awaitIds(String... ids) throws InterruptedException {
-        await(response -> response.statusCode() == 200 && response.jsonPath().getList("id").equals(List.of(ids)));
+        await(response -> response.statusCode() == 200
+                && response.jsonPath().getList("id").equals(List.of(ids)));
     }
 
     /** The file watcher of the JDK polls on macOS, so this can take a few seconds. */

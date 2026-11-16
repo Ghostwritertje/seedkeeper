@@ -14,22 +14,25 @@ import java.util.Set;
  *
  * @param publicMinimumSeedTime the minimum of the {@code public} entry; empty when the config has none
  */
-public record TrackerRules(List<ManagedTracker> managed, Duration defaultMinimumSeedTime,
-        Optional<Duration> publicMinimumSeedTime) {
+public record TrackerRules(
+        List<ManagedTracker> managed, Duration defaultMinimumSeedTime, Optional<Duration> publicMinimumSeedTime) {
 
     /** The name the public tracker goes by. */
     public static final String PUBLIC = "public";
 
     /** A tracker of the config: its announce hosts and, when it has one of its own, its minimum seed time. */
-    public record ManagedTracker(String name, List<String> hosts, Optional<Duration> minimumSeedTime) {
-    }
+    public record ManagedTracker(String name, List<String> hosts, Optional<Duration> minimumSeedTime) {}
 
     public static TrackerRules of(SeedkeeperConfig config) {
         List<ManagedTracker> managed = config.trackers().entrySet().stream()
-                .map(entry -> new ManagedTracker(entry.getKey(), entry.getValue().hosts(),
+                .map(entry -> new ManagedTracker(
+                        entry.getKey(),
+                        entry.getValue().hosts(),
                         entry.getValue().minimumSeedTime()))
                 .toList();
-        return new TrackerRules(managed, config.defaultMinimumSeedTime(),
+        return new TrackerRules(
+                managed,
+                config.defaultMinimumSeedTime(),
                 config.publicTracker().map(SeedkeeperConfig.PublicTracker::minimumSeedTime));
     }
 
@@ -44,15 +47,16 @@ public record TrackerRules(List<ManagedTracker> managed, Duration defaultMinimum
         for (String url : announceUrls) {
             String host = host(url);
             List<ManagedTracker> owners = managed.stream()
-                    .filter(tracker -> tracker.hosts().stream().anyMatch(h -> h.trim().equalsIgnoreCase(host)))
+                    .filter(tracker ->
+                            tracker.hosts().stream().anyMatch(h -> h.trim().equalsIgnoreCase(host)))
                     .toList();
             matched.addAll(owners);
             allHostsManaged &= !owners.isEmpty();
         }
         if (allHostsManaged && matched.size() == 1) {
             ManagedTracker tracker = matched.iterator().next();
-            return Optional.of(new Tracker(tracker.name(),
-                    tracker.minimumSeedTime().orElse(defaultMinimumSeedTime)));
+            return Optional.of(
+                    new Tracker(tracker.name(), tracker.minimumSeedTime().orElse(defaultMinimumSeedTime)));
         }
         if (!isPrivate && publicMinimumSeedTime.isPresent()) {
             return Optional.of(new Tracker(PUBLIC, publicMinimumSeedTime.get()));

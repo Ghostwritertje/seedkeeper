@@ -24,8 +24,8 @@ public class TransmissionReadiness implements HealthCheck {
     @Override
     public HealthCheckResponse call() {
         TransmissionStatus transmission = system.transmission();
-        HealthCheckResponseBuilder response = HealthCheckResponse.named("Transmission")
-                .status(transmission.reachable());
+        HealthCheckResponseBuilder response =
+                HealthCheckResponse.named("Transmission").status(transmission.reachable());
         if (transmission.version() != null) {
             response.withData("version", transmission.version());
         }

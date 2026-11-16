@@ -56,9 +56,14 @@ public class GroupsPage {
      *                         end date of a keep override), or empty
      * @param hashes           the info hashes of the members, for the form that sets a keep override
      */
-    public record Group(String verdict, String reason, String secondaryReasons, String libraryLinks, String forecast,
-            List<Member> members, List<String> hashes) {
-    }
+    public record Group(
+            String verdict,
+            String reason,
+            String secondaryReasons,
+            String libraryLinks,
+            String forecast,
+            List<Member> members,
+            List<String> hashes) {}
 
     /**
      * The filter form: every verdict and every reason, with the chosen ones selected.
@@ -77,8 +82,7 @@ public class GroupsPage {
     }
 
     /** One choice of a filter: the code that goes in the URL and the label to show. */
-    public record Option(String code, String label, boolean selected) {
-    }
+    public record Option(String code, String label, boolean selected) {}
 
     /**
      * @param tracker  "unmanaged" when the torrent has no tracker
@@ -86,8 +90,7 @@ public class GroupsPage {
      * @param trackerMessage "Unregistered: Unregistered torrent", "Tracker error: Passkey does not exist!", or
      *                       empty when the tracker reports nothing wrong
      */
-    public record Member(String name, String tracker, String seedTime, String status, String trackerMessage) {
-    }
+    public record Member(String name, String tracker, String seedTime, String status, String trackerMessage) {}
 
     private final GroupsService groups;
     private final OverridesService overrides;
@@ -121,9 +124,12 @@ public class GroupsPage {
             overrides.add(hash == null ? List.of() : hash, note, OverridesPage.date(until));
             return Response.seeOther(URI.create("/groups")).build();
         } catch (InvalidOverride e) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(page(null, null, e.getMessage())).build();
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(page(null, null, e.getMessage()))
+                    .build();
         } catch (OverridesException e) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(page(null, null, e.getMessage()))
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                    .entity(page(null, null, e.getMessage()))
                     .build();
         }
     }
@@ -136,8 +142,14 @@ public class GroupsPage {
             return Templates.groups(List.of(), filter(GroupsFilter.NONE), e.getMessage(), notice);
         }
         try {
-            return Templates.groups(groups.groups().stream().filter(filter::matches).map(GroupsPage::group).toList(),
-                    filter(filter), null, notice);
+            return Templates.groups(
+                    groups.groups().stream()
+                            .filter(filter::matches)
+                            .map(GroupsPage::group)
+                            .toList(),
+                    filter(filter),
+                    null,
+                    notice);
         } catch (GroupsUnavailable e) {
             return Templates.groups(List.of(), filter(filter), e.getMessage(), notice);
         }
@@ -146,10 +158,16 @@ public class GroupsPage {
     private static Filter filter(GroupsFilter filter) {
         return new Filter(
                 Stream.of(Verdict.values())
-                        .map(v -> new Option(v.code(), v.label(), filter.verdict().filter(v::equals).isPresent()))
+                        .map(v -> new Option(
+                                v.code(),
+                                v.label(),
+                                filter.verdict().filter(v::equals).isPresent()))
                         .toList(),
                 Stream.of(Reason.values())
-                        .map(r -> new Option(r.code(), r.label(), filter.reason().filter(r::equals).isPresent()))
+                        .map(r -> new Option(
+                                r.code(),
+                                r.label(),
+                                filter.reason().filter(r::equals).isPresent()))
                         .toList(),
                 filter.active());
     }
@@ -157,12 +175,17 @@ public class GroupsPage {
     private static Group group(GroupVerdict group) {
         String libraryLinks = group.libraryLinks() + " of " + group.files() + " files";
         String forecast = group.forecast()
-                .map(f -> f.until().map(endDate -> "until " + endDate)
+                .map(f -> f.until()
+                        .map(endDate -> "until " + endDate)
                         .orElseGet(() -> f.date().map(FORECAST_DATE::format).orElse("clock stopped (paused)")))
                 .orElse("");
-        return new Group(group.verdict().label(), reason(group.reason(), group),
+        return new Group(
+                group.verdict().label(),
+                reason(group.reason(), group),
                 group.secondaryReasons().stream().map(r -> reason(r, group)).collect(Collectors.joining(", ")),
-                libraryLinks, forecast, group.members().stream().map(GroupsPage::member).toList(),
+                libraryLinks,
+                forecast,
+                group.members().stream().map(GroupsPage::member).toList(),
                 group.members().stream().map(GroupVerdict.Member::hash).toList());
     }
 
@@ -177,8 +200,11 @@ public class GroupsPage {
 
     private static Member member(GroupVerdict.Member member) {
         String seedTime = StatusText.duration(member.seedTime());
-        return new Member(member.name(), member.tracker().map(Tracker::name).orElse("unmanaged"),
-                member.tracker().map(tracker -> seedTime + " / " + StatusText.duration(tracker.minimumSeedTime()))
+        return new Member(
+                member.name(),
+                member.tracker().map(Tracker::name).orElse("unmanaged"),
+                member.tracker()
+                        .map(tracker -> seedTime + " / " + StatusText.duration(tracker.minimumSeedTime()))
                         .orElse(seedTime),
                 StatusText.label(member.status()),
                 member.trackerError().map(GroupsPage::trackerMessage).orElse(""));

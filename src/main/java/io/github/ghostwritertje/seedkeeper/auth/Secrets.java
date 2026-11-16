@@ -7,8 +7,7 @@ import java.security.NoSuchAlgorithmException;
 /** Comparing what a caller presents with a secret. */
 final class Secrets {
 
-    private Secrets() {
-    }
+    private Secrets() {}
 
     /**
      * Whether the two are equal, in a time that doesn't depend on where they differ or on their lengths: both are

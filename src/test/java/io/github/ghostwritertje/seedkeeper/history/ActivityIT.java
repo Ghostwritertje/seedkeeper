@@ -7,5 +7,4 @@ import io.quarkus.test.junit.QuarkusIntegrationTest;
  * native executable.
  */
 @QuarkusIntegrationTest
-class ActivityIT extends ActivityTest {
-}
+class ActivityIT extends ActivityTest {}

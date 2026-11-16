@@ -37,8 +37,18 @@ class RemoverTest {
         movie = downloads.resolve("Movie/movie.mkv");
         Files.createDirectories(movie.getParent());
         Files.writeString(movie, "data");
-        torrent = new Torrent("a", "Movie", Torrent.Status.SEEDING, 1, 0, "", 0, true, downloads.toString(),
-                List.of(), List.of(new Torrent.File("Movie/movie.mkv", 4, true)));
+        torrent = new Torrent(
+                "a",
+                "Movie",
+                Torrent.Status.SEEDING,
+                1,
+                0,
+                "",
+                0,
+                true,
+                downloads.toString(),
+                List.of(),
+                List.of(new Torrent.File("Movie/movie.mkv", 4, true)));
         transmission.add(torrent);
     }
 
@@ -61,9 +71,11 @@ class RemoverTest {
 
         assertEquals(List.of("a"), transmission.removed());
         assertEquals(List.of(torrent), removal.removed());
-        assertEquals(Optional.of("Removed from Transmission, but the torrent list could not be read again after 4"
-                + " tries (Transmission does not answer torrent_get): what the removed"
-                + " torrents leave behind on disk is now an orphan"), removal.error());
+        assertEquals(
+                Optional.of("Removed from Transmission, but the torrent list could not be read again after 4"
+                        + " tries (Transmission does not answer torrent_get): what the removed"
+                        + " torrents leave behind on disk is now an orphan"),
+                removal.error());
         assertEquals(List.of(), removal.deleted().files());
         assertTrue(Files.exists(movie));
     }

@@ -41,8 +41,13 @@ public class SystemService {
     private final Path downloadsRoot;
     private final String version;
 
-    SystemService(Transmission transmission, RunService runs, ScheduledRun schedule, HistoryKeeper history,
-            SeedkeeperConfig config, @ConfigProperty(name = "quarkus.application.version") String version) {
+    SystemService(
+            Transmission transmission,
+            RunService runs,
+            ScheduledRun schedule,
+            HistoryKeeper history,
+            SeedkeeperConfig config,
+            @ConfigProperty(name = "quarkus.application.version") String version) {
         this.transmission = transmission;
         this.runs = runs;
         this.schedule = schedule;
@@ -53,9 +58,13 @@ public class SystemService {
     }
 
     public SystemStatus status() {
-        return new SystemStatus(version, transmission(), runs.running(),
+        return new SystemStatus(
+                version,
+                transmission(),
+                runs.running(),
                 // Until the first run since the start: the last one of the history.
-                runs.lastRun().map(this::lastRun)
+                runs.lastRun()
+                        .map(this::lastRun)
                         .or(() -> history.lastRecordedRun().map(this::lastRun))
                         .orElse(null),
                 schedule.next().map(next -> iso(next.atZone(timeZone))).orElse(null));
@@ -65,7 +74,10 @@ public class SystemService {
     public TransmissionStatus transmission() {
         try {
             TransmissionSession session = transmission.session();
-            return new TransmissionStatus(true, session.version(), null,
+            return new TransmissionStatus(
+                    true,
+                    session.version(),
+                    null,
                     session.incompleteDir().flatMap(this::incompleteDirWarning).orElse(null));
         } catch (TransmissionException e) {
             return new TransmissionStatus(e.reachable(), e.version(), e.reason(), null);
@@ -108,11 +120,23 @@ public class SystemService {
         for (Removal removal : run.removals()) {
             String names = removal.torrents().stream().map(Torrent::name).collect(Collectors.joining(", "));
             List<Path> refused = removal.deleted().refused();
-            removalErrors(removalErrors, names, removal.error(), refused.size(),
+            removalErrors(
+                    removalErrors,
+                    names,
+                    removal.error(),
+                    refused.size(),
                     refused.isEmpty() ? "" : ", such as " + refused.getFirst());
         }
-        return new LastRun(iso(run.started()), iso(run.ended()), run.status().code(), run.error().orElse(null),
-                run.groupsRemoved(), run.torrentsRemoved(), run.filesDeleted(), run.spaceFreed(), removalErrors);
+        return new LastRun(
+                iso(run.started()),
+                iso(run.ended()),
+                run.status().code(),
+                run.error().orElse(null),
+                run.groupsRemoved(),
+                run.torrentsRemoved(),
+                run.filesDeleted(),
+                run.spaceFreed(),
+                removalErrors);
     }
 
     /** A run of the history: the same, but it knows only how many paths were refused, not which. */
@@ -122,12 +146,20 @@ public class SystemService {
             String names = removal.members().stream().map(RecordedMember::name).collect(Collectors.joining(", "));
             removalErrors(removalErrors, names, removal.error(), removal.pathsRefused(), "");
         }
-        return new LastRun(iso(run.started()), iso(run.ended()), run.status(), run.error().orElse(null),
-                run.groupsRemoved(), run.torrentsRemoved(), run.filesDeleted(), run.spaceFreed(), removalErrors);
+        return new LastRun(
+                iso(run.started()),
+                iso(run.ended()),
+                run.status(),
+                run.error().orElse(null),
+                run.groupsRemoved(),
+                run.torrentsRemoved(),
+                run.filesDeleted(),
+                run.spaceFreed(),
+                removalErrors);
     }
 
-    private static void removalErrors(List<String> lines, String names, Optional<String> error,
-            int refused, String example) {
+    private static void removalErrors(
+            List<String> lines, String names, Optional<String> error, int refused, String example) {
         error.ifPresent(reason -> lines.add(names + ": " + reason + ". No files were deleted."));
         if (refused > 0) {
             lines.add(names + ": " + refused + (refused == 1 ? " path was" : " paths were")

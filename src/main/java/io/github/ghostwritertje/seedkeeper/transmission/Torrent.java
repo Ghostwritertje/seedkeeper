@@ -12,8 +12,18 @@ import java.util.List;
  * @param downloadDir    the directory the files are in, as Transmission sees it
  * @param trackers       the announce URLs
  */
-public record Torrent(String hash, String name, Status status, double percentDone, int error, String errorString,
-        long secondsSeeding, boolean isPrivate, String downloadDir, List<String> trackers, List<File> files) {
+public record Torrent(
+        String hash,
+        String name,
+        Status status,
+        double percentDone,
+        int error,
+        String errorString,
+        long secondsSeeding,
+        boolean isPrivate,
+        String downloadDir,
+        List<String> trackers,
+        List<File> files) {
 
     public Torrent {
         trackers = List.copyOf(trackers);
@@ -28,12 +38,17 @@ public record Torrent(String hash, String name, Status status, double percentDon
      * @param name   path relative to the download dir
      * @param wanted false when the user deselected the file; such a file plays no part anywhere
      */
-    public record File(String name, long length, boolean wanted) {
-    }
+    public record File(String name, long length, boolean wanted) {}
 
     /** Transmission's status numbers 0 to 6, in that order. */
     public enum Status {
-        STOPPED, CHECK_WAIT, CHECKING, DOWNLOAD_WAIT, DOWNLOADING, SEED_WAIT, SEEDING;
+        STOPPED,
+        CHECK_WAIT,
+        CHECKING,
+        DOWNLOAD_WAIT,
+        DOWNLOADING,
+        SEED_WAIT,
+        SEEDING;
 
         public static Status of(int number) {
             if (number < 0 || number >= values().length) {

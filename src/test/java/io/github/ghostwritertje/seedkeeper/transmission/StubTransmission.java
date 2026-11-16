@@ -18,7 +18,7 @@ public final class StubTransmission implements Transmission {
     private final Set<String> refusedRemovals = new HashSet<>();
     private Optional<Path> incompleteDir = Optional.empty();
     private TransmissionException sessionFailure;
-    private Runnable onSession = () -> { };
+    private Runnable onSession = () -> {};
     private int failingReadsAfterRemoval;
     private int failingReadsLeft;
 

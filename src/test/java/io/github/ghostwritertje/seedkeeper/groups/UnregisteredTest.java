@@ -51,31 +51,74 @@ class UnregisteredTest {
         file(downloads.resolve("Checking.Gone/movie.mkv"));
 
         FakeTransmissionResource.fake().reset();
-        FakeTransmissionResource.fake().torrents("[" + String.join(",",
-                // Unregistered, with a library link and far from its minimum.
-                torrent("1111", "Gone.Movie", SEEDING, TRACKER_ERROR, "Unregistered torrent", DAY, TRACKER_A),
-                // A cross-seed group whose second member is unregistered.
-                torrent("2222", "Cross.Seed", SEEDING, NO_ERROR, "", 400 * DAY, TRACKER_A),
-                torrent("3333", "Cross.Seed.Elsewhere", SEEDING, TRACKER_ERROR,
-                        "Torrent not registered with this tracker.", 2 * DAY, TRACKER_B),
-                torrent("4444", "Passkey.Movie", SEEDING, TRACKER_ERROR, "Passkey does not exist!", 400 * DAY,
-                        TRACKER_A),
-                torrent("5555", "Warned.Movie", SEEDING, TRACKER_WARNING, "Slow down", 400 * DAY, TRACKER_A),
-                torrent("6666", "Checking.Gone", CHECKING, TRACKER_ERROR, "Unregistered torrent", 400 * DAY,
-                        TRACKER_A)) + "]");
+        FakeTransmissionResource.fake()
+                .torrents("["
+                        + String.join(
+                                ",",
+                                // Unregistered, with a library link and far from its minimum.
+                                torrent(
+                                        "1111",
+                                        "Gone.Movie",
+                                        SEEDING,
+                                        TRACKER_ERROR,
+                                        "Unregistered torrent",
+                                        DAY,
+                                        TRACKER_A),
+                                // A cross-seed group whose second member is unregistered.
+                                torrent("2222", "Cross.Seed", SEEDING, NO_ERROR, "", 400 * DAY, TRACKER_A),
+                                torrent(
+                                        "3333",
+                                        "Cross.Seed.Elsewhere",
+                                        SEEDING,
+                                        TRACKER_ERROR,
+                                        "Torrent not registered with this tracker.",
+                                        2 * DAY,
+                                        TRACKER_B),
+                                torrent(
+                                        "4444",
+                                        "Passkey.Movie",
+                                        SEEDING,
+                                        TRACKER_ERROR,
+                                        "Passkey does not exist!",
+                                        400 * DAY,
+                                        TRACKER_A),
+                                torrent(
+                                        "5555",
+                                        "Warned.Movie",
+                                        SEEDING,
+                                        TRACKER_WARNING,
+                                        "Slow down",
+                                        400 * DAY,
+                                        TRACKER_A),
+                                torrent(
+                                        "6666",
+                                        "Checking.Gone",
+                                        CHECKING,
+                                        TRACKER_ERROR,
+                                        "Unregistered torrent",
+                                        400 * DAY,
+                                        TRACKER_A))
+                        + "]");
     }
 
     @Test
     void apiGivesAnUnregisteredTorrentAVerdictOfItsOwnAndJudgesTheRestOfItsGroupWithoutIt() {
         Authenticated.withApiKey()
-                .when().get("/api/v1/groups")
+                .when()
+                .get("/api/v1/groups")
                 .then()
                 .statusCode(200)
-                .body("members.collect { it.hash }", contains(contains("1111"), contains("2222"), contains("3333"),
-                        contains("4444"), contains("5555"), contains("6666")))
+                .body(
+                        "members.collect { it.hash }",
+                        contains(
+                                contains("1111"),
+                                contains("2222"),
+                                contains("3333"),
+                                contains("4444"),
+                                contains("5555"),
+                                contains("6666")))
                 .body("verdict", contains("remove", "remove", "remove", "remove", "remove", "keep"))
-                .body("reason", contains("unregistered", "all-met", "unregistered", "all-met", "all-met",
-                        "verifying"))
+                .body("reason", contains("unregistered", "all-met", "unregistered", "all-met", "all-met", "verifying"))
                 .body("[0].secondaryReasons", contains("library-link", "minimum-not-reached"))
                 .body("[2].secondaryReasons", contains("minimum-not-reached"));
     }
@@ -83,20 +126,35 @@ class UnregisteredTest {
     @Test
     void apiGivesWhatTheTrackerReportsForEachMember() {
         Authenticated.withApiKey()
-                .when().get("/api/v1/groups")
+                .when()
+                .get("/api/v1/groups")
                 .then()
                 .statusCode(200)
-                .body("members.flatten().trackerError", contains("unregistered", null, "unregistered",
-                        "tracker-error", "tracker-warning", "unregistered"))
-                .body("members.flatten().trackerMessage", contains("Unregistered torrent", null,
-                        "Torrent not registered with this tracker.", "Passkey does not exist!", "Slow down",
-                        "Unregistered torrent"));
+                .body(
+                        "members.flatten().trackerError",
+                        contains(
+                                "unregistered",
+                                null,
+                                "unregistered",
+                                "tracker-error",
+                                "tracker-warning",
+                                "unregistered"))
+                .body(
+                        "members.flatten().trackerMessage",
+                        contains(
+                                "Unregistered torrent",
+                                null,
+                                "Torrent not registered with this tracker.",
+                                "Passkey does not exist!",
+                                "Slow down",
+                                "Unregistered torrent"));
     }
 
     @Test
     void apiFiltersOnUnregistered() {
         Authenticated.withApiKey()
-                .when().get("/api/v1/groups?reason=unregistered")
+                .when()
+                .get("/api/v1/groups?reason=unregistered")
                 .then()
                 .statusCode(200)
                 .body("members.flatten().hash", contains("1111", "3333"));
@@ -105,49 +163,136 @@ class UnregisteredTest {
     @Test
     void pageShowsTheTrackerMessageOfEachMember() {
         Authenticated.asUser()
-                .when().get("/groups")
+                .when()
+                .get("/groups")
                 .then()
                 .statusCode(200)
-                .body("html.body.main.table.thead.tr.th", contains("Name", "Tracker", "Seed time / minimum",
-                        "Status", "Tracker message", "Library links", "Verdict", "Reason", "Secondary reasons",
-                        "Forecast", "Keep override"))
-                .body(cells(0), contains("Gone.Movie", "tracker-a", "1d / 30d", "Seeding",
-                        "Unregistered: Unregistered torrent", "1 of 1 files", "Remove", "Unregistered",
-                        "Library link (1 of 1 files), Minimum not reached", ""))
-                .body(cells(1), contains("Cross.Seed", "tracker-a", "400d / 30d", "Seeding", "", "0 of 1 files",
-                        "Remove", "All met", "", ""))
-                .body(cells(2), contains("Cross.Seed.Elsewhere", "tracker-b", "2d / 14d", "Seeding",
-                        "Unregistered: Torrent not registered with this tracker.", "0 of 1 files", "Remove",
-                        "Unregistered", "Minimum not reached", ""))
-                .body(cells(3), contains("Passkey.Movie", "tracker-a", "400d / 30d", "Seeding",
-                        "Tracker error: Passkey does not exist!", "0 of 1 files", "Remove", "All met", "", ""))
-                .body(cells(4), contains("Warned.Movie", "tracker-a", "400d / 30d", "Seeding",
-                        "Tracker warning: Slow down", "0 of 1 files", "Remove", "All met", "", ""))
-                .body(cells(5), contains("Checking.Gone", "tracker-a", "400d / 30d", "Verifying",
-                        "Unregistered: Unregistered torrent", "0 of 1 files", "Keep", "Verifying", "", ""));
+                .body(
+                        "html.body.main.table.thead.tr.th",
+                        contains(
+                                "Name",
+                                "Tracker",
+                                "Seed time / minimum",
+                                "Status",
+                                "Tracker message",
+                                "Library links",
+                                "Verdict",
+                                "Reason",
+                                "Secondary reasons",
+                                "Forecast",
+                                "Keep override"))
+                .body(
+                        cells(0),
+                        contains(
+                                "Gone.Movie",
+                                "tracker-a",
+                                "1d / 30d",
+                                "Seeding",
+                                "Unregistered: Unregistered torrent",
+                                "1 of 1 files",
+                                "Remove",
+                                "Unregistered",
+                                "Library link (1 of 1 files), Minimum not reached",
+                                ""))
+                .body(
+                        cells(1),
+                        contains(
+                                "Cross.Seed",
+                                "tracker-a",
+                                "400d / 30d",
+                                "Seeding",
+                                "",
+                                "0 of 1 files",
+                                "Remove",
+                                "All met",
+                                "",
+                                ""))
+                .body(
+                        cells(2),
+                        contains(
+                                "Cross.Seed.Elsewhere",
+                                "tracker-b",
+                                "2d / 14d",
+                                "Seeding",
+                                "Unregistered: Torrent not registered with this tracker.",
+                                "0 of 1 files",
+                                "Remove",
+                                "Unregistered",
+                                "Minimum not reached",
+                                ""))
+                .body(
+                        cells(3),
+                        contains(
+                                "Passkey.Movie",
+                                "tracker-a",
+                                "400d / 30d",
+                                "Seeding",
+                                "Tracker error: Passkey does not exist!",
+                                "0 of 1 files",
+                                "Remove",
+                                "All met",
+                                "",
+                                ""))
+                .body(
+                        cells(4),
+                        contains(
+                                "Warned.Movie",
+                                "tracker-a",
+                                "400d / 30d",
+                                "Seeding",
+                                "Tracker warning: Slow down",
+                                "0 of 1 files",
+                                "Remove",
+                                "All met",
+                                "",
+                                ""))
+                .body(
+                        cells(5),
+                        contains(
+                                "Checking.Gone",
+                                "tracker-a",
+                                "400d / 30d",
+                                "Verifying",
+                                "Unregistered: Unregistered torrent",
+                                "0 of 1 files",
+                                "Keep",
+                                "Verifying",
+                                "",
+                                ""));
     }
 
     @Test
     void pageFiltersOnUnregistered() {
         Authenticated.asUser()
-                .when().get("/groups?reason=unregistered")
+                .when()
+                .get("/groups?reason=unregistered")
                 .then()
                 .statusCode(200)
                 .body("html.body.main.table.tbody.tr.size()", is(2))
-                .body("html.body.main.form.'**'.find { it.name() == 'select' && it.@name == 'reason' }"
-                        + ".option.find { it.@selected == 'selected' }.text()", is("Unregistered"));
+                .body(
+                        "html.body.main.form.'**'.find { it.name() == 'select' && it.@name == 'reason' }"
+                                + ".option.find { it.@selected == 'selected' }.text()",
+                        is("Unregistered"));
     }
 
     /** One private, finished torrent with one wanted file, {@code <name>/movie.mkv}, in Transmission's field names. */
-    private static String torrent(String hash, String name, int status, int error, String errorString,
-            long secondsSeeding, String announce) {
+    private static String torrent(
+            String hash, String name, int status, int error, String errorString, long secondsSeeding, String announce) {
         return """
                 {"hash_string": "%s", "name": "%s", "status": %d, "percent_done": 1, "error": %d,
                  "error_string": "%s", "seconds_seeding": %d, "is_private": true, "download_dir": "%s",
                  "trackers": [{"announce": "%s"}], "files": [{"name": "%s/movie.mkv", "length": 4}],
                  "file_stats": [{"wanted": true}]}
-                """.formatted(hash, name, status, error, errorString, secondsSeeding,
-                FakeTransmissionResource.downloads(), announce, name);
+                """.formatted(
+                        hash,
+                        name,
+                        status,
+                        error,
+                        errorString,
+                        secondsSeeding,
+                        FakeTransmissionResource.downloads(),
+                        announce,
+                        name);
     }
 
     /** The text of every cell of a row of the table, up to the form that sets a keep override. */

@@ -33,11 +33,9 @@ interface TransmissionRpc {
      */
     @RegisterForReflection
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Response(JsonNode result, Error error) {
-    }
+    record Response(JsonNode result, Error error) {}
 
     @RegisterForReflection
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Error(int code, String message) {
-    }
+    record Error(int code, String message) {}
 }

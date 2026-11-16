@@ -18,8 +18,10 @@ class ApiKeyTest {
 
     @Test
     void apiWithoutKeyIs401AndDoesNotRedirectToTheLoginForm() {
-        given().redirects().follow(false)
-                .when().get("/api/v1/system")
+        given().redirects()
+                .follow(false)
+                .when()
+                .get("/api/v1/system")
                 .then()
                 .statusCode(401)
                 .header("Location", nullValue());
@@ -27,8 +29,10 @@ class ApiKeyTest {
 
     @Test
     void apiEndpointThatDoesNotExistIs401WithoutKey() {
-        given().redirects().follow(false)
-                .when().get("/api/v1/added-later")
+        given().redirects()
+                .follow(false)
+                .when()
+                .get("/api/v1/added-later")
                 .then()
                 .statusCode(401);
     }
@@ -36,27 +40,28 @@ class ApiKeyTest {
     @Test
     void apiWithWrongKeyIs401() {
         given().header("X-Api-Key", "not-the-key")
-                .when().get("/api/v1/system")
+                .when()
+                .get("/api/v1/system")
                 .then()
                 .statusCode(401);
         given().queryParam("apikey", "not-the-key")
-                .when().get("/api/v1/system")
+                .when()
+                .get("/api/v1/system")
                 .then()
                 .statusCode(401);
         given().header("X-Api-Key", TestSecrets.API_KEY + "x")
-                .when().get("/api/v1/system")
+                .when()
+                .get("/api/v1/system")
                 .then()
                 .statusCode(401);
-        given().header("X-Api-Key", "")
-                .when().get("/api/v1/system")
-                .then()
-                .statusCode(401);
+        given().header("X-Api-Key", "").when().get("/api/v1/system").then().statusCode(401);
     }
 
     @Test
     void apiWorksWithTheKeyInTheHeader() {
         given().header("X-Api-Key", TestSecrets.API_KEY)
-                .when().get("/api/v1/system")
+                .when()
+                .get("/api/v1/system")
                 .then()
                 .statusCode(200)
                 .body("transmission.reachable", is(true));
@@ -65,7 +70,8 @@ class ApiKeyTest {
     @Test
     void apiWorksWithTheKeyInTheQuery() {
         given().queryParam("apikey", TestSecrets.API_KEY)
-                .when().get("/api/v1/system")
+                .when()
+                .get("/api/v1/system")
                 .then()
                 .statusCode(200)
                 .body("transmission.reachable", is(true));
@@ -73,18 +79,22 @@ class ApiKeyTest {
 
     @Test
     void wrongKeyIs401EvenWhenLoggedIn() {
-        Authenticated.asUser().header("X-Api-Key", "not-the-key")
-                .when().get("/api/v1/system")
+        Authenticated.asUser()
+                .header("X-Api-Key", "not-the-key")
+                .when()
+                .get("/api/v1/system")
                 .then()
                 .statusCode(401);
     }
 
     @Test
     void keyDoesNotOpenThePages() {
-        given().redirects().follow(false)
+        given().redirects()
+                .follow(false)
                 .header("X-Api-Key", TestSecrets.API_KEY)
                 .queryParam("apikey", TestSecrets.API_KEY)
-                .when().get("/system")
+                .when()
+                .get("/system")
                 .then()
                 .statusCode(302);
     }

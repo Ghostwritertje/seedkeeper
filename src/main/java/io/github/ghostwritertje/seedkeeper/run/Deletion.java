@@ -54,8 +54,7 @@ public final class Deletion {
     }
 
     /** The roots as they really are right now. */
-    private record Roots(Path downloadsRoot, List<Path> libraryRoots) {
-    }
+    private record Roots(Path downloadsRoot, List<Path> libraryRoots) {}
 
     private final Path downloadsRoot;
     private final List<Path> libraryRoots;
@@ -100,7 +99,10 @@ public final class Deletion {
         List<Path> libraries = roots == null ? List.of() : roots.libraryRoots();
         if (roots != null) {
             allowedRoots.add(roots.downloadsRoot());
-            incompleteDir.flatMap(Deletion::real).filter(dir -> !isFilesystemRoot(dir)).ifPresent(allowedRoots::add);
+            incompleteDir
+                    .flatMap(Deletion::real)
+                    .filter(dir -> !isFilesystemRoot(dir))
+                    .ifPresent(allowedRoots::add);
         }
 
         List<Path> files = new ArrayList<>();
@@ -134,7 +136,8 @@ public final class Deletion {
                         try {
                             boolean lastLink = regularFile
                                     && ((Number) Files.getAttribute(path, "unix:nlink", LinkOption.NOFOLLOW_LINKS))
-                                            .intValue() == 1;
+                                                    .intValue()
+                                            == 1;
                             Files.delete(path);
                             files.add(path);
                             if (lastLink) {
@@ -153,24 +156,29 @@ public final class Deletion {
     }
 
     private Roots roots() {
-        Path downloads = real(downloadsRoot).orElseThrow(() -> new RootsUnavailable("The downloads root "
-                + downloadsRoot + " (seedkeeper.downloads-root) can't be found", null));
+        Path downloads = real(downloadsRoot)
+                .orElseThrow(() -> new RootsUnavailable(
+                        "The downloads root " + downloadsRoot + " (seedkeeper.downloads-root) can't be found", null));
         if (isFilesystemRoot(downloads)) {
-            throw new RootsUnavailable("The downloads root " + downloadsRoot + " (seedkeeper.downloads-root) is the"
-                    + " filesystem root: seedkeeper deletes nothing there", null);
+            throw new RootsUnavailable(
+                    "The downloads root " + downloadsRoot + " (seedkeeper.downloads-root) is the"
+                            + " filesystem root: seedkeeper deletes nothing there",
+                    null);
         }
         List<Path> libraries = new ArrayList<>();
         for (Path library : libraryRoots) {
-            libraries.add(real(library).orElseThrow(() -> new RootsUnavailable("The library root " + library
-                    + " (seedkeeper.library-roots) can't be found", null)));
+            libraries.add(real(library)
+                    .orElseThrow(() -> new RootsUnavailable(
+                            "The library root " + library + " (seedkeeper.library-roots) can't be found", null)));
         }
         return new Roots(downloads, libraries);
     }
 
     /** Walks up from {@code directory} and deletes what is empty; stops at {@code stop}, which always stays. */
-    private static void deleteEmptyDirectories(Path directory, Path stop, List<Path> allowedRoots,
-            List<Path> libraryRoots) {
-        for (Path current = directory; current != null && !current.equals(stop) && current.startsWith(stop);
+    private static void deleteEmptyDirectories(
+            Path directory, Path stop, List<Path> allowedRoots, List<Path> libraryRoots) {
+        for (Path current = directory;
+                current != null && !current.equals(stop) && current.startsWith(stop);
                 current = current.getParent()) {
             if (!Files.isDirectory(current, LinkOption.NOFOLLOW_LINKS)
                     || !allowed(current, allowedRoots, libraryRoots)) {

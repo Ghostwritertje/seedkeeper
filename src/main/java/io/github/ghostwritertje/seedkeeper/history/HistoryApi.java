@@ -37,9 +37,16 @@ public class HistoryApi {
      * @param torrentsRemoved the torrents removed from Transmission, also those of a removal that then went wrong
      */
     @RegisterForReflection
-    public record Run(long id, String started, String ended, String status, String error, int groupsRemoved,
-            int torrentsRemoved, int filesDeleted, long spaceFreedBytes) {
-    }
+    public record Run(
+            long id,
+            String started,
+            String ended,
+            String status,
+            String error,
+            int groupsRemoved,
+            int torrentsRemoved,
+            int filesDeleted,
+            long spaceFreedBytes) {}
 
     /**
      * @param runId        the {@code id} of the run that did it
@@ -49,9 +56,15 @@ public class HistoryApi {
      * @param pathsRefused the paths that were due but that seedkeeper did not delete
      */
     @RegisterForReflection
-    public record Removal(long runId, String started, String reason, String error, long spaceFreedBytes,
-            int filesDeleted, int pathsRefused, List<Member> members) {
-    }
+    public record Removal(
+            long runId,
+            String started,
+            String reason,
+            String error,
+            long spaceFreedBytes,
+            int filesDeleted,
+            int pathsRefused,
+            List<Member> members) {}
 
     /**
      * @param tracker        null when the torrent was unmanaged
@@ -60,14 +73,12 @@ public class HistoryApi {
      * @param removed        false when the removal went wrong before Transmission removed this torrent
      */
     @RegisterForReflection
-    public record Member(String hash, String name, String tracker, String trackerMessage, boolean unfinished,
-            boolean removed) {
-    }
+    public record Member(
+            String hash, String name, String tracker, String trackerMessage, boolean unfinished, boolean removed) {}
 
     /** The body of a 400: what is wrong with {@code since}. Of a 503: why the history can't be read. */
     @RegisterForReflection
-    public record Unavailable(String reason) {
-    }
+    public record Unavailable(String reason) {}
 
     private final History history;
     private final ZoneId timeZone;
@@ -90,7 +101,9 @@ public class HistoryApi {
     @Produces(MediaType.APPLICATION_JSON)
     @RunOnVirtualThread
     public Response removals(@QueryParam("since") String since) {
-        return answer(since, from -> history.removals(from).stream().map(this::removal).toList());
+        return answer(
+                since,
+                from -> history.removals(from).stream().map(this::removal).toList());
     }
 
     private Response answer(String since, Function<Optional<Instant>, List<?>> read) {
@@ -98,14 +111,18 @@ public class HistoryApi {
         try {
             from = since(since);
         } catch (DateTimeParseException e) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(new Unavailable("since=" + since
-                    + " is not a date (2026-11-20) or a date and time with an offset (2026-11-20T06:00:00+01:00)"))
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(
+                            new Unavailable(
+                                    "since=" + since
+                                            + " is not a date (2026-11-20) or a date and time with an offset (2026-11-20T06:00:00+01:00)"))
                     .build();
         }
         try {
             return Response.ok(read.apply(from)).build();
         } catch (HistoryException e) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(new Unavailable(e.getMessage()))
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                    .entity(new Unavailable(e.getMessage()))
                     .build();
         }
     }
@@ -124,19 +141,38 @@ public class HistoryApi {
     }
 
     private Run run(RecordedRun run) {
-        return new Run(run.id(), iso(run.started()), iso(run.ended()), run.status(), run.error().orElse(null),
-                run.groupsRemoved(), run.torrentsRemoved(), run.filesDeleted(), run.spaceFreed());
+        return new Run(
+                run.id(),
+                iso(run.started()),
+                iso(run.ended()),
+                run.status(),
+                run.error().orElse(null),
+                run.groupsRemoved(),
+                run.torrentsRemoved(),
+                run.filesDeleted(),
+                run.spaceFreed());
     }
 
     private Removal removal(RecordedRemoval removal) {
-        return new Removal(removal.runId(), iso(removal.started()), removal.reason(), removal.error().orElse(null),
-                removal.spaceFreed(), removal.filesDeleted(), removal.pathsRefused(),
+        return new Removal(
+                removal.runId(),
+                iso(removal.started()),
+                removal.reason(),
+                removal.error().orElse(null),
+                removal.spaceFreed(),
+                removal.filesDeleted(),
+                removal.pathsRefused(),
                 removal.members().stream().map(HistoryApi::member).toList());
     }
 
     private static Member member(RecordedMember member) {
-        return new Member(member.hash(), member.name(), member.tracker().orElse(null),
-                member.trackerMessage().orElse(null), member.unfinished(), member.removed());
+        return new Member(
+                member.hash(),
+                member.name(),
+                member.tracker().orElse(null),
+                member.trackerMessage().orElse(null),
+                member.unfinished(),
+                member.removed());
     }
 
     private String iso(Instant moment) {
