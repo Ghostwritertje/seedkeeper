@@ -12,10 +12,10 @@
         <palantir-java-format.version>2.103.0</palantir-java-format.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <quarkus-jdbc-sqlite.version>3.0.11</quarkus-jdbc-sqlite.version>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.version>3.40.1.2</quarkus.platform.version>
-        <quarkus-jdbc-sqlite.version>3.0.11</quarkus-jdbc-sqlite.version>
         <skipITs>true</skipITs>
         <sortpom-plugin.version>4.0.0</sortpom-plugin.version>
         <spotless-plugin.version>3.11.0</spotless-plugin.version>
@@ -36,9 +36,43 @@
     </dependencyManagement>
 
     <dependencies>
+        <!-- The run history: SQLite in the data dir, migrated by Flyway, read and written with plain JDBC. -->
+        <dependency>
+            <groupId>io.quarkiverse.jdbc</groupId>
+            <artifactId>quarkus-jdbc-sqlite</artifactId>
+            <version>${quarkus-jdbc-sqlite.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-arc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-config-yaml</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-flyway</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-logging-json</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-client-jackson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-csrf</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -50,7 +84,7 @@
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-rest-client-jackson</artifactId>
+            <artifactId>quarkus-scheduler</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -58,46 +92,12 @@
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-rest-csrf</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-config-yaml</artifactId>
+            <artifactId>quarkus-smallrye-health</artifactId>
         </dependency>
         <!-- Reads overrides.yaml. The YAML parser quarkus-config-yaml already brings, so nothing new in the image. -->
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-smallrye-health</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-logging-json</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-scheduler</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-arc</artifactId>
-        </dependency>
-        <!-- The run history: SQLite in the data dir, migrated by Flyway, read and written with plain JDBC. -->
-        <dependency>
-            <groupId>io.quarkiverse.jdbc</groupId>
-            <artifactId>quarkus-jdbc-sqlite</artifactId>
-            <version>${quarkus-jdbc-sqlite.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-flyway</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -119,12 +119,6 @@
     <build>
         <pluginManagement>
             <plugins>
-                <!-- Used by the release workflow (versions:set); pinned so the build is reproducible. -->
-                <plugin>
-                    <groupId>org.codehaus.mojo</groupId>
-                    <artifactId>versions-maven-plugin</artifactId>
-                    <version>${versions-plugin.version}</version>
-                </plugin>
                 <!--
                   Formatting. The quality profile checks it; `./mvnw spotless:apply sortpom:sort` applies it.
                   Configured here, outside the profile, so that command works without -Pquality.
@@ -157,6 +151,12 @@
                         <spaceBeforeCloseEmptyElement>false</spaceBeforeCloseEmptyElement>
                     </configuration>
                 </plugin>
+                <!-- Used by the release workflow (versions:set); pinned so the build is reproducible. -->
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>versions-maven-plugin</artifactId>
+                    <version>${versions-plugin.version}</version>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -172,6 +172,26 @@
                 <configuration>
                     <parameters>true</parameters>
                 </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>${surefire-plugin.version}</version>
+                <configuration>
+                    <argLine>@{argLine}</argLine>
+                    <systemPropertyVariables>
+                        <native.image.path>${project.build.directory}/${project.build.finalName}-runner</native.image.path>
+                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+                        <maven.home>${maven.home}</maven.home>
+                    </systemPropertyVariables>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -209,26 +229,6 @@
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <artifactId>maven-failsafe-plugin</artifactId>
-                <version>${surefire-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>integration-test</goal>
-                            <goal>verify</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <argLine>@{argLine}</argLine>
-                    <systemPropertyVariables>
-                        <native.image.path>${project.build.directory}/${project.build.finalName}-runner</native.image.path>
-                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
-                        <maven.home>${maven.home}</maven.home>
-                    </systemPropertyVariables>
-                </configuration>
             </plugin>
         </plugins>
     </build>
@@ -283,16 +283,16 @@
                 </property>
             </activation>
             <properties>
-                <quarkus.package.jar.enabled>false</quarkus.package.jar.enabled>
-                <skipITs>false</skipITs>
-                <quarkus.native.enabled>true</quarkus.native.enabled>
+                <quarkus.native.builder-image>quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-25</quarkus.native.builder-image>
                 <!--
-                  Built inside the Mandrel builder container, so the binary is linked against the same
-                  glibc (UBI 9) as the runtime image in src/main/docker/Dockerfile.native-micro.
+                  Built inside the Mandrel builder container (the builder image above), so the binary is linked
+                  against the same glibc (UBI 9) as the runtime image in src/main/docker/Dockerfile.native-micro.
                   Keep the two on the same UBI major.
                 -->
                 <quarkus.native.container-build>true</quarkus.native.container-build>
-                <quarkus.native.builder-image>quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-25</quarkus.native.builder-image>
+                <quarkus.native.enabled>true</quarkus.native.enabled>
+                <quarkus.package.jar.enabled>false</quarkus.package.jar.enabled>
+                <skipITs>false</skipITs>
             </properties>
         </profile>
     </profiles>
