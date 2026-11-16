@@ -75,6 +75,8 @@ public record TrackerError(Kind kind, String message) {
     }
 
     /**
+     * What Transmission's error number and error string say about the tracker.
+     *
      * @param error       Transmission's error number: 0 none, 1 tracker warning, 2 tracker error, 3 local error
      * @param errorString the message that goes with it
      * @return empty when the tracker reports nothing: no error, or a local error

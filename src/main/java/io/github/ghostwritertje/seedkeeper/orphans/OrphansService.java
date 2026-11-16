@@ -37,6 +37,8 @@ public class OrphansService {
     /** The orphans can't be listed right now. The message is the one reason, fit to show to the user as it is. */
     public static class OrphansUnavailable extends RuntimeException {
 
+        private static final long serialVersionUID = 1L;
+
         OrphansUnavailable(String reason, Throwable cause) {
             super(reason, cause);
         }

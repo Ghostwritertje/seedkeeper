@@ -159,7 +159,7 @@ public class OverrideStore implements AutoCloseable {
                 WatchKey key = service.take();
                 boolean changed = false;
                 for (WatchEvent<?> event : key.pollEvents()) {
-                    changed |= event.kind() == StandardWatchEventKinds.OVERFLOW
+                    changed |= StandardWatchEventKinds.OVERFLOW.equals(event.kind())
                             || FILE_NAME.equals(String.valueOf(event.context()));
                 }
                 if (changed) {

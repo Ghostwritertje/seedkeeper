@@ -115,6 +115,8 @@ public class OverrideChanges {
     /** What was asked for is not a keep override. The message says why, fit to show as it is. */
     public static class InvalidOverride extends RuntimeException {
 
+        private static final long serialVersionUID = 1L;
+
         InvalidOverride(String reason) {
             super(reason);
         }
@@ -122,6 +124,8 @@ public class OverrideChanges {
 
     /** The override to change is not in the file. The message says so, fit to show as it is. */
     public static class NoSuchOverride extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
 
         NoSuchOverride(String reason) {
             super(reason);

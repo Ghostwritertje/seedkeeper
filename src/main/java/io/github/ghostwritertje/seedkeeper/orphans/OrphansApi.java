@@ -16,6 +16,8 @@ import java.util.List;
 public class OrphansApi {
 
     /**
+     * The orphans under the downloads root.
+     *
      * @param totalSizeBytes what deleting the orphan files would free: the bytes of those without a library link
      * @param unreadable     the paths under the downloads root that could not be read and were skipped
      */
@@ -24,6 +26,8 @@ public class OrphansApi {
             List<Orphan> files, List<Orphan> danglingSymlinks, long totalSizeBytes, List<String> unreadable) {}
 
     /**
+     * One orphan file or dangling symlink.
+     *
      * @param sizeBytes    of a symlink, the size of the link itself
      * @param lastModified ISO-8601, in UTC, to the second; of a symlink, of the link itself
      * @param libraryLink  whether a hardlink of the file is under a library root; never true of a symlink

@@ -106,6 +106,8 @@ public class OverridesService {
     /** The overrides can't be listed right now. The message is the one reason, fit to show as it is. */
     public static class OverridesUnavailable extends RuntimeException {
 
+        private static final long serialVersionUID = 1L;
+
         OverridesUnavailable(String reason, Throwable cause) {
             super(reason, cause);
         }
