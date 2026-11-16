@@ -14,7 +14,7 @@ import org.junit.platform.launcher.PostDiscoveryFilter;
 
 /**
  * Keeps the tests that start the app out of PIT: {@code @QuarkusTest}, {@code @QuarkusIntegrationTest} and the
- * {@code QuarkusUnitTest} extension. Starting the app for every mutant would make mutation testing far too slow.
+ * {@code QuarkusExtensionTest} extension. Starting the app for every mutant would make mutation testing far too slow.
  *
  * <p>Only PIT loads this filter: the quality profile puts {@code src/test/pit} on PIT's classpath, and that
  * directory registers it with the JUnit Platform. Surefire never sees it.

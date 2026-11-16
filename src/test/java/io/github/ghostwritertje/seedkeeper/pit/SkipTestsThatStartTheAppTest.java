@@ -20,7 +20,7 @@ class SkipTestsThatStartTheAppTest {
         return Stream.of(
                 Arguments.argumentSet("@QuarkusTest", TESTS + "transmission.TransmissionClientTest", true),
                 Arguments.argumentSet("@QuarkusIntegrationTest", TESTS + "groups.GroupsIT", true),
-                Arguments.argumentSet("a QuarkusUnitTest extension", TESTS + "startup.UnusableDataDirTest", true),
+                Arguments.argumentSet("a QuarkusExtensionTest extension", TESTS + "startup.UnusableDataDirTest", true),
                 Arguments.argumentSet("a plain JUnit test", TESTS + "decide.DecideTest", false),
                 Arguments.argumentSet("a plain JUnit test with a temp dir", TESTS + "keep.OverrideStoreTest", false));
     }
@@ -28,7 +28,7 @@ class SkipTestsThatStartTheAppTest {
     @ParameterizedTest
     @MethodSource("testClasses")
     void skipsATestClassOnlyWhenItStartsTheApp(String testClass, boolean skipped) throws ClassNotFoundException {
-        // Not initialised: a QuarkusUnitTest builds its application in a static initialiser.
+        // Not initialised: a QuarkusExtensionTest builds its application in a static initialiser.
         TestDescriptor descriptor =
                 new ClassDescriptor(Class.forName(testClass, false, getClass().getClassLoader()));
 
