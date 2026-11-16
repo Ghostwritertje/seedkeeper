@@ -14,6 +14,7 @@ public record TrackerError(Kind kind, String message) {
 
     /** Transmission's error numbers for what a tracker reports. */
     private static final int TRACKER_WARNING = 1;
+
     private static final int TRACKER_ERROR = 2;
 
     /** A message with this in it is about the account, not the torrent: never unregistered. */
@@ -82,8 +83,8 @@ public record TrackerError(Kind kind, String message) {
         String message = errorString == null ? "" : errorString;
         return switch (error) {
             case TRACKER_WARNING -> Optional.of(new TrackerError(Kind.TRACKER_WARNING, message));
-            case TRACKER_ERROR -> Optional.of(
-                    new TrackerError(unregistered(message) ? Kind.UNREGISTERED : Kind.TRACKER_ERROR, message));
+            case TRACKER_ERROR ->
+                Optional.of(new TrackerError(unregistered(message) ? Kind.UNREGISTERED : Kind.TRACKER_ERROR, message));
             default -> Optional.empty();
         };
     }
@@ -94,6 +95,7 @@ public record TrackerError(Kind kind, String message) {
 
     private static boolean unregistered(String message) {
         String lowerCased = message.toLowerCase(Locale.ROOT);
-        return !lowerCased.contains(ACCOUNT_PROBLEM) && UNREGISTERED_PATTERNS.stream().anyMatch(lowerCased::contains);
+        return !lowerCased.contains(ACCOUNT_PROBLEM)
+                && UNREGISTERED_PATTERNS.stream().anyMatch(lowerCased::contains);
     }
 }

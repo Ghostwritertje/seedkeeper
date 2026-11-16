@@ -27,6 +27,22 @@ jobs:
           cache: maven
       - run: ./mvnw -B verify
 
+  quality:
+    name: Verify (quality)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # Full history: PIT (#54) compares the changed classes against main.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+      - run: ./mvnw -B verify -Pquality
+
   native:
     name: Verify (native)
     runs-on: ubuntu-latest

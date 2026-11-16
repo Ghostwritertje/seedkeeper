@@ -32,16 +32,15 @@ import java.util.Set;
  */
 public final class OrphanFinder {
 
-    private OrphanFinder() {
-    }
+    private OrphanFinder() {}
 
     /**
      * @param incompleteDir Transmission's incomplete dir; empty when it is not enabled
      * @throws OrphansException with one reason when the downloads root or a library root can't be read: without a
      *                          library root the library links, and so the total, would be wrong
      */
-    public static Orphans find(Path downloadsRoot, List<Path> libraryRoots, List<Torrent> torrents,
-            Optional<Path> incompleteDir) {
+    public static Orphans find(
+            Path downloadsRoot, List<Path> libraryRoots, List<Torrent> torrents, Optional<Path> incompleteDir) {
         Set<Path> referencedPaths = new HashSet<>();
         Set<FileId> referencedFiles = new HashSet<>();
         for (Torrent torrent : torrents) {
@@ -87,7 +86,10 @@ public final class OrphanFinder {
                     } else if (attributes.isRegularFile()) {
                         Optional<FileId> id = TorrentPaths.id(path, LinkOption.NOFOLLOW_LINKS);
                         if (id.filter(referencedFiles::contains).isEmpty()) {
-                            files.add(new Orphan(path, attributes.size(), lastModified,
+                            files.add(new Orphan(
+                                    path,
+                                    attributes.size(),
+                                    lastModified,
                                     id.filter(library::contains).isPresent()));
                         }
                     }
@@ -106,7 +108,9 @@ public final class OrphanFinder {
             });
         } catch (IOException e) {
             throw new OrphansException(
-                    "Downloads root " + downloadsRoot + " can't be read (" + e.getClass().getSimpleName() + ")", e);
+                    "Downloads root " + downloadsRoot + " can't be read ("
+                            + e.getClass().getSimpleName() + ")",
+                    e);
         }
         files.sort(Comparator.comparing(Orphan::path));
         danglingSymlinks.sort(Comparator.comparing(Orphan::path));

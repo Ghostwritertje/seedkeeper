@@ -11,8 +11,7 @@ public final class TestSecrets {
     public static final String PASSWORD = "ui-password";
     public static final String API_KEY = "api-key";
 
-    private TestSecrets() {
-    }
+    private TestSecrets() {}
 
     public static Map<String, String> all() {
         Map<String, String> secrets = new LinkedHashMap<>();

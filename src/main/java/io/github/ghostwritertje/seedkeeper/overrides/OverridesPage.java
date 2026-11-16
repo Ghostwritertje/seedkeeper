@@ -41,8 +41,8 @@ public class OverridesPage {
          * @param groupsUnknown why the groups the overrides match can't be known right now; null when they can
          * @param notice        why the form that was just posted changed nothing; null when there is nothing to tell
          */
-        static native TemplateInstance overrides(List<Row> overrides, String file, String unavailable,
-                String groupsUnknown, String notice);
+        static native TemplateInstance overrides(
+                List<Row> overrides, String file, String unavailable, String groupsUnknown, String notice);
     }
 
     private static final DateTimeFormatter CREATED = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -58,9 +58,16 @@ public class OverridesPage {
      * @param hashes    separated by commas
      * @param untilDate "2027-03-01", or empty when it never ends: the value of the date field of the edit form
      */
-    public record Row(String status, String note, String until, String created, List<List<String>> groups,
-            boolean known, String hashes, String id, String untilDate) {
-    }
+    public record Row(
+            String status,
+            String note,
+            String until,
+            String created,
+            List<List<String>> groups,
+            boolean known,
+            String hashes,
+            String id,
+            String untilDate) {}
 
     private final OverridesService overrides;
     private final SeedkeeperConfig config;
@@ -88,8 +95,8 @@ public class OverridesPage {
     @Produces(MediaType.TEXT_HTML)
     @RunOnVirtualThread
     public Response add(@RestForm String hashes, @RestForm String note, @RestForm String until) {
-        return change(() -> overrides.add(hashes == null ? List.of() : Arrays.asList(hashes.split("[\\s,]+")),
-                note, date(until)));
+        return change(() ->
+                overrides.add(hashes == null ? List.of() : Arrays.asList(hashes.split("[\\s,]+")), note, date(until)));
     }
 
     /** Changes the note and the end date of the override with this id, then sends the browser to the view. */
@@ -118,11 +125,17 @@ public class OverridesPage {
             change.run();
             return Response.seeOther(URI.create("/overrides")).build();
         } catch (InvalidOverride e) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(page(e.getMessage())).build();
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(page(e.getMessage()))
+                    .build();
         } catch (NoSuchOverride e) {
-            return Response.status(Response.Status.NOT_FOUND).entity(page(e.getMessage())).build();
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(page(e.getMessage()))
+                    .build();
         } catch (OverridesException e) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(page(e.getMessage())).build();
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                    .entity(page(e.getMessage()))
+                    .build();
         }
     }
 
@@ -150,24 +163,34 @@ public class OverridesPage {
         } catch (OverridesUnavailable e) {
             return Templates.overrides(List.of(), file, e.getMessage(), null, notice);
         }
-        String groupsUnknown = listed.stream().flatMap(override -> override.groupsUnknown().stream()).findFirst()
+        String groupsUnknown = listed.stream()
+                .flatMap(override -> override.groupsUnknown().stream())
+                .findFirst()
                 .orElse(null);
         return Templates.overrides(listed.stream().map(this::row).toList(), file, null, groupsUnknown, notice);
     }
 
     private Row row(Listed listed) {
         KeepOverride override = listed.override();
-        String status = listed.active() ? "Active"
-                : listed.expired() && listed.stale() ? "Expired, stale"
-                : listed.expired() ? "Expired"
-                : listed.groupsKnown() ? "Stale" : "Unknown";
-        return new Row(status, override.note(),
+        String status = listed.active()
+                ? "Active"
+                : listed.expired() && listed.stale()
+                        ? "Expired, stale"
+                        : listed.expired() ? "Expired" : listed.groupsKnown() ? "Stale" : "Unknown";
+        return new Row(
+                status,
+                override.note(),
                 override.until().map(Object::toString).orElse("no end date"),
-                override.created().map(created -> CREATED.format(created.atZoneSameInstant(config.timeZone())))
+                override.created()
+                        .map(created -> CREATED.format(created.atZoneSameInstant(config.timeZone())))
                         .orElse(""),
-                listed.groups().stream().map(group -> group.stream().map(GroupVerdict.Member::name).toList())
+                listed.groups().stream()
+                        .map(group ->
+                                group.stream().map(GroupVerdict.Member::name).toList())
                         .toList(),
-                listed.groupsKnown(), String.join(", ", override.hashes()), override.id(),
+                listed.groupsKnown(),
+                String.join(", ", override.hashes()),
+                override.id(),
                 override.until().map(Object::toString).orElse(""));
     }
 }

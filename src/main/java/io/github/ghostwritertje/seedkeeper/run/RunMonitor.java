@@ -45,10 +45,12 @@ public class RunMonitor {
     RunMonitor(MeterRegistry registry) {
         // Everything is registered up front, so each metric is there, at zero, before the first run.
         for (Status status : Status.values()) {
-            runs.put(status, Counter.builder("seedkeeper.runs")
-                    .description("Runs that ended, by status")
-                    .tag("status", status.code())
-                    .register(registry));
+            runs.put(
+                    status,
+                    Counter.builder("seedkeeper.runs")
+                            .description("Runs that ended, by status")
+                            .tag("status", status.code())
+                            .register(registry));
         }
         removedGroups = Counter.builder("seedkeeper.removed.groups")
                 .description("Removals carried out in full: a whole group, or the one member that left alone")
@@ -97,25 +99,48 @@ public class RunMonitor {
             Map<Reason, Long> counts = outcome.verdicts().stream()
                     .collect(Collectors.groupingBy(GroupVerdict::reason, Collectors.counting()));
             groups.forEach((reason, count) -> count.set(counts.getOrDefault(reason, 0L)));
-            log("run-end", Logger.Level.INFO, "Run ended: succeeded, %d groups, %d removals carried out, %d failed, %d bytes freed".formatted(
-                    outcome.verdicts().size(), carriedOut, outcome.removals().size() - carriedOut,
-                    outcome.spaceFreed()));
+            log(
+                    "run-end",
+                    Logger.Level.INFO,
+                    "Run ended: succeeded, %d groups, %d removals carried out, %d failed, %d bytes freed"
+                            .formatted(
+                                    outcome.verdicts().size(),
+                                    carriedOut,
+                                    outcome.removals().size() - carriedOut,
+                                    outcome.spaceFreed()));
         } else {
-            log("run-end", Logger.Level.ERROR, "Run ended: failed: " + outcome.error().orElse("no reason given"));
+            log(
+                    "run-end",
+                    Logger.Level.ERROR,
+                    "Run ended: failed: " + outcome.error().orElse("no reason given"));
         }
     }
 
     private static void logRemoval(Removal removal) {
         String names = removal.torrents().stream().map(Torrent::name).collect(Collectors.joining(", "));
         if (removal.error().isPresent()) {
-            log("removal", Logger.Level.ERROR, "Removal of %s (%s) failed after %d of %d torrents, no files deleted: %s"
-                    .formatted(names, removal.reason().code(), removal.removed().size(), removal.torrents().size(),
-                            removal.error().get()));
+            log(
+                    "removal",
+                    Logger.Level.ERROR,
+                    "Removal of %s (%s) failed after %d of %d torrents, no files deleted: %s"
+                            .formatted(
+                                    names,
+                                    removal.reason().code(),
+                                    removal.removed().size(),
+                                    removal.torrents().size(),
+                                    removal.error().get()));
             return;
         }
-        log("removal", Logger.Level.INFO, "Removed %s (%s): %d torrents, %d files deleted, %d bytes freed"
-                .formatted(names, removal.reason().code(), removal.removed().size(),
-                        removal.deleted().files().size(), removal.deleted().spaceFreed()));
+        log(
+                "removal",
+                Logger.Level.INFO,
+                "Removed %s (%s): %d torrents, %d files deleted, %d bytes freed"
+                        .formatted(
+                                names,
+                                removal.reason().code(),
+                                removal.removed().size(),
+                                removal.deleted().files().size(),
+                                removal.deleted().spaceFreed()));
         for (Path file : removal.deleted().files()) {
             log("deleted-file", Logger.Level.INFO, "Deleted " + file);
         }

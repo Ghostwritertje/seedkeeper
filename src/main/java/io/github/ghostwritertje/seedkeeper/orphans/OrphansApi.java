@@ -20,9 +20,8 @@ public class OrphansApi {
      * @param unreadable     the paths under the downloads root that could not be read and were skipped
      */
     @RegisterForReflection
-    public record Body(List<Orphan> files, List<Orphan> danglingSymlinks, long totalSizeBytes,
-            List<String> unreadable) {
-    }
+    public record Body(
+            List<Orphan> files, List<Orphan> danglingSymlinks, long totalSizeBytes, List<String> unreadable) {}
 
     /**
      * @param sizeBytes    of a symlink, the size of the link itself
@@ -30,13 +29,11 @@ public class OrphansApi {
      * @param libraryLink  whether a hardlink of the file is under a library root; never true of a symlink
      */
     @RegisterForReflection
-    public record Orphan(String path, long sizeBytes, String lastModified, boolean libraryLink) {
-    }
+    public record Orphan(String path, long sizeBytes, String lastModified, boolean libraryLink) {}
 
     /** The body of a 503: why the orphans can't be listed right now. */
     @RegisterForReflection
-    public record Unavailable(String reason) {
-    }
+    public record Unavailable(String reason) {}
 
     private final OrphansService orphans;
 
@@ -50,17 +47,26 @@ public class OrphansApi {
     public Response orphans() {
         try {
             Orphans found = orphans.orphans();
-            return Response.ok(new Body(found.files().stream().map(OrphansApi::orphan).toList(),
-                    found.danglingSymlinks().stream().map(OrphansApi::orphan).toList(), found.totalSize(),
-                    found.unreadable().stream().map(Object::toString).toList())).build();
+            return Response.ok(new Body(
+                            found.files().stream().map(OrphansApi::orphan).toList(),
+                            found.danglingSymlinks().stream()
+                                    .map(OrphansApi::orphan)
+                                    .toList(),
+                            found.totalSize(),
+                            found.unreadable().stream().map(Object::toString).toList()))
+                    .build();
         } catch (OrphansUnavailable e) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(new Unavailable(e.getMessage()))
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                    .entity(new Unavailable(e.getMessage()))
                     .build();
         }
     }
 
     private static Orphan orphan(Orphans.Orphan orphan) {
-        return new Orphan(orphan.path().toString(), orphan.size(),
-                orphan.lastModified().truncatedTo(ChronoUnit.SECONDS).toString(), orphan.libraryLink());
+        return new Orphan(
+                orphan.path().toString(),
+                orphan.size(),
+                orphan.lastModified().truncatedTo(ChronoUnit.SECONDS).toString(),
+                orphan.libraryLink());
     }
 }

@@ -15,11 +15,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * A stand-in for Transmission's RPC endpoint on the JDK's {@link HttpServer}. Like the real thing it answers 409 with
@@ -47,8 +47,7 @@ public final class FakeTransmission implements AutoCloseable {
         GARBAGE
     }
 
-    public record Request(String sessionId, String authorization, String body) {
-    }
+    public record Request(String sessionId, String authorization, String body) {}
 
     private final HttpServer server;
     private final List<Request> requests = new CopyOnWriteArrayList<>();
@@ -196,17 +195,32 @@ public final class FakeTransmission implements AutoCloseable {
                 }
             }
             switch (behaviour) {
-                case LEGACY -> respond(exchange, 200, "application/json",
-                        "{\"arguments\":{},\"result\":\"method name not recognized\"}");
-                case RPC_ERROR -> respond(exchange, 200, "application/json",
-                        "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32601,\"message\":\"Method not found\"},\"id\":1}");
+                case LEGACY ->
+                    respond(
+                            exchange,
+                            200,
+                            "application/json",
+                            "{\"arguments\":{},\"result\":\"method name not recognized\"}");
+                case RPC_ERROR ->
+                    respond(
+                            exchange,
+                            200,
+                            "application/json",
+                            "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32601,\"message\":\"Method not found\"},\"id\":1}");
                 case GARBAGE -> respond(exchange, 200, "text/html", "<html>not transmission</html>");
                 default -> {
                     if (body.contains("\"method\":\"torrent_remove\"") && !remove(body)) {
-                        respond(exchange, 200, "application/json", "{\"jsonrpc\":\"2.0\",\"error\":"
-                                + "{\"code\":-32000,\"message\":\"torrent is busy\"},\"id\":1}");
+                        respond(
+                                exchange,
+                                200,
+                                "application/json",
+                                "{\"jsonrpc\":\"2.0\",\"error\":"
+                                        + "{\"code\":-32000,\"message\":\"torrent is busy\"},\"id\":1}");
                     } else {
-                        respond(exchange, 200, "application/json",
+                        respond(
+                                exchange,
+                                200,
+                                "application/json",
                                 "{\"jsonrpc\":\"2.0\",\"result\":" + result(body) + ",\"id\":1}");
                     }
                 }

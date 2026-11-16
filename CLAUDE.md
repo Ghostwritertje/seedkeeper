@@ -1,5 +1,17 @@
 # seedkeeper
 
+## Quality build
+
+`./mvnw verify` is the fast loop: compile and tests. `./mvnw verify -Pquality` adds the Java quality checks (today:
+formatting with Spotless/palantir-java-format, and a sorted POM with sortpom). Run it once when the work is done and
+fix everything it reports before you push; CI's `Verify (quality)` job runs the same build.
+
+Apply the formatting, Java and POM both, with one command:
+
+```sh
+./mvnw spotless:apply sortpom:sort
+```
+
 ## Native build and image: CI only
 
 Verify locally on the JVM: `./mvnw verify` (needs no Docker) and `./mvnw quarkus:dev`.

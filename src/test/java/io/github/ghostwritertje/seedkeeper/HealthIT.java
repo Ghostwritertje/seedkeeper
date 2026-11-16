@@ -4,5 +4,4 @@ import io.quarkus.test.junit.QuarkusIntegrationTest;
 
 /** Runs the same checks as {@link HealthTest} against the packaged (native) application. */
 @QuarkusIntegrationTest
-class HealthIT extends HealthTest {
-}
+class HealthIT extends HealthTest {}

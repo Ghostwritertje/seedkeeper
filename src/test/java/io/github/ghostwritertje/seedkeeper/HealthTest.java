@@ -14,10 +14,6 @@ class HealthTest {
 
     @Test
     void healthIsUp() {
-        given()
-                .when().get("/q/health")
-                .then()
-                .statusCode(200)
-                .body("status", is("UP"));
+        given().when().get("/q/health").then().statusCode(200).body("status", is("UP"));
     }
 }

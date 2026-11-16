@@ -27,18 +27,24 @@ public class OverridesApi {
      * @param groupsUnknown why the groups can't be known right now; null when they can
      */
     @RegisterForReflection
-    public record Override(String id, List<String> hashes, String note, String until, String created,
-            Boolean active, boolean expired, Boolean stale, List<List<Member>> groups, String groupsUnknown) {
-    }
+    public record Override(
+            String id,
+            List<String> hashes,
+            String note,
+            String until,
+            String created,
+            Boolean active,
+            boolean expired,
+            Boolean stale,
+            List<List<Member>> groups,
+            String groupsUnknown) {}
 
     @RegisterForReflection
-    public record Member(String hash, String name) {
-    }
+    public record Member(String hash, String name) {}
 
     /** The body of a 503: why the overrides file can't be read right now. */
     @RegisterForReflection
-    public record Unavailable(String reason) {
-    }
+    public record Unavailable(String reason) {}
 
     private final OverridesService overrides;
 
@@ -51,24 +57,38 @@ public class OverridesApi {
     @RunOnVirtualThread
     public Response overrides() {
         try {
-            return Response.ok(overrides.overrides().stream().map(OverridesApi::override).toList()).build();
+            return Response.ok(overrides.overrides().stream()
+                            .map(OverridesApi::override)
+                            .toList())
+                    .build();
         } catch (OverridesUnavailable e) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity(new Unavailable(e.getMessage()))
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                    .entity(new Unavailable(e.getMessage()))
                     .build();
         }
     }
 
     private static Override override(Listed listed) {
         KeepOverride override = listed.override();
-        return new Override(override.id(), override.hashes(), override.note(),
+        return new Override(
+                override.id(),
+                override.hashes(),
+                override.note(),
                 override.until().map(Object::toString).orElse(null),
-                override.created().map(DateTimeFormatter.ISO_OFFSET_DATE_TIME::format).orElse(null),
+                override.created()
+                        .map(DateTimeFormatter.ISO_OFFSET_DATE_TIME::format)
+                        .orElse(null),
                 // Expired is enough to know it keeps nothing; otherwise, without the groups, it is unknown.
-                listed.groupsKnown() || listed.expired() ? listed.active() : null, listed.expired(),
+                listed.groupsKnown() || listed.expired() ? listed.active() : null,
+                listed.expired(),
                 listed.groupsKnown() ? listed.stale() : null,
-                listed.groupsKnown() ? listed.groups().stream()
-                        .map(group -> group.stream().map(member -> new Member(member.hash(), member.name())).toList())
-                        .toList() : null,
+                listed.groupsKnown()
+                        ? listed.groups().stream()
+                                .map(group -> group.stream()
+                                        .map(member -> new Member(member.hash(), member.name()))
+                                        .toList())
+                                .toList()
+                        : null,
                 listed.groupsUnknown().orElse(null));
     }
 }

@@ -53,7 +53,9 @@ class RunServiceTest {
         transmission.unreachable("Transmission does not answer");
 
         assertEquals(Status.FAILED, service.run().orElseThrow().status());
-        assertEquals(Optional.of("Transmission does not answer"), service.lastRun().orElseThrow().error());
+        assertEquals(
+                Optional.of("Transmission does not answer"),
+                service.lastRun().orElseThrow().error());
         assertTrue(service.run().isPresent(), "the lock was not released after a failed run");
     }
 
@@ -94,9 +96,12 @@ class RunServiceTest {
     void aRunAddsTheHashOfANewCrossSeedMemberToTheOverrideThatMatchesItsGroup() throws IOException {
         Path original = Files.createDirectories(root.resolve("Original")).resolve("movie.mkv");
         Files.writeString(original, "data");
-        Files.createSymbolicLink(Files.createDirectories(root.resolve("cross-seed")).resolve("movie.mkv"), original);
+        Files.createSymbolicLink(
+                Files.createDirectories(root.resolve("cross-seed")).resolve("movie.mkv"), original);
         Files.writeString(Files.createDirectories(root.resolve("Other")).resolve("movie.mkv"), "data");
-        transmission.add(torrent("original", "Original/movie.mkv"), torrent("cross-seed", "cross-seed/movie.mkv"),
+        transmission.add(
+                torrent("original", "Original/movie.mkv"),
+                torrent("cross-seed", "cross-seed/movie.mkv"),
                 torrent("other", "Other/movie.mkv"));
         Files.writeString(overridesFile(), """
                 overrides:
@@ -111,10 +116,15 @@ class RunServiceTest {
         RunOutcome outcome = service().run().orElseThrow();
 
         assertEquals(Status.SUCCEEDED, outcome.status());
-        assertEquals(List.of(
-                new KeepOverride("one", List.of("gone", "original", "cross-seed"), "Rewatching",
-                        Optional.of(LocalDate.parse("2999-12-31")), Optional.empty()),
-                new KeepOverride("stale", List.of("left"), "", Optional.empty(), Optional.empty())),
+        assertEquals(
+                List.of(
+                        new KeepOverride(
+                                "one",
+                                List.of("gone", "original", "cross-seed"),
+                                "Rewatching",
+                                Optional.of(LocalDate.parse("2999-12-31")),
+                                Optional.empty()),
+                        new KeepOverride("stale", List.of("left"), "", Optional.empty(), Optional.empty())),
                 new OverrideStore(overridesFile()).overrides());
     }
 
@@ -134,13 +144,15 @@ class RunServiceTest {
     void anExpiredOverrideStillGetsTheNewMembersOfItsGroup() throws IOException {
         Path original = Files.createDirectories(root.resolve("Original")).resolve("movie.mkv");
         Files.writeString(original, "data");
-        Files.createSymbolicLink(Files.createDirectories(root.resolve("cross-seed")).resolve("movie.mkv"), original);
+        Files.createSymbolicLink(
+                Files.createDirectories(root.resolve("cross-seed")).resolve("movie.mkv"), original);
         transmission.add(torrent("original", "Original/movie.mkv"), torrent("cross-seed", "cross-seed/movie.mkv"));
         Files.writeString(overridesFile(), "overrides:\n  - id: one\n    hashes: [original]\n    until: 2020-01-01\n");
 
         service().run();
 
-        assertEquals(List.of("original", "cross-seed"),
+        assertEquals(
+                List.of("original", "cross-seed"),
                 new OverrideStore(overridesFile()).overrides().getFirst().hashes());
     }
 
@@ -150,14 +162,26 @@ class RunServiceTest {
 
     /** A seeding torrent of no managed tracker in the root: unmanaged, so a run leaves it alone. */
     private Torrent torrent(String hash, String file) {
-        return new Torrent(hash, hash, Torrent.Status.SEEDING, 1, 0, "", 0, true, root.toString(),
-                List.of("https://elsewhere.example/announce"), List.of(new Torrent.File(file, 4, true)));
+        return new Torrent(
+                hash,
+                hash,
+                Torrent.Status.SEEDING,
+                1,
+                0,
+                "",
+                0,
+                true,
+                root.toString(),
+                List.of("https://elsewhere.example/announce"),
+                List.of(new Torrent.File(file, 4, true)));
     }
 
     private RunService service() {
         TrackerRules trackers = new TrackerRules(List.of(), Duration.ofDays(30), Optional.empty());
         OverrideStore overrides = new OverrideStore(overridesFile());
-        return new RunService(new Run(transmission, trackers, root, List.of(), ZoneOffset.UTC, overrides), overrides,
+        return new RunService(
+                new Run(transmission, trackers, root, List.of(), ZoneOffset.UTC, overrides),
+                overrides,
                 new RunMonitor(new SimpleMeterRegistry()));
     }
 }

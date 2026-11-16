@@ -34,7 +34,8 @@ class CrossSeedGroupsTest {
         file(downloads.resolve("one/movie.mkv"));
         file(downloads.resolve("two/movie.mkv"));
 
-        assertEquals(List.of(List.of("a"), List.of("b")),
+        assertEquals(
+                List.of(List.of("a"), List.of("b")),
                 groups(torrent("a", wanted("one/movie.mkv")), torrent("b", wanted("two/movie.mkv"))));
     }
 
@@ -44,8 +45,11 @@ class CrossSeedGroupsTest {
         file(downloads.resolve("other/movie.mkv"));
         symlink(downloads.resolve("cross-seed/movie.mkv"), original);
 
-        assertEquals(List.of(List.of("a", "c"), List.of("b")),
-                groups(torrent("a", wanted("original/movie.mkv")), torrent("b", wanted("other/movie.mkv")),
+        assertEquals(
+                List.of(List.of("a", "c"), List.of("b")),
+                groups(
+                        torrent("a", wanted("original/movie.mkv")),
+                        torrent("b", wanted("other/movie.mkv")),
                         torrent("c", wanted("cross-seed/movie.mkv"))));
     }
 
@@ -54,7 +58,8 @@ class CrossSeedGroupsTest {
         Path original = file(downloads.resolve("original/movie.mkv"));
         hardlink(downloads.resolve("cross-seed/movie.mkv"), original);
 
-        assertEquals(List.of(List.of("a", "b")),
+        assertEquals(
+                List.of(List.of("a", "b")),
                 groups(torrent("a", wanted("original/movie.mkv")), torrent("b", wanted("cross-seed/movie.mkv"))));
     }
 
@@ -65,8 +70,10 @@ class CrossSeedGroupsTest {
         hardlink(downloads.resolve("episode/e02.mkv"), second);
         file(downloads.resolve("episode/e02.nfo"));
 
-        assertEquals(List.of(List.of("a", "b")),
-                groups(torrent("a", wanted("season/e01.mkv"), wanted("season/e02.mkv")),
+        assertEquals(
+                List.of(List.of("a", "b")),
+                groups(
+                        torrent("a", wanted("season/e01.mkv"), wanted("season/e02.mkv")),
                         torrent("b", wanted("episode/e02.nfo"), wanted("episode/e02.mkv"))));
     }
 
@@ -79,8 +86,11 @@ class CrossSeedGroupsTest {
         symlink(downloads.resolve("c/e02.mkv"), second);
         file(downloads.resolve("d/e03.mkv"));
 
-        assertEquals(List.of(List.of("c", "a", "b"), List.of("d")),
-                groups(torrent("c", wanted("c/e02.mkv")), torrent("a", wanted("a/e01.mkv")),
+        assertEquals(
+                List.of(List.of("c", "a", "b"), List.of("d")),
+                groups(
+                        torrent("c", wanted("c/e02.mkv")),
+                        torrent("a", wanted("a/e01.mkv")),
                         torrent("d", wanted("d/e03.mkv")),
                         torrent("b", wanted("b/e01.mkv"), wanted("b/e02.mkv"))));
     }
@@ -91,8 +101,10 @@ class CrossSeedGroupsTest {
         file(downloads.resolve("original/movie.mkv"));
         hardlink(downloads.resolve("cross-seed/sample.mkv"), sample);
 
-        assertEquals(List.of(List.of("a"), List.of("b")),
-                groups(torrent("a", wanted("original/movie.mkv"), unwanted("original/sample.mkv")),
+        assertEquals(
+                List.of(List.of("a"), List.of("b")),
+                groups(
+                        torrent("a", wanted("original/movie.mkv"), unwanted("original/sample.mkv")),
                         torrent("b", wanted("cross-seed/sample.mkv"))));
     }
 
@@ -103,8 +115,10 @@ class CrossSeedGroupsTest {
         hardlink(downloads.resolve("cross-seed/sample.mkv"), sample);
         file(downloads.resolve("cross-seed/movie.mkv"));
 
-        assertEquals(List.of(List.of("a"), List.of("b")),
-                groups(torrent("a", wanted("original/movie.mkv"), unwanted("original/sample.mkv")),
+        assertEquals(
+                List.of(List.of("a"), List.of("b")),
+                groups(
+                        torrent("a", wanted("original/movie.mkv"), unwanted("original/sample.mkv")),
                         torrent("b", wanted("cross-seed/movie.mkv"), unwanted("cross-seed/sample.mkv"))));
     }
 
@@ -112,8 +126,11 @@ class CrossSeedGroupsTest {
     void torrentsWithNoResolvableFileAreEachAGroupOfTheirOwn() throws IOException {
         symlink(downloads.resolve("dangling/movie.mkv"), downloads.resolve("removed/movie.mkv"));
 
-        assertEquals(List.of(List.of("a"), List.of("b"), List.of("c")),
-                groups(torrent("a", wanted("gone/movie.mkv")), torrent("b", wanted("gone/movie.mkv")),
+        assertEquals(
+                List.of(List.of("a"), List.of("b"), List.of("c")),
+                groups(
+                        torrent("a", wanted("gone/movie.mkv")),
+                        torrent("b", wanted("gone/movie.mkv")),
                         torrent("c", wanted("dangling/movie.mkv"))));
     }
 
@@ -124,7 +141,8 @@ class CrossSeedGroupsTest {
         hardlink(library.resolve("one.mkv"), one);
         hardlink(library.resolve("two.mkv"), two);
 
-        assertEquals(List.of(List.of("a"), List.of("b")),
+        assertEquals(
+                List.of(List.of("a"), List.of("b")),
                 groups(torrent("a", wanted("one/movie.mkv")), torrent("b", wanted("two/movie.mkv"))));
     }
 
@@ -132,13 +150,24 @@ class CrossSeedGroupsTest {
     private List<List<String>> groups(Torrent... torrents) {
         Snapshot snapshot = SnapshotBuilder.build(Arrays.asList(torrents), Optional.empty(), List.of(library));
         return snapshot.groups().stream()
-                .map(group -> group.stream().map(member -> member.torrent().hash()).toList())
+                .map(group ->
+                        group.stream().map(member -> member.torrent().hash()).toList())
                 .toList();
     }
 
     private Torrent torrent(String hash, Torrent.File... files) {
-        return new Torrent(hash, "Torrent " + hash, Status.SEEDING, 1.0, 0, "", 0, true, downloads.toString(),
-                List.of("https://tracker-a.example/announce"), List.of(files));
+        return new Torrent(
+                hash,
+                "Torrent " + hash,
+                Status.SEEDING,
+                1.0,
+                0,
+                "",
+                0,
+                true,
+                downloads.toString(),
+                List.of("https://tracker-a.example/announce"),
+                List.of(files));
     }
 
     private static Torrent.File wanted(String name) {

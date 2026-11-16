@@ -33,7 +33,8 @@ class RunTest {
     /** One tracker, {@code tracker-a}, with a minimum seed time of 30 days. */
     private static final TrackerRules TRACKERS = new TrackerRules(
             List.of(new ManagedTracker("tracker-a", List.of("tracker-a.example"), Optional.empty())),
-            Duration.ofDays(30), Optional.empty());
+            Duration.ofDays(30),
+            Optional.empty());
 
     @TempDir
     Path root;
@@ -63,12 +64,14 @@ class RunTest {
         assertGone(due, downloads.resolve("Due"));
         assertTrue(Files.exists(fresh), "the file of a kept group was deleted");
 
-        assertEquals(List.of(Reason.ALL_MET, Reason.MINIMUM_NOT_REACHED),
+        assertEquals(
+                List.of(Reason.ALL_MET, Reason.MINIMUM_NOT_REACHED),
                 outcome.verdicts().stream().map(verdict -> verdict.reason()).toList());
         assertEquals(1, outcome.removals().size());
         Removal removal = outcome.removals().getFirst();
         assertEquals(Reason.ALL_MET, removal.reason());
-        assertEquals(List.of("due"), removal.removed().stream().map(Torrent::hash).toList());
+        assertEquals(
+                List.of("due"), removal.removed().stream().map(Torrent::hash).toList());
         assertEquals(Optional.empty(), removal.error());
         assertEquals(List.of(due), removal.deleted().files());
         assertEquals(4, removal.deleted().spaceFreed());
@@ -96,7 +99,8 @@ class RunTest {
         Path link = downloads.resolve("cross-seed/movie.mkv");
         Files.createDirectories(link.getParent());
         Files.createSymbolicLink(link, original);
-        transmission.add(torrent("original", 31 * DAY, "Original/movie.mkv"),
+        transmission.add(
+                torrent("original", 31 * DAY, "Original/movie.mkv"),
                 torrent("cross-seed", 30 * DAY, "cross-seed/movie.mkv"));
 
         RunOutcome outcome = run();
@@ -142,7 +146,8 @@ class RunTest {
         RunOutcome outcome = run();
 
         assertEquals(Status.FAILED, outcome.status());
-        assertTrue(outcome.error().orElseThrow().startsWith("Library root " + library + " can't be read"),
+        assertTrue(
+                outcome.error().orElseThrow().startsWith("Library root " + library + " can't be read"),
                 outcome.error().toString());
         assertEquals(List.of(), transmission.removed());
         assertTrue(Files.exists(due));
@@ -155,11 +160,13 @@ class RunTest {
         Path due = file(downloads.resolve("Due/movie.mkv"));
         transmission.add(torrent("due", 30 * DAY, "Due/movie.mkv"));
 
-        RunOutcome outcome = new Run(transmission, TRACKERS, gone, List.of(library), ZONE,
-                new OverrideStore(overridesFile())).execute();
+        RunOutcome outcome = new Run(
+                        transmission, TRACKERS, gone, List.of(library), ZONE, new OverrideStore(overridesFile()))
+                .execute();
 
         assertEquals(Status.FAILED, outcome.status());
-        assertEquals(Optional.of("The downloads root " + gone + " (seedkeeper.downloads-root) can't be found"),
+        assertEquals(
+                Optional.of("The downloads root " + gone + " (seedkeeper.downloads-root) can't be found"),
                 outcome.error());
         assertEquals(List.of(), outcome.removals());
         assertEquals(List.of(), transmission.removed());
@@ -173,8 +180,10 @@ class RunTest {
         Files.createDirectories(second.getParent());
         Files.createLink(second, first);
         Path other = file(downloads.resolve("Other/movie.mkv"));
-        transmission.add(torrent("first", 30 * DAY, "Pack/movie.mkv"), torrent("second", 30 * DAY,
-                "cross-seed/movie.mkv"), torrent("other", 30 * DAY, "Other/movie.mkv"));
+        transmission.add(
+                torrent("first", 30 * DAY, "Pack/movie.mkv"),
+                torrent("second", 30 * DAY, "cross-seed/movie.mkv"),
+                torrent("other", 30 * DAY, "Other/movie.mkv"));
         transmission.refuseRemovalOf("second");
 
         RunOutcome outcome = run();
@@ -185,8 +194,11 @@ class RunTest {
         assertTrue(Files.exists(first) && Files.exists(second), "a file of the group that failed was deleted");
         assertGone(other);
         Removal failed = outcome.removals().getFirst();
-        assertEquals(List.of("first", "second"), failed.torrents().stream().map(Torrent::hash).toList());
-        assertEquals(List.of("first"), failed.removed().stream().map(Torrent::hash).toList());
+        assertEquals(
+                List.of("first", "second"),
+                failed.torrents().stream().map(Torrent::hash).toList());
+        assertEquals(
+                List.of("first"), failed.removed().stream().map(Torrent::hash).toList());
         assertEquals(Optional.of("Transmission refused torrent_remove: torrent is busy"), failed.error());
         assertEquals(List.of(), failed.deleted().files());
         assertEquals(0, failed.deleted().spaceFreed());
@@ -208,8 +220,8 @@ class RunTest {
         Path link = downloads.resolve("cross-seed/movie.mkv");
         Files.createDirectories(link.getParent());
         Files.createSymbolicLink(link, file);
-        transmission.add(torrent("first", 30 * DAY, "Pack/movie.mkv"), torrent("second", 30 * DAY,
-                "cross-seed/movie.mkv"));
+        transmission.add(
+                torrent("first", 30 * DAY, "Pack/movie.mkv"), torrent("second", 30 * DAY, "cross-seed/movie.mkv"));
         transmission.refuseRemovalOf("first");
 
         run();
@@ -235,7 +247,8 @@ class RunTest {
         RunOutcome outcome = run();
 
         assertEquals(Status.SUCCEEDED, outcome.status());
-        assertEquals(List.of(Reason.KEEP_OVERRIDE, Reason.ALL_MET),
+        assertEquals(
+                List.of(Reason.KEEP_OVERRIDE, Reason.ALL_MET),
                 outcome.verdicts().stream().map(verdict -> verdict.reason()).toList());
         assertEquals(List.of("due"), transmission.removed());
         assertTrue(Files.exists(kept), "the file of a group with a keep override was deleted");
@@ -267,8 +280,9 @@ class RunTest {
         RunOutcome outcome = run();
 
         assertEquals(Status.FAILED, outcome.status());
-        assertTrue(outcome.error().orElseThrow().startsWith("The overrides file " + overridesFile()
-                + " can't be read: "), outcome.error().orElseThrow());
+        assertTrue(
+                outcome.error().orElseThrow().startsWith("The overrides file " + overridesFile() + " can't be read: "),
+                outcome.error().orElseThrow());
         assertEquals(List.of(), outcome.verdicts());
         assertEquals(List.of(), transmission.removed());
         assertTrue(Files.exists(due));
@@ -288,7 +302,8 @@ class RunTest {
         Path link = downloads.resolve("cross-seed/movie.mkv");
         Files.createDirectories(link.getParent());
         Files.createSymbolicLink(link, original);
-        transmission.add(torrent("original", 29 * DAY, "Original/movie.mkv"),
+        transmission.add(
+                torrent("original", 29 * DAY, "Original/movie.mkv"),
                 unregistered(torrent("cross-seed", DAY, "cross-seed/movie.mkv")));
 
         RunOutcome outcome = run();
@@ -297,12 +312,15 @@ class RunTest {
         assertEquals(List.of("original"), transmission.hashes());
         assertGone(link, link.getParent());
         assertTrue(Files.exists(original), "the data of the member that stays was deleted");
-        assertEquals(List.of(Reason.MINIMUM_NOT_REACHED, Reason.UNREGISTERED),
+        assertEquals(
+                List.of(Reason.MINIMUM_NOT_REACHED, Reason.UNREGISTERED),
                 outcome.verdicts().stream().map(verdict -> verdict.reason()).toList());
         assertEquals(1, outcome.removals().size());
         Removal removal = outcome.removals().getFirst();
         assertEquals(Reason.UNREGISTERED, removal.reason());
-        assertEquals(List.of("cross-seed"), removal.removed().stream().map(Torrent::hash).toList());
+        assertEquals(
+                List.of("cross-seed"),
+                removal.removed().stream().map(Torrent::hash).toList());
         assertEquals(0, removal.deleted().spaceFreed());
     }
 
@@ -312,7 +330,8 @@ class RunTest {
         Path link = downloads.resolve("cross-seed/movie.mkv");
         Files.createDirectories(link.getParent());
         Files.createSymbolicLink(link, original);
-        transmission.add(unregistered(torrent("original", DAY, "Original/movie.mkv")),
+        transmission.add(
+                unregistered(torrent("original", DAY, "Original/movie.mkv")),
                 torrent("cross-seed", 29 * DAY, "cross-seed/movie.mkv"));
 
         RunOutcome outcome = run();
@@ -330,14 +349,16 @@ class RunTest {
         Path link = downloads.resolve("cross-seed/movie.mkv");
         Files.createDirectories(link.getParent());
         Files.createSymbolicLink(link, original);
-        transmission.add(unregistered(torrent("original", DAY, "Original/movie.mkv")),
+        transmission.add(
+                unregistered(torrent("original", DAY, "Original/movie.mkv")),
                 torrent("cross-seed", 30 * DAY, "cross-seed/movie.mkv"));
 
         RunOutcome outcome = run();
 
         assertEquals(List.of("original", "cross-seed"), transmission.removed());
         assertGone(link);
-        assertEquals(List.of(Reason.UNREGISTERED, Reason.ALL_MET),
+        assertEquals(
+                List.of(Reason.UNREGISTERED, Reason.ALL_MET),
                 outcome.removals().stream().map(Removal::reason).toList());
         // Two removals: the data was still in use when its own torrent left, and the second removal deletes only
         // the paths of its own torrent. The data stays behind as an orphan.
@@ -347,9 +368,18 @@ class RunTest {
 
     /** The same torrent, with the tracker error of a torrent its tracker has deleted. */
     private static Torrent unregistered(Torrent torrent) {
-        return new Torrent(torrent.hash(), torrent.name(), torrent.status(), torrent.percentDone(), 2,
-                "Unregistered torrent", torrent.secondsSeeding(), torrent.isPrivate(), torrent.downloadDir(),
-                torrent.trackers(), torrent.files());
+        return new Torrent(
+                torrent.hash(),
+                torrent.name(),
+                torrent.status(),
+                torrent.percentDone(),
+                2,
+                "Unregistered torrent",
+                torrent.secondsSeeding(),
+                torrent.isPrivate(),
+                torrent.downloadDir(),
+                torrent.trackers(),
+                torrent.files());
     }
 
     private RunOutcome run() {
@@ -362,9 +392,20 @@ class RunTest {
 
     /** A finished, seeding torrent of tracker-a in the downloads root. */
     private Torrent torrent(String hash, long secondsSeeding, String... files) {
-        return new Torrent(hash, hash, Torrent.Status.SEEDING, 1, 0, "", secondsSeeding, true, downloads.toString(),
+        return new Torrent(
+                hash,
+                hash,
+                Torrent.Status.SEEDING,
+                1,
+                0,
+                "",
+                secondsSeeding,
+                true,
+                downloads.toString(),
                 List.of("https://tracker-a.example/announce"),
-                Arrays.stream(files).map(name -> new Torrent.File(name, 4, true)).toList());
+                Arrays.stream(files)
+                        .map(name -> new Torrent.File(name, 4, true))
+                        .toList());
     }
 
     private static void assertGone(Path... paths) {

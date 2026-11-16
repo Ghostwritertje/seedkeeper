@@ -7,5 +7,4 @@ import io.quarkus.test.junit.QuarkusIntegrationTest;
  * file watcher have to work there too.
  */
 @QuarkusIntegrationTest
-class OverridesIT extends OverridesTest {
-}
+class OverridesIT extends OverridesTest {}

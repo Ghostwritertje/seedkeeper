@@ -48,11 +48,19 @@ class MetricsTest {
         }
 
         FakeTransmissionResource.fake().reset();
-        FakeTransmissionResource.fake().torrents("[" + String.join(",",
-                torrent("due1", "Metrics.Due", 31 * DAY, downloads, "Metrics.Due/movie.mkv"),
-                torrent("linked", "Metrics.Linked", 400 * DAY, downloads, "Metrics.Linked/movie.mkv"),
-                torrent("due2", "Metrics.Due.cross-seed", 30 * DAY, downloads.resolve("Metrics.cross-seed"),
-                        "Metrics.Due/movie.mkv")) + "]");
+        FakeTransmissionResource.fake()
+                .torrents("["
+                        + String.join(
+                                ",",
+                                torrent("due1", "Metrics.Due", 31 * DAY, downloads, "Metrics.Due/movie.mkv"),
+                                torrent("linked", "Metrics.Linked", 400 * DAY, downloads, "Metrics.Linked/movie.mkv"),
+                                torrent(
+                                        "due2",
+                                        "Metrics.Due.cross-seed",
+                                        30 * DAY,
+                                        downloads.resolve("Metrics.cross-seed"),
+                                        "Metrics.Due/movie.mkv"))
+                        + "]");
     }
 
     @Test
@@ -68,7 +76,8 @@ class MetricsTest {
         assertEquals(1, value(after, REMOVED_GROUPS) - value(before, REMOVED_GROUPS));
         assertEquals(4, value(after, SPACE_FREED) - value(before, SPACE_FREED));
         double lastSuccessfulRun = value(after, LAST_SUCCESSFUL_RUN);
-        assertTrue(lastSuccessfulRun >= justBefore && lastSuccessfulRun <= System.currentTimeMillis() / 1000 + 1,
+        assertTrue(
+                lastSuccessfulRun >= justBefore && lastSuccessfulRun <= System.currentTimeMillis() / 1000 + 1,
                 "the last successful run is at " + lastSuccessfulRun + ", not now");
         assertEquals(1, value(after, GROUPS, "verdict=\"remove\"", "reason=\"all-met\""));
         assertEquals(1, value(after, GROUPS, "verdict=\"keep\"", "reason=\"library-link\""));
@@ -113,12 +122,15 @@ class MetricsTest {
     private static void runNow() {
         Response page = Authenticated.asUser().when().get("/system");
         String token = page.htmlPath().getString("**.find { it.@name == 'csrf-token' }.@value");
-        given().redirects().follow(false)
+        given().redirects()
+                .follow(false)
                 .cookie(Authenticated.login(TestSecrets.USERNAME, TestSecrets.PASSWORD))
                 .cookie("csrf-token", page.cookie("csrf-token"))
                 .formParam("csrf-token", token)
-                .when().post("/system/run")
-                .then().statusCode(303);
+                .when()
+                .post("/system/run")
+                .then()
+                .statusCode(303);
     }
 
     /** A finished, seeding, private torrent of tracker-a with one wanted file. */

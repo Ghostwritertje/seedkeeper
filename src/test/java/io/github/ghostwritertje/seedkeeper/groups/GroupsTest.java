@@ -1,6 +1,5 @@
 package io.github.ghostwritertje.seedkeeper.groups;
 
-import io.github.ghostwritertje.seedkeeper.Authenticated;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
@@ -8,6 +7,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
+import io.github.ghostwritertje.seedkeeper.Authenticated;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmission.Behaviour;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmissionResource;
 import io.quarkus.test.common.WithTestResource;
@@ -56,53 +56,168 @@ class GroupsTest {
         hardlink(library.resolve("movies/sample.mkv"), sample);
 
         FakeTransmissionResource.fake().reset();
-        FakeTransmissionResource.fake().torrents("[" + String.join(",",
-                torrent("1111", "Linked.Show", 6, 1, 40 * DAY, true, "https://tracker-a.example/key/announce",
-                        "Linked.Show/e01.mkv:true", "Linked.Show/e02.mkv:true"),
-                torrent("2222", "Fresh.Movie", 6, 1, 2 * DAY + 12 * 3600, true,
-                        "https://tracker-b.example.org/announce", "Fresh.Movie/movie.mkv:true"),
-                torrent("3333", "Old.Movie", 0, 1, 14 * DAY, true, "https://tracker-b.example/announce",
-                        "Old.Movie/movie.mkv:true", "Old.Movie/sample.mkv:false"),
-                torrent("4444", "Unknown.Tracker", 6, 1, 400 * DAY, true, "https://elsewhere.example/announce",
-                        "Unknown.Tracker/movie.mkv:true"),
-                torrent("5555", "Downloading", 4, 0.5, 0, true, "https://tracker-a.example/key/announce",
-                        "Downloading/movie.mkv:true"),
-                torrent("6666", "ubuntu.iso", 6, 1, DAY, false, "udp://open.example:1337/announce",
-                        "ubuntu.iso:true"),
-                // A cross-seed group: 8888 is a symlink to the data of 7777. Paused.Movie sits between them.
-                torrent("7777", "Cross.Seed", 6, 1, 20 * DAY, true, "https://tracker-a.example/key/announce",
-                        "Cross.Seed/movie.mkv:true"),
-                torrent("9999", "Paused.Movie", 0, 1, 29 * DAY, true, "https://tracker-a.example/key/announce",
-                        "Paused.Movie/movie.mkv:true"),
-                torrent("8888", "Cross.Seed.Elsewhere", 0, 1, 13 * DAY, true, "https://tracker-b.example/announce",
-                        "Cross.Seed.Elsewhere/movie.mkv:true")) + "]");
+        FakeTransmissionResource.fake()
+                .torrents("["
+                        + String.join(
+                                ",",
+                                torrent(
+                                        "1111",
+                                        "Linked.Show",
+                                        6,
+                                        1,
+                                        40 * DAY,
+                                        true,
+                                        "https://tracker-a.example/key/announce",
+                                        "Linked.Show/e01.mkv:true",
+                                        "Linked.Show/e02.mkv:true"),
+                                torrent(
+                                        "2222",
+                                        "Fresh.Movie",
+                                        6,
+                                        1,
+                                        2 * DAY + 12 * 3600,
+                                        true,
+                                        "https://tracker-b.example.org/announce",
+                                        "Fresh.Movie/movie.mkv:true"),
+                                torrent(
+                                        "3333",
+                                        "Old.Movie",
+                                        0,
+                                        1,
+                                        14 * DAY,
+                                        true,
+                                        "https://tracker-b.example/announce",
+                                        "Old.Movie/movie.mkv:true",
+                                        "Old.Movie/sample.mkv:false"),
+                                torrent(
+                                        "4444",
+                                        "Unknown.Tracker",
+                                        6,
+                                        1,
+                                        400 * DAY,
+                                        true,
+                                        "https://elsewhere.example/announce",
+                                        "Unknown.Tracker/movie.mkv:true"),
+                                torrent(
+                                        "5555",
+                                        "Downloading",
+                                        4,
+                                        0.5,
+                                        0,
+                                        true,
+                                        "https://tracker-a.example/key/announce",
+                                        "Downloading/movie.mkv:true"),
+                                torrent(
+                                        "6666",
+                                        "ubuntu.iso",
+                                        6,
+                                        1,
+                                        DAY,
+                                        false,
+                                        "udp://open.example:1337/announce",
+                                        "ubuntu.iso:true"),
+                                // A cross-seed group: 8888 is a symlink to the data of 7777. Paused.Movie sits between
+                                // them.
+                                torrent(
+                                        "7777",
+                                        "Cross.Seed",
+                                        6,
+                                        1,
+                                        20 * DAY,
+                                        true,
+                                        "https://tracker-a.example/key/announce",
+                                        "Cross.Seed/movie.mkv:true"),
+                                torrent(
+                                        "9999",
+                                        "Paused.Movie",
+                                        0,
+                                        1,
+                                        29 * DAY,
+                                        true,
+                                        "https://tracker-a.example/key/announce",
+                                        "Paused.Movie/movie.mkv:true"),
+                                torrent(
+                                        "8888",
+                                        "Cross.Seed.Elsewhere",
+                                        0,
+                                        1,
+                                        13 * DAY,
+                                        true,
+                                        "https://tracker-b.example/announce",
+                                        "Cross.Seed.Elsewhere/movie.mkv:true"))
+                        + "]");
     }
 
     @Test
     void apiGivesEveryGroupWithItsMembersVerdictAndReason() {
         Authenticated.withApiKey()
-                .when().get("/api/v1/groups")
+                .when()
+                .get("/api/v1/groups")
                 .then()
                 .statusCode(200)
                 .contentType("application/json")
                 .body("verdict", contains("keep", "keep", "remove", "left-alone", "keep", "remove", "keep", "keep"))
-                .body("reason", contains("library-link", "minimum-not-reached", "all-met", "unmanaged",
-                        "not-finished", "all-met", "minimum-not-reached", "minimum-not-reached"))
+                .body(
+                        "reason",
+                        contains(
+                                "library-link",
+                                "minimum-not-reached",
+                                "all-met",
+                                "unmanaged",
+                                "not-finished",
+                                "all-met",
+                                "minimum-not-reached",
+                                "minimum-not-reached"))
                 .body("libraryLinks", contains(1, 0, 0, 0, 0, 0, 0, 0))
                 .body("files", contains(2, 1, 1, 1, 1, 1, 1, 1))
                 .body("members.collect { it.size() }", contains(1, 1, 1, 1, 1, 1, 2, 1))
-                .body("members.flatten().hash", contains("1111", "2222", "3333", "4444", "5555", "6666", "7777",
-                        "8888", "9999"))
-                .body("members.flatten().name", contains("Linked.Show", "Fresh.Movie", "Old.Movie", "Unknown.Tracker",
-                        "Downloading", "ubuntu.iso", "Cross.Seed", "Cross.Seed.Elsewhere", "Paused.Movie"))
-                .body("members.flatten().tracker", contains("tracker-a", "tracker-b", "tracker-b", null, "tracker-a",
-                        "public", "tracker-a", "tracker-b", "tracker-a"))
-                .body("members.flatten().status", contains("seeding", "seeding", "stopped", "seeding", "downloading",
-                        "seeding", "seeding", "stopped", "stopped"))
-                .body("members.flatten().seedTimeSeconds", contains(3_456_000, 216_000, 1_209_600, 34_560_000, 0,
-                        86_400, 1_728_000, 1_123_200, 2_505_600))
-                .body("members.flatten().minimumSeedTimeSeconds", contains(2_592_000, 1_209_600, 1_209_600, null,
-                        2_592_000, 86_400, 2_592_000, 1_209_600, 2_592_000));
+                .body(
+                        "members.flatten().hash",
+                        contains("1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999"))
+                .body(
+                        "members.flatten().name",
+                        contains(
+                                "Linked.Show",
+                                "Fresh.Movie",
+                                "Old.Movie",
+                                "Unknown.Tracker",
+                                "Downloading",
+                                "ubuntu.iso",
+                                "Cross.Seed",
+                                "Cross.Seed.Elsewhere",
+                                "Paused.Movie"))
+                .body(
+                        "members.flatten().tracker",
+                        contains(
+                                "tracker-a",
+                                "tracker-b",
+                                "tracker-b",
+                                null,
+                                "tracker-a",
+                                "public",
+                                "tracker-a",
+                                "tracker-b",
+                                "tracker-a"))
+                .body(
+                        "members.flatten().status",
+                        contains(
+                                "seeding",
+                                "seeding",
+                                "stopped",
+                                "seeding",
+                                "downloading",
+                                "seeding",
+                                "seeding",
+                                "stopped",
+                                "stopped"))
+                .body(
+                        "members.flatten().seedTimeSeconds",
+                        contains(3_456_000, 216_000, 1_209_600, 34_560_000, 0, 86_400, 1_728_000, 1_123_200, 2_505_600))
+                .body(
+                        "members.flatten().minimumSeedTimeSeconds",
+                        contains(
+                                2_592_000, 1_209_600, 1_209_600, null, 2_592_000, 86_400, 2_592_000, 1_209_600,
+                                2_592_000));
     }
 
     @Test
@@ -110,11 +225,21 @@ class GroupsTest {
         Instant before = Instant.now();
 
         Authenticated.withApiKey()
-                .when().get("/api/v1/groups")
+                .when()
+                .get("/api/v1/groups")
                 .then()
                 .statusCode(200)
-                .body("forecast", contains(nullValue(), notNullValue(), nullValue(), nullValue(), nullValue(),
-                        nullValue(), notNullValue(), notNullValue()))
+                .body(
+                        "forecast",
+                        contains(
+                                nullValue(),
+                                notNullValue(),
+                                nullValue(),
+                                nullValue(),
+                                nullValue(),
+                                nullValue(),
+                                notNullValue(),
+                                notNullValue()))
                 // Fresh.Movie: 2d 12h of 14d.
                 .body("[1].forecast.clockStopped", is(false))
                 .body("[1].forecast.date", dateIn(before, Duration.ofDays(11).plusHours(12)))
@@ -130,7 +255,12 @@ class GroupsTest {
     void apiGivesAnEmptyListWhenThereAreNoTorrents() {
         FakeTransmissionResource.fake().torrents("[]");
 
-        Authenticated.withApiKey().when().get("/api/v1/groups").then().statusCode(200).body("$", empty());
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/groups")
+                .then()
+                .statusCode(200)
+                .body("$", empty());
     }
 
     @Test
@@ -138,12 +268,15 @@ class GroupsTest {
         FakeTransmissionResource.fake().version("4.0.6 (38c164933e)");
 
         Authenticated.withApiKey()
-                .when().get("/api/v1/groups")
+                .when()
+                .get("/api/v1/groups")
                 .then()
                 .statusCode(503)
                 .contentType("application/json")
-                .body("reason", is("Transmission 4.0.6 (38c164933e) is older than 4.1,"
-                        + " the oldest version seedkeeper works with"));
+                .body(
+                        "reason",
+                        is("Transmission 4.0.6 (38c164933e) is older than 4.1,"
+                                + " the oldest version seedkeeper works with"));
     }
 
     @Test
@@ -151,46 +284,136 @@ class GroupsTest {
         Instant before = Instant.now();
 
         Authenticated.asUser()
-                .when().get("/groups")
+                .when()
+                .get("/groups")
                 .then()
                 .statusCode(200)
                 .contentType(containsString("text/html"))
                 .body("html.head.title", is("Groups · seedkeeper"))
-                .body("html.body.main.table.thead.tr.th", contains("Name", "Tracker", "Seed time / minimum",
-                        "Status", "Tracker message", "Library links", "Verdict", "Reason", "Secondary reasons", "Forecast", "Keep override"))
+                .body(
+                        "html.body.main.table.thead.tr.th",
+                        contains(
+                                "Name",
+                                "Tracker",
+                                "Seed time / minimum",
+                                "Status",
+                                "Tracker message",
+                                "Library links",
+                                "Verdict",
+                                "Reason",
+                                "Secondary reasons",
+                                "Forecast",
+                                "Keep override"))
                 .body("html.body.main.table.tbody.tr.size()", is(9))
-                .body(cells(0), contains(
-                        "Linked.Show", "tracker-a", "40d / 30d",
-                        "Seeding", "", "1 of 2 files", "Keep", "Library link (1 of 2 files)", "", ""))
-                .body(cells(1), contains(
-                        is("Fresh.Movie"), is("tracker-b"),
-                        is("2d 12h / 14d"), is("Seeding"), is(""), is("0 of 1 files"), is("Keep"), is("Minimum not reached"), is(""),
-                        minuteIn(before, Duration.ofDays(11).plusHours(12))))
-                .body(cells(2), contains(
-                        "Old.Movie", "tracker-b", "14d / 14d",
-                        "Stopped", "", "0 of 1 files", "Remove", "All met", "", ""))
-                .body(cells(3), contains(
-                        "Unknown.Tracker", "unmanaged", "400d",
-                        "Seeding", "", "0 of 1 files", "Left alone", "Unmanaged", "", ""))
-                .body(cells(4), contains(
-                        "Downloading", "tracker-a", "0m / 30d",
-                        "Downloading", "", "0 of 1 files", "Keep", "Not finished", "Minimum not reached", ""))
-                .body(cells(5), contains(
-                        "ubuntu.iso", "public", "1d / 1d",
-                        "Seeding", "", "0 of 1 files", "Remove", "All met", "", ""))
+                .body(
+                        cells(0),
+                        contains(
+                                "Linked.Show",
+                                "tracker-a",
+                                "40d / 30d",
+                                "Seeding",
+                                "",
+                                "1 of 2 files",
+                                "Keep",
+                                "Library link (1 of 2 files)",
+                                "",
+                                ""))
+                .body(
+                        cells(1),
+                        contains(
+                                is("Fresh.Movie"),
+                                is("tracker-b"),
+                                is("2d 12h / 14d"),
+                                is("Seeding"),
+                                is(""),
+                                is("0 of 1 files"),
+                                is("Keep"),
+                                is("Minimum not reached"),
+                                is(""),
+                                minuteIn(before, Duration.ofDays(11).plusHours(12))))
+                .body(
+                        cells(2),
+                        contains(
+                                "Old.Movie",
+                                "tracker-b",
+                                "14d / 14d",
+                                "Stopped",
+                                "",
+                                "0 of 1 files",
+                                "Remove",
+                                "All met",
+                                "",
+                                ""))
+                .body(
+                        cells(3),
+                        contains(
+                                "Unknown.Tracker",
+                                "unmanaged",
+                                "400d",
+                                "Seeding",
+                                "",
+                                "0 of 1 files",
+                                "Left alone",
+                                "Unmanaged",
+                                "",
+                                ""))
+                .body(
+                        cells(4),
+                        contains(
+                                "Downloading",
+                                "tracker-a",
+                                "0m / 30d",
+                                "Downloading",
+                                "",
+                                "0 of 1 files",
+                                "Keep",
+                                "Not finished",
+                                "Minimum not reached",
+                                ""))
+                .body(
+                        cells(5),
+                        contains(
+                                "ubuntu.iso",
+                                "public",
+                                "1d / 1d",
+                                "Seeding",
+                                "",
+                                "0 of 1 files",
+                                "Remove",
+                                "All met",
+                                "",
+                                ""))
                 // The cross-seed group: one row per member, the group's cells span both.
-                .body(cells(6), contains(
-                        is("Cross.Seed"), is("tracker-a"),
-                        is("20d / 30d"), is("Seeding"), is(""), is("0 of 1 files"), is("Keep"), is("Minimum not reached"), is(""),
-                        minuteIn(before, Duration.ofDays(10))))
-                .body("html.body.main.table.tbody.tr[6].td.collect { it.@rowspan.toString() }",
+                .body(
+                        cells(6),
+                        contains(
+                                is("Cross.Seed"),
+                                is("tracker-a"),
+                                is("20d / 30d"),
+                                is("Seeding"),
+                                is(""),
+                                is("0 of 1 files"),
+                                is("Keep"),
+                                is("Minimum not reached"),
+                                is(""),
+                                minuteIn(before, Duration.ofDays(10))))
+                .body(
+                        "html.body.main.table.tbody.tr[6].td.collect { it.@rowspan.toString() }",
                         contains("1", "1", "1", "1", "1", "2", "2", "2", "2", "2", "2"))
-                .body(cells(7), contains(
-                        "Cross.Seed.Elsewhere", "tracker-b",
-                        "13d / 14d", "Stopped", ""))
-                .body(cells(8), contains(
-                        "Paused.Movie", "tracker-a", "29d / 30d",
-                        "Stopped", "", "0 of 1 files", "Keep", "Minimum not reached", "", "clock stopped (paused)"));
+                .body(cells(7), contains("Cross.Seed.Elsewhere", "tracker-b", "13d / 14d", "Stopped", ""))
+                .body(
+                        cells(8),
+                        contains(
+                                "Paused.Movie",
+                                "tracker-a",
+                                "29d / 30d",
+                                "Stopped",
+                                "",
+                                "0 of 1 files",
+                                "Keep",
+                                "Minimum not reached",
+                                "",
+                                "clock stopped (paused)"));
     }
 
     @Test
@@ -198,37 +421,64 @@ class GroupsTest {
         FakeTransmissionResource.fake().behaviour(Behaviour.RPC_ERROR);
 
         Authenticated.asUser()
-                .when().get("/groups")
+                .when()
+                .get("/groups")
                 .then()
                 .statusCode(200)
-                .body("html.body.main.p.find { it.@role == 'alert' }",
+                .body(
+                        "html.body.main.p.find { it.@role == 'alert' }",
                         containsString("refused session_get: Method not found"))
                 .body("html.body.main.table.size()", is(0));
     }
 
     @Test
     void theNavigationLeadsToTheGroupsView() {
-        Authenticated.asUser().when().get("/system").then()
+        Authenticated.asUser()
+                .when()
+                .get("/system")
+                .then()
                 .body("html.body.header.nav.a.find { it.@href == '/groups' }", is("Groups"));
     }
 
     /** One torrent in Transmission's field names. Each file is {@code name:wanted}. */
-    private static String torrent(String hash, String name, int status, double percentDone, long secondsSeeding,
-            boolean isPrivate, String announce, String... files) {
+    private static String torrent(
+            String hash,
+            String name,
+            int status,
+            double percentDone,
+            long secondsSeeding,
+            boolean isPrivate,
+            String announce,
+            String... files) {
         StringBuilder fileList = new StringBuilder();
         StringBuilder fileStats = new StringBuilder();
         for (String file : files) {
             String[] parts = file.split(":");
             fileList.append(fileList.isEmpty() ? "" : ",")
-                    .append("{\"name\":\"").append(parts[0]).append("\",\"length\":4}");
-            fileStats.append(fileStats.isEmpty() ? "" : ",").append("{\"wanted\":").append(parts[1]).append("}");
+                    .append("{\"name\":\"")
+                    .append(parts[0])
+                    .append("\",\"length\":4}");
+            fileStats
+                    .append(fileStats.isEmpty() ? "" : ",")
+                    .append("{\"wanted\":")
+                    .append(parts[1])
+                    .append("}");
         }
         return """
                 {"hash_string": "%s", "name": "%s", "status": %d, "percent_done": %s, "error": 0, "error_string": "",
                  "seconds_seeding": %d, "is_private": %s, "download_dir": "%s",
                  "trackers": [{"announce": "%s"}], "files": [%s], "file_stats": [%s]}
-                """.formatted(hash, name, status, percentDone, secondsSeeding, isPrivate,
-                FakeTransmissionResource.downloads(), announce, fileList, fileStats);
+                """.formatted(
+                        hash,
+                        name,
+                        status,
+                        percentDone,
+                        secondsSeeding,
+                        isPrivate,
+                        FakeTransmissionResource.downloads(),
+                        announce,
+                        fileList,
+                        fileStats);
     }
 
     /** The text of every cell of a row of the table, up to the form that sets a keep override. */
@@ -248,7 +498,8 @@ class GroupsTest {
                 Instant earliest = before.truncatedTo(ChronoUnit.SECONDS).plus(remaining);
                 Instant latest = Instant.now().plus(remaining);
                 return date.getOffset().equals(ZoneOffset.ofHoursMinutes(5, 30))
-                        && !date.toInstant().isBefore(earliest) && !date.toInstant().isAfter(latest);
+                        && !date.toInstant().isBefore(earliest)
+                        && !date.toInstant().isAfter(latest);
             }
 
             @Override
@@ -260,8 +511,8 @@ class GroupsTest {
 
     /** The same moment as the page writes it: to the minute, in the application's time zone. */
     private static Matcher<String> minuteIn(Instant before, Duration remaining) {
-        DateTimeFormatter format = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-                .withZone(FakeTransmissionResource.TIME_ZONE);
+        DateTimeFormatter format =
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(FakeTransmissionResource.TIME_ZONE);
         return new TypeSafeMatcher<>() {
             @Override
             protected boolean matchesSafely(String text) {

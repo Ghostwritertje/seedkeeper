@@ -29,7 +29,8 @@ class SystemTest {
     @Test
     void apiShowsSeedkeepersVersionAndTransmissionsVersion() {
         Authenticated.withApiKey()
-                .when().get("/api/v1/system")
+                .when()
+                .get("/api/v1/system")
                 .then()
                 .statusCode(200)
                 .contentType("application/json")
@@ -43,12 +44,22 @@ class SystemTest {
     @Test
     void anIncompleteDirInsideTheDownloadsRootOrNotEnabledHasNoWarning() {
         FakeTransmissionResource.fake().incompleteDir("/elsewhere/incomplete", false);
-        Authenticated.withApiKey().when().get("/api/v1/system").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/system")
+                .then()
                 .body("transmission.incompleteDirWarning", nullValue());
 
-        FakeTransmissionResource.fake().incompleteDir(
-                FakeTransmissionResource.downloads().resolve("incomplete").toString(), true);
-        Authenticated.withApiKey().when().get("/api/v1/system").then()
+        FakeTransmissionResource.fake()
+                .incompleteDir(
+                        FakeTransmissionResource.downloads()
+                                .resolve("incomplete")
+                                .toString(),
+                        true);
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/system")
+                .then()
                 .body("transmission.incompleteDirWarning", nullValue());
     }
 
@@ -59,11 +70,18 @@ class SystemTest {
         String warning = "Transmission's incomplete dir /elsewhere/incomplete is outside the downloads root "
                 + FakeTransmissionResource.downloads() + ": seedkeeper deletes the part files of removed torrents"
                 + " there too, so make sure nothing else lives in it";
-        Authenticated.withApiKey().when().get("/api/v1/system").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/system")
+                .then()
                 .statusCode(200)
                 .body("transmission.incompleteDirWarning", is(warning));
-        Authenticated.asUser().when().get("/system").then()
-                .body("html.body.main.section.find { it.@id == 'transmission' }.p.find { it.@id == 'incomplete-dir' }",
+        Authenticated.asUser()
+                .when()
+                .get("/system")
+                .then()
+                .body(
+                        "html.body.main.section.find { it.@id == 'transmission' }.p.find { it.@id == 'incomplete-dir' }",
                         is(warning));
     }
 
@@ -71,15 +89,22 @@ class SystemTest {
     void anIncompleteDirThatIsTheFilesystemRootIsWarnedAbout() {
         FakeTransmissionResource.fake().incompleteDir("/", true);
 
-        Authenticated.withApiKey().when().get("/api/v1/system").then()
-                .body("transmission.incompleteDirWarning", is("Transmission's incomplete dir is /, the filesystem"
-                        + " root: seedkeeper never deletes there, so the part files of removed torrents stay behind"));
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/system")
+                .then()
+                .body(
+                        "transmission.incompleteDirWarning",
+                        is(
+                                "Transmission's incomplete dir is /, the filesystem"
+                                        + " root: seedkeeper never deletes there, so the part files of removed torrents stay behind"));
     }
 
     @Test
     void apiShowsTheNextRunOfTheScheduleInTheConfiguredTimeZone() {
         Authenticated.withApiKey()
-                .when().get("/api/v1/system")
+                .when()
+                .get("/api/v1/system")
                 .then()
                 .statusCode(200)
                 .body("nextRun", matchesPattern("\\d{4}-01-01T06:00:00\\+05:30"));
@@ -88,7 +113,8 @@ class SystemTest {
     @Test
     void pageShowsTheNextRun() {
         Authenticated.asUser()
-                .when().get("/system")
+                .when()
+                .get("/system")
                 .then()
                 .statusCode(200)
                 .body(RUNS + ".dl.dt[-1]", is("Next run"))
@@ -100,28 +126,32 @@ class SystemTest {
         FakeTransmissionResource.fake().version("4.0.6 (38c164933e)");
 
         Authenticated.withApiKey()
-                .when().get("/api/v1/system")
+                .when()
+                .get("/api/v1/system")
                 .then()
                 .statusCode(200)
                 .body("transmission.reachable", is(true))
                 .body("transmission.version", is("4.0.6 (38c164933e)"))
-                .body("transmission.reason", is("Transmission 4.0.6 (38c164933e) is older than 4.1,"
-                        + " the oldest version seedkeeper works with"));
+                .body(
+                        "transmission.reason",
+                        is("Transmission 4.0.6 (38c164933e) is older than 4.1,"
+                                + " the oldest version seedkeeper works with"));
     }
 
     @Test
     void pageShowsSeedkeepersVersionAndTransmissionsVersion() {
         Authenticated.asUser()
-                .when().get("/system")
+                .when()
+                .get("/system")
                 .then()
                 .statusCode(200)
                 .contentType(containsString("text/html"))
                 .body("html.head.title", is("System · seedkeeper"))
-                .body("html.body.main.section.find { it.@id == 'seedkeeper' }.dl.dd[0]",
+                .body(
+                        "html.body.main.section.find { it.@id == 'seedkeeper' }.dl.dd[0]",
                         matchesPattern("\\d+\\.\\d+\\.\\d+(-SNAPSHOT)?"))
                 .body("html.body.main.section.find { it.@id == 'transmission' }.dl.dd[0]", is("Reachable"))
-                .body("html.body.main.section.find { it.@id == 'transmission' }.dl.dd[1]",
-                        is("4.1.0 (5e6a9e0a3d)"));
+                .body("html.body.main.section.find { it.@id == 'transmission' }.dl.dd[1]", is("4.1.0 (5e6a9e0a3d)"));
     }
 
     @Test
@@ -129,11 +159,13 @@ class SystemTest {
         FakeTransmissionResource.fake().behaviour(Behaviour.LEGACY);
 
         Authenticated.asUser()
-                .when().get("/system")
+                .when()
+                .get("/system")
                 .then()
                 .statusCode(200)
                 .body("html.body.main.section.find { it.@id == 'transmission' }.dl.dd[0]", is("Reachable, not usable"))
-                .body("html.body.main.section.find { it.@id == 'transmission' }.p",
+                .body(
+                        "html.body.main.section.find { it.@id == 'transmission' }.p",
                         containsString("is older than 4.1, the oldest version seedkeeper works with"
                                 + " (it does not speak JSON-RPC 2.0)"));
     }
@@ -141,7 +173,8 @@ class SystemTest {
     @Test
     void pageUsesTheStylesheetAndHtmxShippedInTheApp() {
         Authenticated.asUser()
-                .when().get("/system")
+                .when()
+                .get("/system")
                 .then()
                 .body("html.head.link.@href", is("/seedkeeper.css"))
                 .body("html.head.script.@src", is("/htmx.min.js"));
@@ -152,7 +185,10 @@ class SystemTest {
 
     @Test
     void readinessAndLivenessAreUp() {
-        given().when().get("/q/health/ready").then().statusCode(200)
+        given().when()
+                .get("/q/health/ready")
+                .then()
+                .statusCode(200)
                 .body("status", is("UP"))
                 .body("checks.find { it.name == 'Transmission' }.status", is("UP"));
         given().when().get("/q/health/live").then().statusCode(200).body("status", is("UP"));

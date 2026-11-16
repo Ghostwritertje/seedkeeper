@@ -43,9 +43,10 @@ public class SingleUser {
         if (!authenticated) {
             return Uni.createFrom().failure(new AuthenticationFailedException());
         }
-        return Uni.createFrom().item(QuarkusSecurityIdentity.builder()
-                .setPrincipal(new QuarkusPrincipal(config.auth().username()))
-                .build());
+        return Uni.createFrom()
+                .item(QuarkusSecurityIdentity.builder()
+                        .setPrincipal(new QuarkusPrincipal(config.auth().username()))
+                        .build());
     }
 
     /** Checks the username and password of a posted login form. */
@@ -63,11 +64,13 @@ public class SingleUser {
         }
 
         @Override
-        public Uni<SecurityIdentity> authenticate(UsernamePasswordAuthenticationRequest request,
-                AuthenticationRequestContext context) {
+        public Uni<SecurityIdentity> authenticate(
+                UsernamePasswordAuthenticationRequest request, AuthenticationRequestContext context) {
             // Both are always compared, so a wrong username takes as long as a wrong password.
-            boolean username = Secrets.same(request.getUsername(), user.config.auth().username());
-            boolean password = Secrets.same(new String(request.getPassword().getPassword()),
+            boolean username =
+                    Secrets.same(request.getUsername(), user.config.auth().username());
+            boolean password = Secrets.same(
+                    new String(request.getPassword().getPassword()),
                     user.config.auth().password());
             return user.identityWhen(username & password);
         }
@@ -88,9 +91,10 @@ public class SingleUser {
         }
 
         @Override
-        public Uni<SecurityIdentity> authenticate(TrustedAuthenticationRequest request,
-                AuthenticationRequestContext context) {
-            return user.identityWhen(Secrets.same(request.getPrincipal(), user.config.auth().username()));
+        public Uni<SecurityIdentity> authenticate(
+                TrustedAuthenticationRequest request, AuthenticationRequestContext context) {
+            return user.identityWhen(
+                    Secrets.same(request.getPrincipal(), user.config.auth().username()));
         }
     }
 }

@@ -65,7 +65,8 @@ class TransmissionClientTest {
 
         TransmissionException refused = assertThrows(TransmissionException.class, transmission::session);
 
-        assertEquals("Transmission at " + fake.url() + " keeps refusing its own session id (HTTP 409 twice in a row)",
+        assertEquals(
+                "Transmission at " + fake.url() + " keeps refusing its own session id (HTTP 409 twice in a row)",
                 refused.reason());
         assertFalse(refused.reachable());
         assertEquals(2, fake.requests().size());
@@ -81,7 +82,9 @@ class TransmissionClientTest {
         assertTrue(body.contains("\"method\":\"torrent_remove\""), body);
         assertTrue(body.contains("\"ids\":[\"aaaa\"]"), body);
         assertTrue(body.contains("\"delete_local_data\":false"), body);
-        assertEquals(List.of("bbbb"), transmission.torrents().stream().map(Torrent::hash).toList());
+        assertEquals(
+                List.of("bbbb"),
+                transmission.torrents().stream().map(Torrent::hash).toList());
     }
 
     @Test
@@ -91,7 +94,9 @@ class TransmissionClientTest {
         TransmissionException refused = assertThrows(TransmissionException.class, () -> transmission.remove("aaaa"));
 
         assertEquals("Transmission at " + fake.url() + " refused torrent_remove: torrent is busy", refused.reason());
-        assertEquals(List.of("aaaa"), transmission.torrents().stream().map(Torrent::hash).toList());
+        assertEquals(
+                List.of("aaaa"),
+                transmission.torrents().stream().map(Torrent::hash).toList());
     }
 
     @Test
@@ -100,8 +105,8 @@ class TransmissionClientTest {
 
         TransmissionException refused = assertThrows(TransmissionException.class, transmission::session);
 
-        assertEquals("Transmission at " + fake.url() + " rejected the username or password (HTTP 401)",
-                refused.reason());
+        assertEquals(
+                "Transmission at " + fake.url() + " rejected the username or password (HTTP 401)", refused.reason());
         assertFalse(refused.reachable());
         assertEquals(1, fake.requests().size());
     }
@@ -109,8 +114,8 @@ class TransmissionClientTest {
     @Test
     void aPasswordInTheUrlIsNeverInAReason() {
         java.net.URI url = fake.url();
-        java.net.URI withPassword = java.net.URI.create(url.getScheme() + "://someone:url-secret@" + url.getHost()
-                + ":" + url.getPort() + url.getPath());
+        java.net.URI withPassword = java.net.URI.create(
+                url.getScheme() + "://someone:url-secret@" + url.getHost() + ":" + url.getPort() + url.getPath());
         transmission = new TransmissionClient(withPassword, FakeTransmission.USERNAME, "wrong");
 
         TransmissionException refused = assertThrows(TransmissionException.class, transmission::session);
@@ -124,8 +129,8 @@ class TransmissionClientTest {
 
         TransmissionException refused = assertThrows(TransmissionException.class, transmission::session);
 
-        assertTrue(refused.reason().startsWith("Transmission at " + fake.url() + " does not answer ("),
-                refused.reason());
+        assertTrue(
+                refused.reason().startsWith("Transmission at " + fake.url() + " does not answer ("), refused.reason());
         assertFalse(refused.reachable());
         assertNull(refused.version());
     }
@@ -145,7 +150,8 @@ class TransmissionClientTest {
 
         TransmissionException refused = assertThrows(TransmissionException.class, transmission::session);
 
-        assertEquals("Transmission " + version + " is older than 4.1, the oldest version seedkeeper works with",
+        assertEquals(
+                "Transmission " + version + " is older than 4.1, the oldest version seedkeeper works with",
                 refused.reason());
         assertTrue(refused.reachable());
         assertEquals(version, refused.version());
@@ -157,8 +163,10 @@ class TransmissionClientTest {
 
         TransmissionException refused = assertThrows(TransmissionException.class, transmission::session);
 
-        assertEquals("Transmission at " + fake.url() + " is older than 4.1, the oldest version seedkeeper works with"
-                + " (it does not speak JSON-RPC 2.0)", refused.reason());
+        assertEquals(
+                "Transmission at " + fake.url() + " is older than 4.1, the oldest version seedkeeper works with"
+                        + " (it does not speak JSON-RPC 2.0)",
+                refused.reason());
         assertTrue(refused.reachable());
         assertNull(refused.version());
     }
@@ -178,7 +186,8 @@ class TransmissionClientTest {
 
         TransmissionException refused = assertThrows(TransmissionException.class, transmission::session);
 
-        assertEquals("Transmission at " + fake.url() + " gave an answer that is not JSON-RPC; is the URL right?",
+        assertEquals(
+                "Transmission at " + fake.url() + " gave an answer that is not JSON-RPC; is the URL right?",
                 refused.reason());
         assertFalse(refused.reachable());
     }
@@ -189,7 +198,9 @@ class TransmissionClientTest {
         assertEquals(Optional.empty(), transmission.session().incompleteDir());
 
         fake.incompleteDir("/downloads/incomplete", true);
-        assertEquals(Optional.of(Path.of("/downloads/incomplete")), transmission.session().incompleteDir());
+        assertEquals(
+                Optional.of(Path.of("/downloads/incomplete")),
+                transmission.session().incompleteDir());
     }
 
     @Test
@@ -235,20 +246,52 @@ class TransmissionClientTest {
 
         List<Torrent> torrents = transmission.torrents();
 
-        assertEquals(List.of(
-                new Torrent("0123456789abcdef0123456789abcdef01234567", "Some.Show.S01", Torrent.Status.SEEDING, 1.0,
-                        2, "Unregistered torrent", 1_209_600, true, "/downloads/tv",
-                        List.of("https://tracker-a.example/abc/announce", "udp://tracker-a.example:6969/announce"),
-                        List.of(new Torrent.File("Some.Show.S01/e01.mkv", 1000, true),
-                                new Torrent.File("Some.Show.S01/sample.mkv", 10, false))),
-                new Torrent("89abcdef0123456789abcdef0123456789abcdef", "ubuntu.iso", Torrent.Status.DOWNLOADING, 0.25,
-                        0, "", 0, false, "/downloads/misc", List.of(),
-                        List.of(new Torrent.File("ubuntu.iso", 4000, true)))),
+        assertEquals(
+                List.of(
+                        new Torrent(
+                                "0123456789abcdef0123456789abcdef01234567",
+                                "Some.Show.S01",
+                                Torrent.Status.SEEDING,
+                                1.0,
+                                2,
+                                "Unregistered torrent",
+                                1_209_600,
+                                true,
+                                "/downloads/tv",
+                                List.of(
+                                        "https://tracker-a.example/abc/announce",
+                                        "udp://tracker-a.example:6969/announce"),
+                                List.of(
+                                        new Torrent.File("Some.Show.S01/e01.mkv", 1000, true),
+                                        new Torrent.File("Some.Show.S01/sample.mkv", 10, false))),
+                        new Torrent(
+                                "89abcdef0123456789abcdef0123456789abcdef",
+                                "ubuntu.iso",
+                                Torrent.Status.DOWNLOADING,
+                                0.25,
+                                0,
+                                "",
+                                0,
+                                false,
+                                "/downloads/misc",
+                                List.of(),
+                                List.of(new Torrent.File("ubuntu.iso", 4000, true)))),
                 torrents);
         String body = fake.requests().get(1).body();
         assertTrue(body.contains("\"method\":\"torrent_get\""), body);
-        for (String field : List.of("hash_string", "name", "status", "percent_done", "error", "error_string",
-                "seconds_seeding", "is_private", "download_dir", "trackers", "files", "file_stats")) {
+        for (String field : List.of(
+                "hash_string",
+                "name",
+                "status",
+                "percent_done",
+                "error",
+                "error_string",
+                "seconds_seeding",
+                "is_private",
+                "download_dir",
+                "trackers",
+                "files",
+                "file_stats")) {
             assertTrue(body.contains("\"" + field + "\""), field + " is not asked for: " + body);
         }
     }
@@ -259,7 +302,8 @@ class TransmissionClientTest {
 
         TransmissionException refused = assertThrows(TransmissionException.class, transmission::torrents);
 
-        assertEquals("Transmission at " + fake.url() + " gave an answer that is not JSON-RPC; is the URL right?",
+        assertEquals(
+                "Transmission at " + fake.url() + " gave an answer that is not JSON-RPC; is the URL right?",
                 refused.reason());
     }
 

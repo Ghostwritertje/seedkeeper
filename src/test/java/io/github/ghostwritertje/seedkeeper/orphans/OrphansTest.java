@@ -39,10 +39,13 @@ class OrphansTest {
         clear(downloads);
         file(downloads.resolve("Seeding/movie.mkv"), 4, Instant.now());
         file(downloads.resolve("Removed/movie.mkv"), 1536, Instant.parse("2026-03-01T10:00:00Z"));
-        file(downloads.resolve("leftover.nfo"), 512,
+        file(
+                downloads.resolve("leftover.nfo"),
+                512,
                 Instant.now().minus(Duration.ofDays(3).plusHours(2).plusMinutes(30)));
-        Files.createSymbolicLink(Files.createDirectory(downloads.resolve("cross-seed"))
-                .resolve("movie.mkv"), downloads.resolve("gone/movie.mkv"));
+        Files.createSymbolicLink(
+                Files.createDirectory(downloads.resolve("cross-seed")).resolve("movie.mkv"),
+                downloads.resolve("gone/movie.mkv"));
 
         FakeTransmissionResource.fake().reset();
         FakeTransmissionResource.fake().torrents("""
@@ -56,15 +59,21 @@ class OrphansTest {
     @Test
     void apiGivesTheFilesAndTheDanglingSymlinksSeparatelyWithATotal() {
         Authenticated.withApiKey()
-                .when().get("/api/v1/orphans")
+                .when()
+                .get("/api/v1/orphans")
                 .then()
                 .statusCode(200)
                 .contentType("application/json")
-                .body("files.path", contains(downloads.resolve("Removed/movie.mkv").toString(),
-                        downloads.resolve("leftover.nfo").toString()))
+                .body(
+                        "files.path",
+                        contains(
+                                downloads.resolve("Removed/movie.mkv").toString(),
+                                downloads.resolve("leftover.nfo").toString()))
                 .body("files.sizeBytes", contains(1536, 512))
                 .body("files[0].lastModified", is("2026-03-01T10:00:00Z"))
-                .body("danglingSymlinks.path", contains(downloads.resolve("cross-seed/movie.mkv").toString()))
+                .body(
+                        "danglingSymlinks.path",
+                        contains(downloads.resolve("cross-seed/movie.mkv").toString()))
                 .body("totalSizeBytes", is(2048));
     }
 
@@ -77,15 +86,20 @@ class OrphansTest {
     @Test
     void apiMarksAnOrphanFileWithALibraryLinkAndLeavesItOutOfTheTotal() throws IOException {
         Path library = FakeTransmissionResource.library();
-        Files.createLink(Files.createDirectory(library.resolve("movies")).resolve("movie.mkv"),
+        Files.createLink(
+                Files.createDirectory(library.resolve("movies")).resolve("movie.mkv"),
                 downloads.resolve("Removed/movie.mkv"));
 
         Authenticated.withApiKey()
-                .when().get("/api/v1/orphans")
+                .when()
+                .get("/api/v1/orphans")
                 .then()
                 .statusCode(200)
-                .body("files.path", contains(downloads.resolve("Removed/movie.mkv").toString(),
-                        downloads.resolve("leftover.nfo").toString()))
+                .body(
+                        "files.path",
+                        contains(
+                                downloads.resolve("Removed/movie.mkv").toString(),
+                                downloads.resolve("leftover.nfo").toString()))
                 .body("files.libraryLink", contains(true, false))
                 .body("danglingSymlinks.libraryLink", contains(false))
                 .body("totalSizeBytes", is(512));
@@ -94,12 +108,14 @@ class OrphansTest {
     @Test
     void pageMarksAnOrphanFileWithALibraryLinkAndLeavesItOutOfTheTotal() throws IOException {
         Path library = FakeTransmissionResource.library();
-        Files.createLink(Files.createDirectory(library.resolve("movies")).resolve("movie.mkv"),
+        Files.createLink(
+                Files.createDirectory(library.resolve("movies")).resolve("movie.mkv"),
                 downloads.resolve("Removed/movie.mkv"));
         String files = "html.body.main.section.find { it.@id == 'files' }";
 
         Authenticated.asUser()
-                .when().get("/orphans")
+                .when()
+                .get("/orphans")
                 .then()
                 .statusCode(200)
                 .body(files + ".table.thead.tr.th", contains("Path", "Size", "Age", "Library link"))
@@ -112,7 +128,11 @@ class OrphansTest {
     void apiGivesEmptyListsWhenThereAreNoOrphans() throws IOException {
         clear(downloads);
 
-        Authenticated.withApiKey().when().get("/api/v1/orphans").then().statusCode(200)
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/orphans")
+                .then()
+                .statusCode(200)
                 .body("files", empty())
                 .body("danglingSymlinks", empty())
                 .body("totalSizeBytes", is(0));
@@ -123,12 +143,15 @@ class OrphansTest {
         FakeTransmissionResource.fake().version("4.0.6 (38c164933e)");
 
         Authenticated.withApiKey()
-                .when().get("/api/v1/orphans")
+                .when()
+                .get("/api/v1/orphans")
                 .then()
                 .statusCode(503)
                 .contentType("application/json")
-                .body("reason", is("Transmission 4.0.6 (38c164933e) is older than 4.1,"
-                        + " the oldest version seedkeeper works with"));
+                .body(
+                        "reason",
+                        is("Transmission 4.0.6 (38c164933e) is older than 4.1,"
+                                + " the oldest version seedkeeper works with"));
     }
 
     @Test
@@ -136,7 +159,8 @@ class OrphansTest {
         String files = "html.body.main.section.find { it.@id == 'files' }";
         String symlinks = "html.body.main.section.find { it.@id == 'dangling-symlinks' }";
         Authenticated.asUser()
-                .when().get("/orphans")
+                .when()
+                .get("/orphans")
                 .then()
                 .statusCode(200)
                 .contentType(containsString("text/html"))
@@ -144,9 +168,13 @@ class OrphansTest {
                 .body(files + ".h2", is("Files"))
                 .body(files + ".table.thead.tr.th", contains("Path", "Size", "Age", "Library link"))
                 .body(files + ".table.tbody.tr.size()", is(2))
-                .body(files + ".table.tbody.tr[0].td[0]", is(downloads.resolve("Removed/movie.mkv").toString()))
+                .body(
+                        files + ".table.tbody.tr[0].td[0]",
+                        is(downloads.resolve("Removed/movie.mkv").toString()))
                 .body(files + ".table.tbody.tr[0].td[1]", is("1.5 KiB"))
-                .body(files + ".table.tbody.tr[1].td[0]", is(downloads.resolve("leftover.nfo").toString()))
+                .body(
+                        files + ".table.tbody.tr[1].td[0]",
+                        is(downloads.resolve("leftover.nfo").toString()))
                 .body(files + ".table.tbody.tr[1].td[1]", is("512 B"))
                 .body(files + ".table.tbody.tr[1].td[2]", is("3d 2h"))
                 .body(files + ".table.tbody.tr[1].td[3]", is(""))
@@ -154,7 +182,8 @@ class OrphansTest {
                 .body(files + ".table.tfoot.tr.td[0]", is("2.0 KiB"))
                 .body(symlinks + ".h2", is("Dangling symlinks"))
                 .body(symlinks + ".table.tbody.tr.size()", is(1))
-                .body(symlinks + ".table.tbody.tr[0].td[0]",
+                .body(
+                        symlinks + ".table.tbody.tr[0].td[0]",
                         is(downloads.resolve("cross-seed/movie.mkv").toString()))
                 .body(symlinks + ".table.tfoot.tr.th", is("Total of 1 dangling symlink"));
     }
@@ -164,11 +193,13 @@ class OrphansTest {
         clear(downloads);
 
         Authenticated.asUser()
-                .when().get("/orphans")
+                .when()
+                .get("/orphans")
                 .then()
                 .statusCode(200)
                 .body("html.body.main.section.find { it.@id == 'files' }.p", is("No file is an orphan."))
-                .body("html.body.main.section.find { it.@id == 'dangling-symlinks' }.p",
+                .body(
+                        "html.body.main.section.find { it.@id == 'dangling-symlinks' }.p",
                         is("No dangling symlink is an orphan."))
                 .body("html.body.main.'**'.findAll { it.name() == 'table' }.size()", is(0));
     }
@@ -178,17 +209,22 @@ class OrphansTest {
         FakeTransmissionResource.fake().behaviour(Behaviour.RPC_ERROR);
 
         Authenticated.asUser()
-                .when().get("/orphans")
+                .when()
+                .get("/orphans")
                 .then()
                 .statusCode(200)
-                .body("html.body.main.p.find { it.@role == 'alert' }",
+                .body(
+                        "html.body.main.p.find { it.@role == 'alert' }",
                         containsString("refused session_get: Method not found"))
                 .body("html.body.main.section.size()", is(0));
     }
 
     @Test
     void theNavigationLeadsToTheOrphansView() {
-        Authenticated.asUser().when().get("/system").then()
+        Authenticated.asUser()
+                .when()
+                .get("/system")
+                .then()
                 .body("html.body.header.nav.a.find { it.@href == '/orphans' }", is("Orphans"));
     }
 
@@ -202,7 +238,9 @@ class OrphansTest {
     private static void clear(Path directory) throws IOException {
         List<Path> paths;
         try (Stream<Path> walk = Files.walk(directory)) {
-            paths = walk.filter(path -> !path.equals(directory)).sorted(Comparator.reverseOrder()).toList();
+            paths = walk.filter(path -> !path.equals(directory))
+                    .sorted(Comparator.reverseOrder())
+                    .toList();
         }
         for (Path path : paths) {
             Files.delete(path);
