@@ -146,6 +146,20 @@ An orphan that is a regular file. One with a library link is still an orphan, bu
 An orphan that is a symlink leading nowhere and that is no torrent's own path.
 _Avoid_: Broken link
 
+### Code
+
+**Module**:
+A top-level subpackage of `io.github.ghostwritertje.seedkeeper`, such as `decide`, `snapshot` or `run`, together with
+its subpackages. The root package itself holds only app wiring (config, required secrets) and is no module. Modules
+never depend on each other in a cycle.
+_Avoid_: Package (for a module), component, layer
+
+**Module API**:
+The types of a module that other modules may use: the ones marked `@ModuleApi`, plus the records and enums in their
+public signatures, which need no mark. A module has at most 3 module API types that aren't records or enums, so the
+budget counts behaviour, not the data a module returns.
+_Avoid_: Public API, exported types, facade
+
 ### Agents
 
 **Implementer pull request**:
