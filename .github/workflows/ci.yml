@@ -35,10 +35,11 @@ jobs:
     timeout-minutes: 20
     steps:
       # Full history: PIT (#54) compares the changed classes against main.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@v6
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: 25
@@ -86,7 +87,8 @@ jobs:
         with:
           persist-credentials: false
       # Pinned release binaries, each checked against its SHA-256: no Maven, no Docker, and the runner image's own
-      # shellcheck doesn't decide the result. To upgrade one, change its URL and its checksum together.
+      # shellcheck doesn't decide the result. Dependabot doesn't track these pins: bump one by hand, in a pull
+      # request, changing its version and its SHA-256 together.
       - name: Install the linters
         id: install
         run: |
@@ -117,13 +119,11 @@ jobs:
       - name: actionlint
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: actionlint
-      # Online, with the job's read-only token, so it also checks that each pinned SHA is a commit of its action's
-      # repo and that no pinned version has a known advisory.
+      # Offline, so the result depends only on the commit, not on what GitHub's API says that day (#48). Dependabot's
+      # security alerts for github-actions cover vulnerable actions, without gating pull requests.
       - name: zizmor
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: zizmor --format=github .github/workflows
+        run: zizmor --offline --format=github .github/workflows
       - name: hadolint
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: hadolint src/main/docker/Dockerfile.native-micro
