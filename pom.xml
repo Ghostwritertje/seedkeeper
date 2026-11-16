@@ -9,6 +9,7 @@
     <properties>
         <compiler-plugin.version>3.15.0</compiler-plugin.version>
         <maven.compiler.release>25</maven.compiler.release>
+        <palantir-java-format.version>2.103.0</palantir-java-format.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
@@ -16,6 +17,8 @@
         <quarkus.platform.version>3.40.1.2</quarkus.platform.version>
         <quarkus-jdbc-sqlite.version>3.0.11</quarkus-jdbc-sqlite.version>
         <skipITs>true</skipITs>
+        <sortpom-plugin.version>4.0.0</sortpom-plugin.version>
+        <spotless-plugin.version>3.11.0</spotless-plugin.version>
         <surefire-plugin.version>3.5.6</surefire-plugin.version>
         <versions-plugin.version>2.25.2</versions-plugin.version>
     </properties>
@@ -122,6 +125,38 @@
                     <artifactId>versions-maven-plugin</artifactId>
                     <version>${versions-plugin.version}</version>
                 </plugin>
+                <!--
+                  Formatting. The quality profile checks it; `./mvnw spotless:apply sortpom:sort` applies it.
+                  Configured here, outside the profile, so that command works without -Pquality.
+                -->
+                <plugin>
+                    <groupId>com.diffplug.spotless</groupId>
+                    <artifactId>spotless-maven-plugin</artifactId>
+                    <version>${spotless-plugin.version}</version>
+                    <configuration>
+                        <java>
+                            <palantirJavaFormat>
+                                <version>${palantir-java-format.version}</version>
+                            </palantirJavaFormat>
+                        </java>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>com.github.ekryd.sortpom</groupId>
+                    <artifactId>sortpom-maven-plugin</artifactId>
+                    <version>${sortpom-plugin.version}</version>
+                    <configuration>
+                        <createBackupFile>false</createBackupFile>
+                        <expandEmptyElements>false</expandEmptyElements>
+                        <keepBlankLines>true</keepBlankLines>
+                        <lineSeparator>\n</lineSeparator>
+                        <nrOfIndentSpace>4</nrOfIndentSpace>
+                        <sortDependencies>scope,groupId,artifactId</sortDependencies>
+                        <sortPlugins>groupId,artifactId</sortPlugins>
+                        <sortProperties>true</sortProperties>
+                        <spaceBeforeCloseEmptyElement>false</spaceBeforeCloseEmptyElement>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -199,6 +234,47 @@
     </build>
 
     <profiles>
+        <!--
+          The quality build: `./mvnw verify -Pquality`. Adds the Java quality checks on top of the default
+          build, which stays as fast as it is. CI runs it as `Verify (quality)`.
+        -->
+        <profile>
+            <id>quality</id>
+            <build>
+                <plugins>
+                    <!-- Formatting runs first, at validate: it's the cheapest check and fails before compiling. -->
+                    <plugin>
+                        <groupId>com.diffplug.spotless</groupId>
+                        <artifactId>spotless-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>check-formatting</id>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                                <phase>validate</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>com.github.ekryd.sortpom</groupId>
+                        <artifactId>sortpom-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>check-pom-sorted</id>
+                                <goals>
+                                    <goal>verify</goal>
+                                </goals>
+                                <phase>validate</phase>
+                                <configuration>
+                                    <verifyFail>Stop</verifyFail>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <id>native</id>
             <activation>
