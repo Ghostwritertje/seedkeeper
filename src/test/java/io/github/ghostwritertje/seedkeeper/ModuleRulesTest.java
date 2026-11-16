@@ -103,7 +103,7 @@ class ModuleRulesTest {
         String root = FIXTURES + "cycle";
         EvaluationResult result = new ModuleRules(root, Set.of(), Set.of()).noCycles().evaluate(fixture(root));
 
-        assertViolation(result, "Rule 1", "a", "b", "Alpha", "Beta");
+        assertViolation(result, "Rule 1", "module a", "module b", "Alpha", "Beta");
     }
 
     private static JavaClasses fixture(String root) {
