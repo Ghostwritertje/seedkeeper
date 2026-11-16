@@ -31,7 +31,7 @@ import org.jboss.resteasy.reactive.RestForm;
  * page and need a login: changing overrides is not in the API.
  */
 @Path("/overrides")
-public class OverridesPage {
+class OverridesPage {
 
     @CheckedTemplate
     static class Templates {
@@ -59,7 +59,7 @@ public class OverridesPage {
      * @param hashes    separated by commas
      * @param untilDate "2027-03-01", or empty when it never ends: the value of the date field of the edit form
      */
-    public record Row(
+    record Row(
             String status,
             String note,
             String until,

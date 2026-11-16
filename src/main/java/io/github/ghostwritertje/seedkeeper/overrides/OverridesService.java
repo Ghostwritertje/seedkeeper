@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
  * {@link io.github.ghostwritertje.seedkeeper.keep.OverrideChanges}.
  */
 @ApplicationScoped
-public class OverridesService {
+class OverridesService {
 
     /**
      * One override and its state.
@@ -30,7 +30,7 @@ public class OverridesService {
      * @param groupsUnknown why the groups can't be known right now (Transmission can't be used, a library root can't
      *                      be read); then whether it is stale, and so whether it is active, is unknown too
      */
-    public record Listed(
+    record Listed(
             KeepOverride override,
             boolean expired,
             List<List<GroupVerdict.Member>> groups,
@@ -104,7 +104,7 @@ public class OverridesService {
     }
 
     /** The overrides can't be listed right now. The message is the one reason, fit to show as it is. */
-    public static class OverridesUnavailable extends RuntimeException {
+    static class OverridesUnavailable extends RuntimeException {
 
         private static final long serialVersionUID = 1L;
 

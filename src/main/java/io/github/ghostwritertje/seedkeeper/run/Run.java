@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
  * The steps of one run (spec §5, steps 2 and 3): ask Transmission for its session, build the snapshot, decide, and
  * carry out the removals. It holds no state and no lock; {@link RunService} sees to it that one runs at a time.
  */
-public final class Run {
+final class Run {
 
     private final Transmission transmission;
     private final TrackerRules trackers;
