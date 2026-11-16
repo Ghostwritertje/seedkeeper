@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.run;
 
+import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.Scheduler;
 import io.quarkus.scheduler.Trigger;
@@ -13,6 +14,7 @@ import org.jboss.logging.Logger;
  * The scheduled run: starts a run on the cron of {@code seedkeeper.schedule}, in {@code seedkeeper.time-zone}. One
  * that finds a run running is skipped, not queued (spec §5, step 1).
  */
+@ModuleApi
 @ApplicationScoped
 public class ScheduledRun {
 

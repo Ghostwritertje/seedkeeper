@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.run;
 
+import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.decide.Reason;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Removal;
@@ -24,6 +25,7 @@ import org.jboss.logging.MDC;
  * end, removal, deleted file and error. Every line carries its kind in the MDC key {@value #EVENT}, which the JSON
  * log has under {@code mdc}.
  */
+@ModuleApi
 @ApplicationScoped
 @Startup // the metrics are there from the start, not from the first run
 public class RunMonitor {

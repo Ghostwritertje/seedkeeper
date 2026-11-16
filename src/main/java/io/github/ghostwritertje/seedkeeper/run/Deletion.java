@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.run;
 
+import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Deleted;
 import io.github.ghostwritertje.seedkeeper.snapshot.FileId;
 import io.github.ghostwritertje.seedkeeper.snapshot.TorrentPaths;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
@@ -27,28 +28,10 @@ import java.util.Set;
  * The roots are looked up on every deletion, as they are then: while the downloads root or a library root can't be
  * found, every path is refused. The filesystem root {@code /} is never a place to delete in.
  */
-public final class Deletion {
-
-    /**
-     * What one deletion did.
-     *
-     * @param files      the files and symlinks that were deleted, in the order they went
-     * @param spaceFreed the size of every deleted file that was the last link of its data, in bytes
-     * @param refused    the paths that were due but not deleted: outside the downloads root and incomplete dir, under
-     *                   a library root, while a root could not be found, or the filesystem said no
-     */
-    public record Deleted(List<Path> files, long spaceFreed, List<Path> refused) {
-
-        public Deleted {
-            files = List.copyOf(files);
-            refused = List.copyOf(refused);
-        }
-
-        static final Deleted NOTHING = new Deleted(List.of(), 0, List.of());
-    }
+final class Deletion {
 
     /** The downloads root or a library root can't be used. The message says which and why, fit to show as it is. */
-    public static class RootsUnavailable extends RuntimeException {
+    static class RootsUnavailable extends RuntimeException {
 
         private static final long serialVersionUID = 1L;
 

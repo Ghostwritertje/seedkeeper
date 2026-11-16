@@ -7,6 +7,7 @@
     <packaging>quarkus</packaging>
 
     <properties>
+        <antrun-plugin.version>3.2.0</antrun-plugin.version>
         <archunit.version>1.4.1</archunit.version>
         <compiler-plugin.version>3.16.0</compiler-plugin.version>
         <error-prone.version>2.52.0</error-prone.version>
@@ -14,6 +15,10 @@
         <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
         <maven.compiler.release>25</maven.compiler.release>
         <palantir-java-format.version>2.103.0</palantir-java-format.version>
+        <!-- PIT mutates the main classes changed since the merge base with this ref. -->
+        <pit.base>origin/main</pit.base>
+        <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
+        <pitest-plugin.version>1.30.2</pitest-plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <quarkus-jdbc-sqlite.version>3.0.11</quarkus-jdbc-sqlite.version>
@@ -295,6 +300,62 @@
                         </executions>
                     </plugin>
                     <!--
+                      Finds the main classes this branch changes compared to ${pit.base}, for PIT below.
+                      PIT's own SCM goal is gone since PIT 1.18, and the last PIT that has it can't read Java 25
+                      classes. Compares the working tree with the merge base, so uncommitted changes count too.
+                      Sets pit.targetClasses (each changed class and its nested classes) and pit.noChangedClasses.
+                    -->
+                    <plugin>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>${antrun-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>find-changed-classes</id>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <phase>process-test-classes</phase>
+                                <configuration>
+                                    <exportAntProperties>true</exportAntProperties>
+                                    <target>
+                                        <exec dir="${project.basedir}" executable="git" failonerror="true" outputproperty="pit.changedSources">
+                                            <arg value="diff"/>
+                                            <arg value="--name-only"/>
+                                            <arg value="--relative"/>
+                                            <arg value="--diff-filter=d"/>
+                                            <arg value="--merge-base"/>
+                                            <arg value="${pit.base}"/>
+                                            <arg value="--"/>
+                                            <arg value="src/main/java"/>
+                                        </exec>
+                                        <loadresource property="pit.targetClasses">
+                                            <propertyresource name="pit.changedSources"/>
+                                            <filterchain>
+                                                <linecontainsregexp>
+                                                    <regexp pattern="^src/main/java/.+\.java$"/>
+                                                </linecontainsregexp>
+                                                <linecontainsregexp negate="true">
+                                                    <regexp pattern="(package|module)-info\.java$"/>
+                                                </linecontainsregexp>
+                                                <tokenfilter delimoutput=",">
+                                                    <replaceregex pattern="^src/main/java/(.+)\.java$" replace="\1,\1$*"/>
+                                                    <replacestring from="/" to="."/>
+                                                </tokenfilter>
+                                            </filterchain>
+                                        </loadresource>
+                                        <condition else="false" property="pit.noChangedClasses" value="true">
+                                            <not>
+                                                <isset property="pit.targetClasses"/>
+                                            </not>
+                                        </condition>
+                                        <property name="pit.targetClasses" value=""/>
+                                        <echo level="info" message="Main classes changed compared to ${pit.base}: ${pit.targetClasses}"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!--
                       Error Prone at its default error level, and every compiler warning as an error. Error Prone
                       is a javac plugin, so it runs only here and the default build stays fast. javac runs in a
                       forked process, so the -J flags open the compiler internals Error Prone needs without a
@@ -403,6 +464,44 @@
                                         </rule>
                                     </rules>
                                 </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!--
+                      Mutation testing of the changed main classes, with the tests that don't start the app:
+                      src/test/pit registers SkipTestsThatStartTheApp with the JUnit Platform for PIT alone.
+                      The threshold is test strength, the score over the mutants those tests reach, so code that only
+                      the app-starting tests cover doesn't fail the build (JaCoCo covers that).
+                    -->
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>${pitest-plugin.version}</version>
+                        <configuration>
+                            <additionalClasspathElements>
+                                <additionalClasspathElement>${project.basedir}/src/test/pit</additionalClasspathElement>
+                            </additionalClasspathElements>
+                            <failWhenNoMutations>false</failWhenNoMutations>
+                            <parseSurefireArgLine>false</parseSurefireArgLine>
+                            <skip>${pit.noChangedClasses}</skip>
+                            <targetClasses>${pit.targetClasses}</targetClasses>
+                            <testStrengthThreshold>80</testStrengthThreshold>
+                            <threads>4</threads>
+                        </configuration>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>${pitest-junit5-plugin.version}</version>
+                            </dependency>
+                        </dependencies>
+                        <executions>
+                            <execution>
+                                <id>mutation-test-changed-classes</id>
+                                <goals>
+                                    <goal>mutationCoverage</goal>
+                                </goals>
+                                <phase>verify</phase>
                             </execution>
                         </executions>
                     </plugin>

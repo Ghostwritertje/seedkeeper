@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.decide;
 
+import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict.Member;
 import io.github.ghostwritertje.seedkeeper.keep.KeepOverride;
 import io.github.ghostwritertje.seedkeeper.snapshot.FileId;
@@ -29,6 +30,7 @@ import java.util.stream.Collectors;
  * for the group when it holds for any member, so a group is removed only when every member has met its own tracker's
  * minimum. The first that holds decides the verdict, the others that hold are its secondary reasons.
  */
+@ModuleApi
 public final class Decide {
 
     /** Transmission's error number for a local error, such as files it can't read or write. */

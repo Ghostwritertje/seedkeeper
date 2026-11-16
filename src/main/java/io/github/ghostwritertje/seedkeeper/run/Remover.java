@@ -1,7 +1,7 @@
 package io.github.ghostwritertje.seedkeeper.run;
 
 import io.github.ghostwritertje.seedkeeper.decide.Reason;
-import io.github.ghostwritertje.seedkeeper.run.Deletion.Deleted;
+import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Deleted;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Removal;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
 import io.github.ghostwritertje.seedkeeper.transmission.Transmission;
@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
  * Carries out one removal (spec §4): takes a set of torrents out of Transmission, then deletes what they leave
  * behind. The set is every member of a group, or a single member that leaves its group.
  */
-public final class Remover {
+final class Remover {
 
     /** How often the torrent list is read after the removal before giving up. */
     static final int READS = 4;

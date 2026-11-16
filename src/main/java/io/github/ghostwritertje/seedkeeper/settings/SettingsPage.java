@@ -4,6 +4,7 @@ import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules.ManagedTracker;
 import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
+import io.github.ghostwritertje.seedkeeper.transmission.Transmission;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import jakarta.ws.rs.GET;
@@ -77,9 +78,7 @@ class SettingsPage {
         return Templates.settings(new Settings(
                 config.schedule(),
                 config.timeZone().getId(),
-                io.github.ghostwritertje.seedkeeper.transmission.TransmissionClient.withoutUserInfo(
-                                config.transmission().url())
-                        .toString(),
+                Transmission.withoutUserInfo(config.transmission().url()).toString(),
                 config.downloadsRoot().toString(),
                 config.libraryRoots().stream().map(Object::toString).toList(),
                 config.dataDir().toString(),

@@ -1,10 +1,12 @@
 package io.github.ghostwritertje.seedkeeper.transmission;
 
+import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent.Status;
 import java.time.Duration;
 import java.util.Locale;
 
 /** How a torrent's status, a seed time and a size are written in the API and the UI. */
+@ModuleApi
 public final class StatusText {
 
     private StatusText() {}
