@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.ghostwritertje.seedkeeper.run.Deletion.Deleted;
+import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Deleted;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent.Status;
 import java.io.IOException;

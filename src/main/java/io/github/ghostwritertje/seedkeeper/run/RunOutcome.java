@@ -2,8 +2,8 @@ package io.github.ghostwritertje.seedkeeper.run;
 
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.decide.Reason;
-import io.github.ghostwritertje.seedkeeper.run.Deletion.Deleted;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
+import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -67,6 +67,24 @@ public record RunOutcome(
             torrents = List.copyOf(torrents);
             removed = List.copyOf(removed);
         }
+    }
+
+    /**
+     * What the deletion of one removal did.
+     *
+     * @param files      the files and symlinks that were deleted, in the order they went
+     * @param spaceFreed the size of every deleted file that was the last link of its data, in bytes
+     * @param refused    the paths that were due but not deleted: outside the downloads root and incomplete dir, under
+     *                   a library root, while a root could not be found, or the filesystem said no
+     */
+    public record Deleted(List<Path> files, long spaceFreed, List<Path> refused) {
+
+        public Deleted {
+            files = List.copyOf(files);
+            refused = List.copyOf(refused);
+        }
+
+        static final Deleted NOTHING = new Deleted(List.of(), 0, List.of());
     }
 
     /** The removals carried out in full. */

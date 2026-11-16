@@ -15,7 +15,7 @@ import java.util.List;
 
 /** {@code GET /api/v1/overrides}: the same data as the Overrides view. */
 @Path("/api/v1/overrides")
-public class OverridesApi {
+class OverridesApi {
 
     /**
      * One keep override, with what it does to the current groups.
@@ -30,7 +30,7 @@ public class OverridesApi {
      * @param groupsUnknown why the groups can't be known right now; null when they can
      */
     @RegisterForReflection
-    public record ListedOverride(
+    record ListedOverride(
             String id,
             List<String> hashes,
             String note,
@@ -43,11 +43,11 @@ public class OverridesApi {
             String groupsUnknown) {}
 
     @RegisterForReflection
-    public record Member(String hash, String name) {}
+    record Member(String hash, String name) {}
 
     /** The body of a 503: why the overrides file can't be read right now. */
     @RegisterForReflection
-    public record Unavailable(String reason) {}
+    record Unavailable(String reason) {}
 
     private final OverridesService overrides;
 
