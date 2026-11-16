@@ -23,7 +23,8 @@ public record GroupsFilter(Optional<Verdict> verdict, Optional<Reason> reason) {
      * @throws UnknownFilter when a code doesn't exist; the message is fit to show to the user as it is
      */
     public static GroupsFilter parse(String verdict, String reason) {
-        return new GroupsFilter(parse("verdict", verdict, Verdict.values(), Verdict::code),
+        return new GroupsFilter(
+                parse("verdict", verdict, Verdict.values(), Verdict::code),
                 parse("reason", reason, Reason.values(), Reason::code));
     }
 
@@ -40,7 +41,9 @@ public record GroupsFilter(Optional<Verdict> verdict, Optional<Reason> reason) {
         if (code == null || code.isBlank()) {
             return Optional.empty();
         }
-        Optional<T> found = Stream.of(values).filter(value -> codeOf.apply(value).equals(code.trim())).findFirst();
+        Optional<T> found = Stream.of(values)
+                .filter(value -> codeOf.apply(value).equals(code.trim()))
+                .findFirst();
         if (found.isEmpty()) {
             List<String> codes = Stream.of(values).map(codeOf).toList();
             throw new UnknownFilter("Unknown " + what + " '" + code + "': use "

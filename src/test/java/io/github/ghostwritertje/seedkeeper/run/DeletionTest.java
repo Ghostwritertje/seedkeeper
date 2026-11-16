@@ -45,7 +45,8 @@ class DeletionTest {
         Path sample = file(downloads.resolve("Movie/sample.mkv"));
         Path other = file(downloads.resolve("Other/movie.mkv"));
 
-        Deleted deleted = delete(List.of(torrent("a", downloads, "Movie/movie.mkv", "Movie/sample.mkv")),
+        Deleted deleted = delete(
+                List.of(torrent("a", downloads, "Movie/movie.mkv", "Movie/sample.mkv")),
                 List.of(torrent("b", downloads, "Other/movie.mkv")));
 
         assertGone(movie, sample);
@@ -59,8 +60,11 @@ class DeletionTest {
         Path original = file(downloads.resolve("Original/movie.mkv"));
         Path link = symlink(downloads.resolve("cross-seed/Original/movie.mkv"), original);
 
-        Deleted deleted = delete(List.of(torrent("a", downloads, "Original/movie.mkv"),
-                torrent("b", downloads.resolve("cross-seed"), "Original/movie.mkv")), List.of());
+        Deleted deleted = delete(
+                List.of(
+                        torrent("a", downloads, "Original/movie.mkv"),
+                        torrent("b", downloads.resolve("cross-seed"), "Original/movie.mkv")),
+                List.of());
 
         assertGone(original, link);
         assertEquals(9, deleted.spaceFreed());
@@ -71,7 +75,8 @@ class DeletionTest {
         Path original = file(downloads.resolve("Original/movie.mkv"));
         Path link = symlink(downloads.resolve("cross-seed/Original/movie.mkv"), original);
 
-        Deleted deleted = delete(List.of(torrent("b", downloads.resolve("cross-seed"), "Original/movie.mkv")),
+        Deleted deleted = delete(
+                List.of(torrent("b", downloads.resolve("cross-seed"), "Original/movie.mkv")),
                 List.of(torrent("a", downloads, "Original/movie.mkv")));
 
         assertGone(link);
@@ -108,7 +113,8 @@ class DeletionTest {
         Path link = symlink(downloads.resolve("cross-seed/Original/movie.mkv"), original);
 
         // Two torrents with the same path; the data itself belongs to no torrent any more.
-        Deleted deleted = delete(List.of(torrent("b", downloads.resolve("cross-seed"), "Original/movie.mkv")),
+        Deleted deleted = delete(
+                List.of(torrent("b", downloads.resolve("cross-seed"), "Original/movie.mkv")),
                 List.of(torrent("c", downloads.resolve("cross-seed"), "Original/movie.mkv")));
 
         assertEquals(List.of(), deleted.files());
@@ -120,8 +126,11 @@ class DeletionTest {
         Path original = file(downloads.resolve("Original/movie.mkv"));
         Path link = hardlink(downloads.resolve("cross-seed/Original/movie.mkv"), original);
 
-        Deleted deleted = delete(List.of(torrent("a", downloads, "Original/movie.mkv"),
-                torrent("b", downloads.resolve("cross-seed"), "Original/movie.mkv")), List.of());
+        Deleted deleted = delete(
+                List.of(
+                        torrent("a", downloads, "Original/movie.mkv"),
+                        torrent("b", downloads.resolve("cross-seed"), "Original/movie.mkv")),
+                List.of());
 
         assertGone(original, link);
         assertEquals(List.of(original, link), deleted.files());
@@ -133,7 +142,8 @@ class DeletionTest {
         Path original = file(downloads.resolve("Original/movie.mkv"));
         Path link = hardlink(downloads.resolve("cross-seed/Original/movie.mkv"), original);
 
-        Deleted deleted = delete(List.of(torrent("a", downloads, "Original/movie.mkv")),
+        Deleted deleted = delete(
+                List.of(torrent("a", downloads, "Original/movie.mkv")),
                 List.of(torrent("b", downloads.resolve("cross-seed"), "Original/movie.mkv")));
 
         assertEquals(List.of(), deleted.files());
@@ -159,10 +169,32 @@ class DeletionTest {
         Path sample = file(downloads.resolve("Movie/sample.mkv"));
         Path movie = file(downloads.resolve("Movie/movie.mkv"));
         Path shared = file(downloads.resolve("Pack/extras.mkv"));
-        Torrent left = new Torrent("a", "a", Status.SEEDING, 1, 0, "", 0, true, downloads.toString(), List.of(),
-                List.of(new Torrent.File("Movie/sample.mkv", 9, false), new Torrent.File("Movie/movie.mkv", 9, true),
+        Torrent left = new Torrent(
+                "a",
+                "a",
+                Status.SEEDING,
+                1,
+                0,
+                "",
+                0,
+                true,
+                downloads.toString(),
+                List.of(),
+                List.of(
+                        new Torrent.File("Movie/sample.mkv", 9, false),
+                        new Torrent.File("Movie/movie.mkv", 9, true),
                         new Torrent.File("Pack/extras.mkv", 9, true)));
-        Torrent stays = new Torrent("b", "b", Status.SEEDING, 1, 0, "", 0, true, downloads.toString(), List.of(),
+        Torrent stays = new Torrent(
+                "b",
+                "b",
+                Status.SEEDING,
+                1,
+                0,
+                "",
+                0,
+                true,
+                downloads.toString(),
+                List.of(),
                 List.of(new Torrent.File("Pack/extras.mkv", 9, false)));
 
         Deleted deleted = delete(List.of(left), List.of(stays));
@@ -181,8 +213,8 @@ class DeletionTest {
         Files.createSymbolicLink(mounted, real);
         Path movie = file(mounted.resolve("Movie/movie.mkv"));
 
-        Deleted deleted = deletion.delete(List.of(torrent("a", mounted, "Movie/movie.mkv")), List.of(),
-                Optional.empty());
+        Deleted deleted =
+                deletion.delete(List.of(torrent("a", mounted, "Movie/movie.mkv")), List.of(), Optional.empty());
 
         assertEquals(List.of(movie), deleted.files());
         assertGone(movie);
@@ -357,8 +389,20 @@ class DeletionTest {
     }
 
     private static Torrent torrent(String hash, Path downloadDir, String... files) {
-        return new Torrent(hash, hash, Status.SEEDING, 1, 0, "", 0, true, downloadDir.toString(), List.of(),
-                Arrays.stream(files).map(name -> new Torrent.File(name, 9, true)).toList());
+        return new Torrent(
+                hash,
+                hash,
+                Status.SEEDING,
+                1,
+                0,
+                "",
+                0,
+                true,
+                downloadDir.toString(),
+                List.of(),
+                Arrays.stream(files)
+                        .map(name -> new Torrent.File(name, 9, true))
+                        .toList());
     }
 
     private static void assertGone(Path... paths) {

@@ -4,5 +4,4 @@ import io.quarkus.test.junit.QuarkusIntegrationTest;
 
 /** Runs the same checks as {@link ManageOverridesTest} against the packaged (native) application. */
 @QuarkusIntegrationTest
-class ManageOverridesIT extends ManageOverridesTest {
-}
+class ManageOverridesIT extends ManageOverridesTest {}

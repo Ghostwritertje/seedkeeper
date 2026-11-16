@@ -60,8 +60,8 @@ class ModuleRulesTest {
     @Test
     void rule4ReportsADomainModuleThatDependsOnQuarkus() {
         String root = FIXTURES + "domain";
-        EvaluationResult result = new ModuleRules(root, Set.of("decide"), Set.of()).domainIsPure()
-                .evaluate(fixture(root));
+        EvaluationResult result =
+                new ModuleRules(root, Set.of("decide"), Set.of()).domainIsPure().evaluate(fixture(root));
 
         assertViolation(result, "Rule 4", "module decide", "Impure", "io.quarkus.runtime.LaunchMode");
         assertFalse(result.getFailureReport().toString().contains("Endpoint"), "web isn't a domain module");
@@ -70,12 +70,15 @@ class ModuleRulesTest {
     @Test
     void rule2ReportsATypeUsedFromAnotherModuleThatIsNotModuleApi() {
         String root = FIXTURES + "api";
-        EvaluationResult result = new ModuleRules(root, Set.of(), Set.of("lib")).onlyApiAcrossModules()
+        EvaluationResult result = new ModuleRules(root, Set.of(), Set.of("lib"))
+                .onlyApiAcrossModules()
                 .evaluate(fixture(root));
 
         assertViolation(result, "Rule 2", "module lib", "lib.Hidden", "lib.Loose", "module app", "app.Reader");
         List<String> violations = result.getFailureReport().getDetails();
-        assertEquals(2, violations.stream().map(ModuleRulesTest::usedType).distinct().count(),
+        assertEquals(
+                2,
+                violations.stream().map(ModuleRulesTest::usedType).distinct().count(),
                 () -> "only Hidden and Loose break rule 2:\n" + String.join("\n", violations));
     }
 
@@ -87,21 +90,24 @@ class ModuleRulesTest {
     @Test
     void rule3ReportsAModuleWithMoreThan3ModuleApiBehaviourTypes() {
         String root = FIXTURES + "budget";
-        EvaluationResult result = new ModuleRules(root, Set.of(), Set.of("wide", "narrow")).apiBudget()
+        EvaluationResult result = new ModuleRules(root, Set.of(), Set.of("wide", "narrow"))
+                .apiBudget()
                 .evaluate(fixture(root));
 
-        assertViolation(result, "Rule 3", "module wide", "has 4","Wide$First", "Wide$Second", "Wide$Third",
-                "Wide$Fourth");
+        assertViolation(
+                result, "Rule 3", "module wide", "has 4", "Wide$First", "Wide$Second", "Wide$Third", "Wide$Fourth");
         String report = result.getFailureReport().toString();
         assertFalse(report.contains("module narrow"), "narrow is within its budget:\n" + report);
-        assertFalse(report.contains("Wide$Data") || report.contains("Wide$Kind"),
+        assertFalse(
+                report.contains("Wide$Data") || report.contains("Wide$Kind"),
                 "records and enums don't count:\n" + report);
     }
 
     @Test
     void rule1ReportsACycleBetweenModules() {
         String root = FIXTURES + "cycle";
-        EvaluationResult result = new ModuleRules(root, Set.of(), Set.of()).noCycles().evaluate(fixture(root));
+        EvaluationResult result =
+                new ModuleRules(root, Set.of(), Set.of()).noCycles().evaluate(fixture(root));
 
         assertViolation(result, "Rule 1", "module a", "module b", "Alpha", "Beta");
     }

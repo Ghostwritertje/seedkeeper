@@ -1,7 +1,7 @@
 package io.github.ghostwritertje.seedkeeper.orphans;
 
-import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.github.ghostwritertje.seedkeeper.orphans.OrphansService.OrphansUnavailable;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.common.annotation.RunOnVirtualThread;
@@ -25,8 +25,8 @@ public class OrphansPage {
          * @param unavailable why the orphans can't be listed right now; null when they can
          */
         /** @param unreadable what could not be read and was skipped, as one line; null when everything was read */
-        static native TemplateInstance orphans(Listing files, Listing danglingSymlinks, String unavailable,
-                String unreadable);
+        static native TemplateInstance orphans(
+                Listing files, Listing danglingSymlinks, String unavailable, String unreadable);
     }
 
     /**
@@ -35,16 +35,14 @@ public class OrphansPage {
      * @param total     "Total of 2 files"
      * @param totalSize "2.0 KiB": what deleting them would free, so without the files that have a library link
      */
-    public record Listing(List<Row> rows, String total, String totalSize) {
-    }
+    public record Listing(List<Row> rows, String total, String totalSize) {}
 
     /**
      * @param size "1.5 KiB"
      * @param age         how long ago it was last modified: "3d 2h"
      * @param libraryLink "Yes" when a hardlink of the file is under a library root; "" otherwise
      */
-    public record Row(String path, String size, String age, String libraryLink) {
-    }
+    public record Row(String path, String size, String age, String libraryLink) {}
 
     private final OrphansService orphans;
 
@@ -59,8 +57,10 @@ public class OrphansPage {
         try {
             Orphans found = orphans.orphans();
             Instant now = Instant.now();
-            return Templates.orphans(listing(found.files(), "file", "files", now),
-                    listing(found.danglingSymlinks(), "dangling symlink", "dangling symlinks", now), null,
+            return Templates.orphans(
+                    listing(found.files(), "file", "files", now),
+                    listing(found.danglingSymlinks(), "dangling symlink", "dangling symlinks", now),
+                    null,
                     unreadable(found.unreadable()));
         } catch (OrphansUnavailable e) {
             return Templates.orphans(null, null, e.getMessage(), null);
@@ -78,11 +78,19 @@ public class OrphansPage {
 
     private static Listing listing(List<Orphans.Orphan> orphans, String one, String many, Instant now) {
         List<Row> rows = orphans.stream()
-                .map(orphan -> new Row(orphan.path().toString(), size(orphan.size()),
-                        age(Duration.between(orphan.lastModified(), now)), orphan.libraryLink() ? "Yes" : ""))
+                .map(orphan -> new Row(
+                        orphan.path().toString(),
+                        size(orphan.size()),
+                        age(Duration.between(orphan.lastModified(), now)),
+                        orphan.libraryLink() ? "Yes" : ""))
                 .toList();
-        return new Listing(rows, "Total of " + rows.size() + " " + (rows.size() == 1 ? one : many),
-                size(orphans.stream().filter(orphan -> !orphan.libraryLink()).mapToLong(Orphans.Orphan::size).sum()));
+        return new Listing(
+                rows,
+                "Total of " + rows.size() + " " + (rows.size() == 1 ? one : many),
+                size(orphans.stream()
+                        .filter(orphan -> !orphan.libraryLink())
+                        .mapToLong(Orphans.Orphan::size)
+                        .sum()));
     }
 
     /** Bytes in the largest binary unit that keeps the number at 1 or more: "512 B", "1.5 KiB", "3.2 GiB". */

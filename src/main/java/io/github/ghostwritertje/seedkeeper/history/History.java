@@ -41,7 +41,12 @@ public class History {
      * @param error    the one reason of a failed run
      * @param removals what the run carried out, in the order it did
      */
-    public record RecordedRun(long id, Instant started, Instant ended, String status, Optional<String> error,
+    public record RecordedRun(
+            long id,
+            Instant started,
+            Instant ended,
+            String status,
+            Optional<String> error,
             List<RecordedRemoval> removals) {
 
         public RecordedRun {
@@ -50,13 +55,17 @@ public class History {
 
         /** The removals carried out in full. */
         public int groupsRemoved() {
-            return (int) removals.stream().filter(removal -> removal.error().isEmpty()).count();
+            return (int) removals.stream()
+                    .filter(removal -> removal.error().isEmpty())
+                    .count();
         }
 
         /** The torrents removed from Transmission, also those of a removal that then went wrong. */
         public int torrentsRemoved() {
-            return (int) removals.stream().flatMap(removal -> removal.members().stream())
-                    .filter(RecordedMember::removed).count();
+            return (int) removals.stream()
+                    .flatMap(removal -> removal.members().stream())
+                    .filter(RecordedMember::removed)
+                    .count();
         }
 
         public int filesDeleted() {
@@ -78,8 +87,15 @@ public class History {
      * @param filesDeleted how many files and symlinks were deleted
      * @param pathsRefused how many paths were due but not deleted
      */
-    public record RecordedRemoval(long runId, Instant started, String reason, Optional<String> error,
-            long spaceFreed, int filesDeleted, int pathsRefused, List<RecordedMember> members) {
+    public record RecordedRemoval(
+            long runId,
+            Instant started,
+            String reason,
+            Optional<String> error,
+            long spaceFreed,
+            int filesDeleted,
+            int pathsRefused,
+            List<RecordedMember> members) {
 
         public RecordedRemoval {
             members = List.copyOf(members);
@@ -93,9 +109,13 @@ public class History {
      * @param unfinished     true when the download was not complete
      * @param removed        true when Transmission removed it; false when the removal went wrong before or at it
      */
-    public record RecordedMember(String hash, String name, Optional<String> tracker, Optional<String> trackerMessage,
-            boolean unfinished, boolean removed) {
-    }
+    public record RecordedMember(
+            String hash,
+            String name,
+            Optional<String> tracker,
+            Optional<String> trackerMessage,
+            boolean unfinished,
+            boolean removed) {}
 
     /** Since when each group has its reason, as the last successful run left it. */
     public static final class ReasonsSince {
@@ -103,8 +123,7 @@ public class History {
         /** No group has a date. */
         public static final ReasonsSince NONE = new ReasonsSince(Map.of());
 
-        private record Entry(String reason, Instant since) {
-        }
+        private record Entry(String reason, Instant since) {}
 
         private final Map<String, Entry> byHash;
 
@@ -123,7 +142,8 @@ public class History {
         public Optional<Instant> of(GroupVerdict group) {
             return group.members().stream()
                     .map(member -> byHash.get(member.hash()))
-                    .filter(entry -> entry != null && entry.reason().equals(group.reason().code()))
+                    .filter(entry -> entry != null
+                            && entry.reason().equals(group.reason().code()))
                     .map(Entry::since)
                     .min(Instant::compareTo);
         }
@@ -193,9 +213,12 @@ public class History {
                 try (ResultSet rows = select.executeQuery()) {
                     while (rows.next()) {
                         members.computeIfAbsent(rows.getLong(1), id -> new ArrayList<>())
-                                .add(new RecordedMember(rows.getString(2), rows.getString(3),
+                                .add(new RecordedMember(
+                                        rows.getString(2),
+                                        rows.getString(3),
                                         Optional.ofNullable(rows.getString(4)),
-                                        Optional.ofNullable(rows.getString(5)), rows.getBoolean(6),
+                                        Optional.ofNullable(rows.getString(5)),
+                                        rows.getBoolean(6),
                                         rows.getBoolean(7)));
                     }
                 }
@@ -213,9 +236,14 @@ public class History {
                 try (ResultSet rows = select.executeQuery()) {
                     while (rows.next()) {
                         removals.computeIfAbsent(rows.getLong(2), id -> new ArrayList<>())
-                                .add(new RecordedRemoval(rows.getLong(2), Instant.ofEpochMilli(rows.getLong(3)),
-                                        rows.getString(4), Optional.ofNullable(rows.getString(5)), rows.getLong(6),
-                                        rows.getInt(7), rows.getInt(8),
+                                .add(new RecordedRemoval(
+                                        rows.getLong(2),
+                                        Instant.ofEpochMilli(rows.getLong(3)),
+                                        rows.getString(4),
+                                        Optional.ofNullable(rows.getString(5)),
+                                        rows.getLong(6),
+                                        rows.getInt(7),
+                                        rows.getInt(8),
                                         members.getOrDefault(rows.getLong(1), List.of())));
                     }
                 }
@@ -227,8 +255,11 @@ public class History {
                 select.setLong(1, from);
                 try (ResultSet rows = select.executeQuery()) {
                     while (rows.next()) {
-                        runs.add(new RecordedRun(rows.getLong(1), Instant.ofEpochMilli(rows.getLong(2)),
-                                Instant.ofEpochMilli(rows.getLong(3)), rows.getString(4),
+                        runs.add(new RecordedRun(
+                                rows.getLong(1),
+                                Instant.ofEpochMilli(rows.getLong(2)),
+                                Instant.ofEpochMilli(rows.getLong(3)),
+                                rows.getString(4),
                                 Optional.ofNullable(rows.getString(5)),
                                 removals.getOrDefault(rows.getLong(1), List.of())));
                     }
@@ -289,8 +320,9 @@ public class History {
         }
     }
 
-    private static void insertRemoval(Connection connection, long run, Removal removal,
-            Map<String, GroupVerdict.Member> members) throws SQLException {
+    private static void insertRemoval(
+            Connection connection, long run, Removal removal, Map<String, GroupVerdict.Member> members)
+            throws SQLException {
         long id;
         try (PreparedStatement insert = connection.prepareStatement("""
                 INSERT INTO removal (run_id, reason, error, space_freed, files_deleted, paths_refused)
@@ -316,12 +348,18 @@ public class History {
                 insert.setInt(2, position++);
                 insert.setString(3, torrent.hash());
                 insert.setString(4, torrent.name());
-                setNullable(insert, 5, Optional.ofNullable(members.get(torrent.hash()))
-                        .flatMap(GroupVerdict.Member::tracker).map(Tracker::name));
+                setNullable(
+                        insert,
+                        5,
+                        Optional.ofNullable(members.get(torrent.hash()))
+                                .flatMap(GroupVerdict.Member::tracker)
+                                .map(Tracker::name));
                 setNullable(insert, 6, trackerMessage(torrent));
                 insert.setBoolean(7, !torrent.finished());
-                insert.setBoolean(8, removal.removed().stream()
-                        .anyMatch(removed -> removed.hash().equals(torrent.hash())));
+                insert.setBoolean(
+                        8,
+                        removal.removed().stream()
+                                .anyMatch(removed -> removed.hash().equals(torrent.hash())));
                 insert.executeUpdate();
             }
         }
@@ -329,7 +367,8 @@ public class History {
 
     /** What the tracker said: Transmission's error string of a tracker warning (1) or tracker error (2). */
     private static Optional<String> trackerMessage(Torrent torrent) {
-        return TrackerError.of(torrent.error(), torrent.errorString()).map(TrackerError::message)
+        return TrackerError.of(torrent.error(), torrent.errorString())
+                .map(TrackerError::message)
                 .filter(message -> !message.isBlank());
     }
 
@@ -362,7 +401,8 @@ public class History {
         try (Statement select = connection.createStatement();
                 ResultSet rows = select.executeQuery("SELECT hash, reason, since FROM reason_since")) {
             while (rows.next()) {
-                byHash.put(rows.getString(1),
+                byHash.put(
+                        rows.getString(1),
                         new ReasonsSince.Entry(rows.getString(2), Instant.ofEpochMilli(rows.getLong(3))));
             }
         }

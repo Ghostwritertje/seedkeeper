@@ -6,8 +6,7 @@ import org.jboss.shrinkwrap.api.spec.JavaArchive;
 /** Shared by the tests that start the whole application with a configuration it should refuse. */
 final class Startup {
 
-    private Startup() {
-    }
+    private Startup() {}
 
     /** Puts the application (classes and templates) in the archive a QuarkusUnitTest starts. */
     static void application(JavaArchive jar) {

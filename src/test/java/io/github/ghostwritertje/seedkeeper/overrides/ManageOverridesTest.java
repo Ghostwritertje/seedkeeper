@@ -57,11 +57,18 @@ class ManageOverridesTest {
         }
         file(downloads.resolve("Manage.Show/show.mkv"));
         FakeTransmissionResource.fake().reset();
-        FakeTransmissionResource.fake().torrents("[" + String.join(",",
-                torrent("1a1a17", "Manage.Movie", downloads, "Manage.Movie/movie.mkv"),
-                torrent("2b2b17", "Manage.Movie.cross-seed", downloads.resolve("Manage.cross-seed"),
-                        "Manage.Movie/movie.mkv"),
-                torrent("3c3c17", "Manage.Show", downloads, "Manage.Show/show.mkv")) + "]");
+        FakeTransmissionResource.fake()
+                .torrents("["
+                        + String.join(
+                                ",",
+                                torrent("1a1a17", "Manage.Movie", downloads, "Manage.Movie/movie.mkv"),
+                                torrent(
+                                        "2b2b17",
+                                        "Manage.Movie.cross-seed",
+                                        downloads.resolve("Manage.cross-seed"),
+                                        "Manage.Movie/movie.mkv"),
+                                torrent("3c3c17", "Manage.Show", downloads, "Manage.Show/show.mkv"))
+                        + "]");
         file = FakeTransmissionResource.dataDir().resolve("overrides.yaml");
         Files.deleteIfExists(file);
     }
@@ -83,9 +90,14 @@ class ManageOverridesTest {
                 .formParam("note", "Rewatching \"this\" season")
                 .formParam("until", "2999-12-31")
                 .post("/overrides")
-                .then().statusCode(303).header("Location", endsWith("/overrides"));
+                .then()
+                .statusCode(303)
+                .header("Location", endsWith("/overrides"));
 
-        Authenticated.withApiKey().when().get("/api/v1/overrides").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/overrides")
+                .then()
                 .statusCode(200)
                 .body("size()", is(1))
                 .body("[0].id", matchesPattern("[0-9a-f-]{36}"))
@@ -95,7 +107,10 @@ class ManageOverridesTest {
                 // Now, in the configured time zone, UTC+05:30.
                 .body("[0].created", matchesPattern("\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\+05:30"))
                 .body("[0].active", is(true));
-        Authenticated.withApiKey().when().get("/api/v1/groups").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/groups")
+                .then()
                 .body("find { it.members.hash.contains('3c3c17') }.reason", is("keep-override"));
         assertFalse(Files.readString(file).isBlank());
     }
@@ -104,7 +119,8 @@ class ManageOverridesTest {
     void aKeepOverrideSetFromAGroupHasTheHashOfEveryMemberAndKeepsTheGroupRightAway() {
         Session user = Session.login();
         Response page = user.page("/groups");
-        page.then().statusCode(200)
+        page.then()
+                .statusCode(200)
                 .body("html.body.main.table.thead.tr.th[10]", is("Keep override"))
                 .body("**.find { it.name() == 'form' && it.@id == 'keep-1a1a17' }.@action", is("/groups/keep"))
                 .body("**.find { it.name() == 'form' && it.@id == 'keep-1a1a17' }.button", is("Set a keep override"));
@@ -113,15 +129,21 @@ class ManageOverridesTest {
                 .formParam("note", "Rewatching")
                 .formParam("until", "")
                 .post("/groups/keep")
-                .then().statusCode(303).header("Location", endsWith("/groups"));
+                .then()
+                .statusCode(303)
+                .header("Location", endsWith("/groups"));
 
-        Authenticated.withApiKey().when().get("/api/v1/overrides").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/overrides")
+                .then()
                 .body("size()", is(1))
                 .body("[0].hashes", contains("1a1a17", "2b2b17"))
                 .body("[0].note", is("Rewatching"))
                 .body("[0].until", nullValue())
                 .body("[0].created", matchesPattern("\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\+05:30"));
-        user.page("/groups").then()
+        user.page("/groups")
+                .then()
                 .body(ROWS + ".find { it.td[0] == 'Manage.Movie' }.td[7]", is("Keep override"))
                 .body(ROWS + ".find { it.td[0] == 'Manage.Show' }.td[7]", is("All met"));
     }
@@ -144,9 +166,14 @@ class ManageOverridesTest {
                 .formParam("note", "New note")
                 .formParam("until", "2020-01-01")
                 .post("/overrides/edit")
-                .then().statusCode(303).header("Location", endsWith("/overrides"));
+                .then()
+                .statusCode(303)
+                .header("Location", endsWith("/overrides"));
 
-        Authenticated.withApiKey().when().get("/api/v1/overrides").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/overrides")
+                .then()
                 .body("id", contains("hand-made", "other"))
                 .body("[0].hashes", contains("3c3c17"))
                 .body("[0].note", is("New note"))
@@ -155,14 +182,24 @@ class ManageOverridesTest {
                 .body("[0].expired", is(true))
                 .body("[1].note", is(""));
         // Expired: the group is due again.
-        Authenticated.withApiKey().when().get("/api/v1/groups").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/groups")
+                .then()
                 .body("find { it.members.hash.contains('3c3c17') }.reason", is("all-met"));
 
         // The end date can be taken away again.
         page = user.page("/overrides");
-        user.form(page, "edit-0").formParam("note", "New note").formParam("until", "")
-                .post("/overrides/edit").then().statusCode(303);
-        Authenticated.withApiKey().when().get("/api/v1/overrides").then()
+        user.form(page, "edit-0")
+                .formParam("note", "New note")
+                .formParam("until", "")
+                .post("/overrides/edit")
+                .then()
+                .statusCode(303);
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/overrides")
+                .then()
                 .body("[0].until", nullValue())
                 .body("[0].active", is(true));
     }
@@ -178,14 +215,23 @@ class ManageOverridesTest {
                 """);
         Session user = Session.login();
         Response page = awaitPage(user, "first", "second");
-        Authenticated.withApiKey().when().get("/api/v1/groups").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/groups")
+                .then()
                 .body("reason", contains("keep-override", "keep-override"));
 
-        user.form(page, "delete-1").post("/overrides/delete")
-                .then().statusCode(303).header("Location", endsWith("/overrides"));
+        user.form(page, "delete-1")
+                .post("/overrides/delete")
+                .then()
+                .statusCode(303)
+                .header("Location", endsWith("/overrides"));
 
         Authenticated.withApiKey().when().get("/api/v1/overrides").then().body("id", contains("first"));
-        Authenticated.withApiKey().when().get("/api/v1/groups").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/groups")
+                .then()
                 .body("find { it.members.hash.contains('1a1a17') }.reason", is("all-met"))
                 .body("find { it.members.hash.contains('3c3c17') }.reason", is("keep-override"));
     }
@@ -195,14 +241,25 @@ class ManageOverridesTest {
         Session user = Session.login();
         Response page = user.page("/overrides");
 
-        user.form(page, "add").formParam("hashes", " , ").formParam("note", "x").formParam("until", "")
+        user.form(page, "add")
+                .formParam("hashes", " , ")
+                .formParam("note", "x")
+                .formParam("until", "")
                 .post("/overrides")
-                .then().statusCode(400)
-                .body("html.body.main.p.find { it.@id == 'notice' }", is("A keep override needs at least one info hash."));
-        user.form(page, "add").formParam("hashes", "3c3c17").formParam("note", "x").formParam("until", "31/12/2999")
+                .then()
+                .statusCode(400)
+                .body(
+                        "html.body.main.p.find { it.@id == 'notice' }",
+                        is("A keep override needs at least one info hash."));
+        user.form(page, "add")
+                .formParam("hashes", "3c3c17")
+                .formParam("note", "x")
+                .formParam("until", "31/12/2999")
                 .post("/overrides")
-                .then().statusCode(400)
-                .body("html.body.main.p.find { it.@id == 'notice' }",
+                .then()
+                .statusCode(400)
+                .body(
+                        "html.body.main.p.find { it.@id == 'notice' }",
                         is("The end date is not a date like 2027-03-01: 31/12/2999"));
 
         assertFalse(Files.exists(file), "the overrides file was written");
@@ -215,13 +272,22 @@ class ManageOverridesTest {
         Response page = awaitPage(user, "gone-soon");
         Files.writeString(file, "overrides:\n  - id: replaced\n    hashes: [3c3c17]\n");
 
-        user.form(page, "edit-0").formParam("note", "x").formParam("until", "").post("/overrides/edit")
-                .then().statusCode(404)
-                .body("html.body.main.p.find { it.@id == 'notice' }", is("There is no keep override with id gone-soon"
-                        + " any more: it was deleted, or its id was changed in the file."));
+        user.form(page, "edit-0")
+                .formParam("note", "x")
+                .formParam("until", "")
+                .post("/overrides/edit")
+                .then()
+                .statusCode(404)
+                .body(
+                        "html.body.main.p.find { it.@id == 'notice' }",
+                        is("There is no keep override with id gone-soon"
+                                + " any more: it was deleted, or its id was changed in the file."));
         user.form(page, "delete-0").post("/overrides/delete").then().statusCode(404);
 
-        Authenticated.withApiKey().when().get("/api/v1/overrides").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/overrides")
+                .then()
                 .body("id", contains("replaced"))
                 .body("[0].note", is(""));
     }
@@ -234,21 +300,27 @@ class ManageOverridesTest {
         Response page = awaitPage(user, "kept");
 
         for (String path : List.of("/overrides", "/overrides/edit", "/overrides/delete")) {
-            given().redirects().follow(false)
+            given().redirects()
+                    .follow(false)
                     .cookie(user.cookie())
                     .cookie(CSRF_COOKIE, page.cookie(CSRF_COOKIE))
                     .formParam("id", "kept")
                     .formParam("hashes", "1a1a17")
                     .formParam("note", "forged")
-                    .when().post(path)
-                    .then().statusCode(400);
+                    .when()
+                    .post(path)
+                    .then()
+                    .statusCode(400);
         }
-        given().redirects().follow(false)
+        given().redirects()
+                .follow(false)
                 .cookie(user.cookie())
                 .cookie(CSRF_COOKIE, page.cookie(CSRF_COOKIE))
                 .formParam("hashes", "1a1a17")
-                .when().post("/groups/keep")
-                .then().statusCode(400);
+                .when()
+                .post("/groups/keep")
+                .then()
+                .statusCode(400);
 
         assertEquals(yaml, Files.readString(file));
     }
@@ -259,16 +331,20 @@ class ManageOverridesTest {
             Authenticated.withApiKey()
                     .contentType("application/json")
                     .body("{\"hashes\": [\"3c3c17\"], \"note\": \"via the API\"}")
-                    .when().request(method, "/api/v1/overrides")
-                    .then().statusCode(405);
+                    .when()
+                    .request(method, "/api/v1/overrides")
+                    .then()
+                    .statusCode(405);
         }
         for (String path : List.of("/api/v1/overrides/edit", "/api/v1/overrides/delete", "/api/v1/groups/keep")) {
             Authenticated.withApiKey()
                     .contentType("application/x-www-form-urlencoded")
                     .formParam("id", "x")
                     .formParam("hashes", "3c3c17")
-                    .when().post(path)
-                    .then().statusCode(anyOf(is(404), is(405)));
+                    .when()
+                    .post(path)
+                    .then()
+                    .statusCode(anyOf(is(404), is(405)));
         }
 
         assertFalse(Files.exists(file), "the overrides file was written");
@@ -283,9 +359,13 @@ class ManageOverridesTest {
         user.form(page, "add")
                 .formParam("hashes", "3c3c17")
                 .post("/overrides")
-                .then().statusCode(303);
+                .then()
+                .statusCode(303);
 
-        Authenticated.withApiKey().when().get("/api/v1/overrides").then()
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/overrides")
+                .then()
                 .statusCode(200)
                 .body("hashes", contains(List.of("3c3c17")));
     }
@@ -296,7 +376,9 @@ class ManageOverridesTest {
         Response page;
         do {
             page = user.page("/overrides");
-            if (page.htmlPath().getList(ROWS + ".collect { it.td[6].text() }", String.class).equals(List.of(ids))) {
+            if (page.htmlPath()
+                    .getList(ROWS + ".collect { it.td[6].text() }", String.class)
+                    .equals(List.of(ids))) {
                 return page;
             }
             try {
@@ -306,7 +388,8 @@ class ManageOverridesTest {
                 throw new AssertionError(e);
             }
         } while (System.nanoTime() < deadline);
-        throw new AssertionError("The Overrides view never showed the overrides " + List.of(ids) + ": " + page.asString());
+        throw new AssertionError(
+                "The Overrides view never showed the overrides " + List.of(ids) + ": " + page.asString());
     }
 
     /** A logged-in user, who reads pages and posts their forms. */
@@ -329,9 +412,8 @@ class ManageOverridesTest {
             List<String> names = page.htmlPath().getList(form + ".input.findAll { it.@type == 'hidden' }.@name");
             List<String> values = page.htmlPath().getList(form + ".input.findAll { it.@type == 'hidden' }.@value");
             assertTrue(names.contains("csrf-token"), "the form " + id + " has no CSRF token");
-            RequestSpecification request = given().redirects().follow(false)
-                    .cookie(cookie)
-                    .cookie(CSRF_COOKIE, page.cookie(CSRF_COOKIE));
+            RequestSpecification request =
+                    given().redirects().follow(false).cookie(cookie).cookie(CSRF_COOKIE, page.cookie(CSRF_COOKIE));
             for (int i = 0; i < names.size(); i++) {
                 request.formParam(names.get(i), values.get(i));
             }

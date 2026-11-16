@@ -26,17 +26,20 @@ class LogoutTest {
     void logoutFormWithItsCsrfTokenLogsOut() {
         Cookie session = Authenticated.login(TestSecrets.USERNAME, TestSecrets.PASSWORD);
         Response page = given().cookie(session).when().get("/system");
-        page.then().statusCode(200)
+        page.then()
+                .statusCode(200)
                 .body("html.body.header.form.@action", is("/logout"))
                 .body("html.body.header.form.@method", is("post"));
         String token = page.htmlPath().getString(CSRF_FIELD);
         assertFalse(token == null || token.isBlank(), "the logout form has no CSRF token");
 
-        Response loggedOut = given().redirects().follow(false)
+        Response loggedOut = given().redirects()
+                .follow(false)
                 .cookie(session)
                 .cookie(CSRF_COOKIE, page.cookie(CSRF_COOKIE))
                 .formParam("csrf-token", token)
-                .when().post("/logout");
+                .when()
+                .post("/logout");
 
         loggedOut.then().statusCode(303).header("Location", endsWith("/login"));
         // The browser is told to drop the session cookie.
@@ -48,11 +51,13 @@ class LogoutTest {
         Cookie session = Authenticated.login(TestSecrets.USERNAME, TestSecrets.PASSWORD);
         Response page = given().cookie(session).when().get("/system");
 
-        Response rejected = given().redirects().follow(false)
+        Response rejected = given().redirects()
+                .follow(false)
                 .cookie(session)
                 .cookie(CSRF_COOKIE, page.cookie(CSRF_COOKIE))
                 .contentType("application/x-www-form-urlencoded")
-                .when().post("/logout");
+                .when()
+                .post("/logout");
 
         rejected.then().statusCode(400);
         assertFalse(rejected.cookies().containsKey(Authenticated.SESSION_COOKIE), "the session cookie was dropped");
@@ -63,12 +68,15 @@ class LogoutTest {
         Cookie session = Authenticated.login(TestSecrets.USERNAME, TestSecrets.PASSWORD);
         Response page = given().cookie(session).when().get("/system");
 
-        given().redirects().follow(false)
+        given().redirects()
+                .follow(false)
                 .cookie(session)
                 .cookie(CSRF_COOKIE, page.cookie(CSRF_COOKIE))
                 .formParam("csrf-token", "bm90LXRoZS10b2tlbg")
-                .when().post("/logout")
-                .then().statusCode(400);
+                .when()
+                .post("/logout")
+                .then()
+                .statusCode(400);
     }
 
     @Test
@@ -76,10 +84,13 @@ class LogoutTest {
         Cookie session = Authenticated.login(TestSecrets.USERNAME, TestSecrets.PASSWORD);
         Response page = given().cookie(session).when().get("/system");
 
-        given().redirects().follow(false)
+        given().redirects()
+                .follow(false)
                 .cookie(session)
                 .formParam("csrf-token", page.htmlPath().getString(CSRF_FIELD))
-                .when().post("/logout")
-                .then().statusCode(400);
+                .when()
+                .post("/logout")
+                .then()
+                .statusCode(400);
     }
 }

@@ -47,17 +47,22 @@ public class ActivityPage {
      * @param removed    "2 torrents in 1 group"
      * @param spaceFreed "1.5 GiB"
      */
-    public record Run(String started, String ended, String status, String error, String removed, int filesDeleted,
-            String spaceFreed, List<Removal> removals) {
-    }
+    public record Run(
+            String started,
+            String ended,
+            String status,
+            String error,
+            String removed,
+            int filesDeleted,
+            String spaceFreed,
+            List<Removal> removals) {}
 
     /**
      * @param members "Some.Movie (tracker-a)", with everything else worth knowing about the torrent in the brackets
      * @param reason  the label of the reason, "All met"
      * @param error   what went wrong, as a sentence; empty when nothing did
      */
-    public record Removal(List<String> members, String reason, int filesDeleted, String spaceFreed, String error) {
-    }
+    public record Removal(List<String> members, String reason, int filesDeleted, String spaceFreed, String error) {}
 
     private final History history;
     private final ZoneId timeZone;
@@ -72,17 +77,22 @@ public class ActivityPage {
     @RunOnVirtualThread
     public TemplateInstance activity() {
         try {
-            return Templates.activity(history.runs(Optional.empty()).stream().map(this::run).toList(), null);
+            return Templates.activity(
+                    history.runs(Optional.empty()).stream().map(this::run).toList(), null);
         } catch (HistoryException e) {
             return Templates.activity(List.of(), e.getMessage());
         }
     }
 
     private Run run(RecordedRun run) {
-        return new Run(moment(run.started()), moment(run.ended()),
-                run.status().equals("succeeded") ? "Succeeded" : "Failed", run.error().orElse(null),
+        return new Run(
+                moment(run.started()),
+                moment(run.ended()),
+                run.status().equals("succeeded") ? "Succeeded" : "Failed",
+                run.error().orElse(null),
                 count(run.torrentsRemoved(), "torrent") + " in " + count(run.groupsRemoved(), "group"),
-                run.filesDeleted(), OrphansPage.size(run.spaceFreed()),
+                run.filesDeleted(),
+                OrphansPage.size(run.spaceFreed()),
                 run.removals().stream().map(ActivityPage::removal).toList());
     }
 
@@ -94,8 +104,12 @@ public class ActivityPage {
                     + " not deleted (outside the downloads root and the incomplete dir, under a library root, or"
                     + " the filesystem refused).");
         }
-        return new Removal(removal.members().stream().map(ActivityPage::member).toList(), reason(removal.reason()),
-                removal.filesDeleted(), OrphansPage.size(removal.spaceFreed()), String.join(" ", errors));
+        return new Removal(
+                removal.members().stream().map(ActivityPage::member).toList(),
+                reason(removal.reason()),
+                removal.filesDeleted(),
+                OrphansPage.size(removal.spaceFreed()),
+                String.join(" ", errors));
     }
 
     /** "Some.Movie (tracker-a, not finished, tracker said: unregistered torrent, not removed)". */
@@ -114,8 +128,11 @@ public class ActivityPage {
 
     /** The label of a reason; the code itself when another version recorded a reason this one doesn't know. */
     private static String reason(String code) {
-        return Stream.of(Reason.values()).filter(reason -> reason.code().equals(code)).map(Reason::label)
-                .findFirst().orElse(code);
+        return Stream.of(Reason.values())
+                .filter(reason -> reason.code().equals(code))
+                .map(Reason::label)
+                .findFirst()
+                .orElse(code);
     }
 
     private String moment(Instant moment) {

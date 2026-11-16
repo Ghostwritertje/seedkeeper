@@ -41,8 +41,7 @@ public class OverrideStore implements AutoCloseable {
     private static final Logger LOG = Logger.getLogger(OverrideStore.class);
 
     /** What the file said when it was last read: the overrides, or why it can't be read. */
-    private record Loaded(List<KeepOverride> overrides, OverridesException failure) {
-    }
+    private record Loaded(List<KeepOverride> overrides, OverridesException failure) {}
 
     private final Path file;
     private volatile Loaded loaded;
@@ -134,12 +133,16 @@ public class OverrideStore implements AutoCloseable {
         try {
             Files.createDirectories(dataDir);
             WatchService service = dataDir.getFileSystem().newWatchService();
-            dataDir.register(service, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_MODIFY,
+            dataDir.register(
+                    service,
+                    StandardWatchEventKinds.ENTRY_CREATE,
+                    StandardWatchEventKinds.ENTRY_MODIFY,
                     StandardWatchEventKinds.ENTRY_DELETE);
             watcher = service;
         } catch (IOException e) {
-            throw new OverridesException("The data dir " + dataDir + " (seedkeeper.data-dir) can't be used: " + e
-                    + ". seedkeeper keeps " + FILE_NAME + " there: it must be a directory seedkeeper can write to",
+            throw new OverridesException(
+                    "The data dir " + dataDir + " (seedkeeper.data-dir) can't be used: " + e + ". seedkeeper keeps "
+                            + FILE_NAME + " there: it must be a directory seedkeeper can write to",
                     e);
         }
         // What changed between the first read and the registration would otherwise go unseen.
@@ -165,7 +168,8 @@ public class OverrideStore implements AutoCloseable {
                     }
                 }
                 if (!key.reset()) {
-                    LOG.warnf("The data dir %s is gone: changes to %s are no longer picked up until a run reads it",
+                    LOG.warnf(
+                            "The data dir %s is gone: changes to %s are no longer picked up until a run reads it",
                             file.getParent(), FILE_NAME);
                     return;
                 }
@@ -204,8 +208,10 @@ public class OverrideStore implements AutoCloseable {
             now = new Loaded(List.of(), unreadable(e.toString(), e));
         }
         Loaded before = loaded;
-        if (now.failure() != null && (before == null || before.failure() == null
-                || !before.failure().getMessage().equals(now.failure().getMessage()))) {
+        if (now.failure() != null
+                && (before == null
+                        || before.failure() == null
+                        || !before.failure().getMessage().equals(now.failure().getMessage()))) {
             LOG.warn(now.failure().getMessage());
         }
         loaded = now;
@@ -219,8 +225,8 @@ public class OverrideStore implements AutoCloseable {
     private void write(String content) {
         Path temp = file.resolveSibling("." + FILE_NAME + "." + UUID.randomUUID() + ".tmp");
         try {
-            try (FileChannel channel = FileChannel.open(temp, StandardOpenOption.CREATE_NEW,
-                    StandardOpenOption.WRITE)) {
+            try (FileChannel channel =
+                    FileChannel.open(temp, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
                 ByteBuffer bytes = ByteBuffer.wrap(content.getBytes(StandardCharsets.UTF_8));
                 while (bytes.hasRemaining()) {
                     channel.write(bytes);

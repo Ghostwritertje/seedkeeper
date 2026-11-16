@@ -2,8 +2,8 @@ package io.github.ghostwritertje.seedkeeper.system;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.nullValue;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
 import io.github.ghostwritertje.seedkeeper.TestSecrets;
@@ -30,11 +30,13 @@ class UnreachableTransmissionTest {
 
         @Override
         public Map<String, String> getConfigOverrides() {
-            Map<String, String> config = TestSecrets.with("seedkeeper.transmission.url",
-                    "http://127.0.0.1:" + unusedPort() + "/transmission/rpc");
+            Map<String, String> config = TestSecrets.with(
+                    "seedkeeper.transmission.url", "http://127.0.0.1:" + unusedPort() + "/transmission/rpc");
             config.put("seedkeeper.library-roots", "/library");
             try {
-                config.put("seedkeeper.data-dir", Files.createTempDirectory("seedkeeper-test-data").toString());
+                config.put(
+                        "seedkeeper.data-dir",
+                        Files.createTempDirectory("seedkeeper-test-data").toString());
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
@@ -45,7 +47,8 @@ class UnreachableTransmissionTest {
     @Test
     void apiGivesTheReason() {
         Authenticated.withApiKey()
-                .when().get("/api/v1/system")
+                .when()
+                .get("/api/v1/system")
                 .then()
                 .statusCode(200)
                 .body("transmission.reachable", is(false))
@@ -56,22 +59,24 @@ class UnreachableTransmissionTest {
     @Test
     void pageGivesTheReason() {
         Authenticated.asUser()
-                .when().get("/system")
+                .when()
+                .get("/system")
                 .then()
                 .statusCode(200)
                 .body("html.body.main.section.find { it.@id == 'transmission' }.dl.dd[0]", is("Unreachable"))
                 .body("html.body.main.section.find { it.@id == 'transmission' }.dl.dd[1]", is("unknown"))
-                .body("html.body.main.section.find { it.@id == 'transmission' }.p",
-                        matchesPattern(DOES_NOT_ANSWER));
+                .body("html.body.main.section.find { it.@id == 'transmission' }.p", matchesPattern(DOES_NOT_ANSWER));
     }
 
     @Test
     void readinessIsDownAndLivenessStaysUp() {
-        given().when().get("/q/health/ready").then().statusCode(503)
+        given().when()
+                .get("/q/health/ready")
+                .then()
+                .statusCode(503)
                 .body("status", is("DOWN"))
                 .body("checks.find { it.name == 'Transmission' }.status", is("DOWN"))
-                .body("checks.find { it.name == 'Transmission' }.data.reason",
-                        matchesPattern(DOES_NOT_ANSWER));
+                .body("checks.find { it.name == 'Transmission' }.data.reason", matchesPattern(DOES_NOT_ANSWER));
         given().when().get("/q/health/live").then().statusCode(200).body("status", is("UP"));
     }
 

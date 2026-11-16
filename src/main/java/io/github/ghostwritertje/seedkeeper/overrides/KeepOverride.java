@@ -16,8 +16,8 @@ import java.util.stream.Stream;
  * @param until   the end date, inclusive, in the configured time zone; empty when it never ends
  * @param created when it was set; empty when the file doesn't say
  */
-public record KeepOverride(String id, List<String> hashes, String note, Optional<LocalDate> until,
-        Optional<OffsetDateTime> created) {
+public record KeepOverride(
+        String id, List<String> hashes, String note, Optional<LocalDate> until, Optional<OffsetDateTime> created) {
 
     public KeepOverride {
         hashes = List.copyOf(hashes);
@@ -39,10 +39,12 @@ public record KeepOverride(String id, List<String> hashes, String note, Optional
 
     /** This override with the missing ones of these hashes added at the end; itself when it has them all. */
     public KeepOverride withHashes(Collection<String> more) {
-        List<String> added = more.stream().distinct().filter(hash -> !hashes.contains(hash)).toList();
+        List<String> added =
+                more.stream().distinct().filter(hash -> !hashes.contains(hash)).toList();
         if (added.isEmpty()) {
             return this;
         }
-        return new KeepOverride(id, Stream.concat(hashes.stream(), added.stream()).toList(), note, until, created);
+        return new KeepOverride(
+                id, Stream.concat(hashes.stream(), added.stream()).toList(), note, until, created);
     }
 }

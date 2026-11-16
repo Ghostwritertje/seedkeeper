@@ -14,5 +14,4 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)
-public @interface ModuleApi {
-}
+public @interface ModuleApi {}

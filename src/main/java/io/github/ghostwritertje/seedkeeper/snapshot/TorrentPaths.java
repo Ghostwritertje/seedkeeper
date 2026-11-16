@@ -15,8 +15,7 @@ public final class TorrentPaths {
 
     private static final String DEV_AND_INO = "unix:dev,ino";
 
-    private TorrentPaths() {
-    }
+    private TorrentPaths() {}
 
     /**
      * The directories a torrent's files can be in: its download dir, then the incomplete dir.
@@ -32,17 +31,23 @@ public final class TorrentPaths {
 
     /** The paths a file can be at in one of the {@link #dirs}: as it is named, then with {@code .part}; normalized. */
     public static List<Path> candidatesIn(Path dir, Torrent.File file) {
-        return List.of(dir.resolve(file.name()).normalize(), dir.resolve(file.name() + ".part").normalize());
+        return List.of(
+                dir.resolve(file.name()).normalize(),
+                dir.resolve(file.name() + ".part").normalize());
     }
 
     /** The paths a torrent's file can be at, in the order of spec §3.1. The first that exists is the file. */
     public static List<Path> candidates(Torrent torrent, Torrent.File file, Optional<Path> incompleteDir) {
-        return dirs(torrent, incompleteDir).stream().flatMap(dir -> candidatesIn(dir, file).stream()).toList();
+        return dirs(torrent, incompleteDir).stream()
+                .flatMap(dir -> candidatesIn(dir, file).stream())
+                .toList();
     }
 
     /** The file the first candidate path that exists leads to, following symlinks; empty when there is none. */
     public static Optional<FileId> resolve(Torrent torrent, Torrent.File file, Optional<Path> incompleteDir) {
-        return candidates(torrent, file, incompleteDir).stream().flatMap(path -> id(path).stream()).findFirst();
+        return candidates(torrent, file, incompleteDir).stream()
+                .flatMap(path -> id(path).stream())
+                .findFirst();
     }
 
     /** Empty when the path doesn't exist, is a dangling symlink or can't be read. */

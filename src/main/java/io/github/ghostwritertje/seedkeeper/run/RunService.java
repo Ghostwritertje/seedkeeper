@@ -33,15 +33,27 @@ public class RunService {
     private volatile RunOutcome lastRun;
 
     @Inject
-    RunService(Transmission transmission, SeedkeeperConfig config, OverrideStore overrides, RunMonitor monitor,
+    RunService(
+            Transmission transmission,
+            SeedkeeperConfig config,
+            OverrideStore overrides,
+            RunMonitor monitor,
             Event<RunOutcome> ended) {
-        this(new Run(transmission, TrackerRules.of(config), config.downloadsRoot(), config.libraryRoots(),
-                config.timeZone(), overrides), overrides, monitor, ended::fire);
+        this(
+                new Run(
+                        transmission,
+                        TrackerRules.of(config),
+                        config.downloadsRoot(),
+                        config.libraryRoots(),
+                        config.timeZone(),
+                        overrides),
+                overrides,
+                monitor,
+                ended::fire);
     }
 
     RunService(Run run, OverrideStore overrides, RunMonitor monitor) {
-        this(run, overrides, monitor, outcome -> {
-        });
+        this(run, overrides, monitor, outcome -> {});
     }
 
     /** @param ended told of every run that ends, while the run lock is still held */
@@ -84,7 +96,8 @@ public class RunService {
     private void growOverrides(RunOutcome outcome) {
         List<List<String>> groups = outcome.verdicts().stream()
                 .filter(group -> group.verdict() != Verdict.REMOVE)
-                .map(group -> group.members().stream().map(GroupVerdict.Member::hash).toList())
+                .map(group ->
+                        group.members().stream().map(GroupVerdict.Member::hash).toList())
                 .toList();
         try {
             overrides.grow(groups);

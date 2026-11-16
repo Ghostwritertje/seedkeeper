@@ -6,8 +6,7 @@ import java.time.Duration;
 /** How a torrent's status and a seed time are written in the API and the UI. */
 public final class StatusText {
 
-    private StatusText() {
-    }
+    private StatusText() {}
 
     /** The kebab-case code the JSON API uses. */
     public static String code(Status status) {

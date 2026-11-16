@@ -7,28 +7,22 @@ import io.github.ghostwritertje.seedkeeper.ModuleApi;
  */
 final class Wide {
 
-    private Wide() {
-    }
+    private Wide() {}
 
     @ModuleApi
-    public static class First {
-    }
+    public static class First {}
 
     @ModuleApi
-    public static class Second {
-    }
+    public static class Second {}
 
     @ModuleApi
-    public interface Third {
-    }
+    public interface Third {}
 
     @ModuleApi
-    public static class Fourth {
-    }
+    public static class Fourth {}
 
     @ModuleApi
-    public record Data(String value) {
-    }
+    public record Data(String value) {}
 
     @ModuleApi
     public enum Kind {

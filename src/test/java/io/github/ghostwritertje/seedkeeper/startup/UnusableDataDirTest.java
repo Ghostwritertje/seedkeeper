@@ -25,8 +25,8 @@ class UnusableDataDirTest {
             .overrideConfigKey("seedkeeper.data-dir", "/dev/null/data")
             .assertException(failure -> {
                 String message = Startup.messages(failure);
-                assertTrue(message.contains("The data dir /dev/null/data (seedkeeper.data-dir) can't be used"),
-                        message);
+                assertTrue(
+                        message.contains("The data dir /dev/null/data (seedkeeper.data-dir) can't be used"), message);
             });
 
     @Test

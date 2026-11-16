@@ -16,8 +16,8 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Stream;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** The keep overrides and what each does right now; behind the Overrides view and the API. */
 @ApplicationScoped
@@ -32,7 +32,10 @@ public class OverridesService {
      * @param groupsUnknown why the groups can't be known right now (Transmission can't be used, a library root can't
      *                      be read); then whether it is stale, and so whether it is active, is unknown too
      */
-    public record Listed(KeepOverride override, boolean expired, List<List<GroupVerdict.Member>> groups,
+    public record Listed(
+            KeepOverride override,
+            boolean expired,
+            List<List<GroupVerdict.Member>> groups,
             Optional<String> groupsUnknown) {
 
         public Listed {
@@ -88,9 +91,13 @@ public class OverridesService {
                     .toList();
         }
         return overrides.stream()
-                .map(override -> new Listed(override, override.expired(today), current.stream()
-                        .filter(members -> override.matches(hashes(members)))
-                        .toList(), Optional.empty()))
+                .map(override -> new Listed(
+                        override,
+                        override.expired(today),
+                        current.stream()
+                                .filter(members -> override.matches(hashes(members)))
+                                .toList(),
+                        Optional.empty()))
                 .toList();
     }
 
@@ -111,9 +118,14 @@ public class OverridesService {
         if (cleaned.isEmpty()) {
             throw new InvalidOverride("A keep override needs at least one info hash.");
         }
-        KeepOverride added = new KeepOverride(UUID.randomUUID().toString(), cleaned, clean(note), until,
+        KeepOverride added = new KeepOverride(
+                UUID.randomUUID().toString(),
+                cleaned,
+                clean(note),
+                until,
                 Optional.of(OffsetDateTime.now(config.timeZone()).truncatedTo(ChronoUnit.SECONDS)));
-        store.update(overrides -> Stream.concat(overrides.stream(), Stream.of(added)).toList());
+        store.update(
+                overrides -> Stream.concat(overrides.stream(), Stream.of(added)).toList());
         return added;
     }
 
@@ -143,7 +155,9 @@ public class OverridesService {
     public void delete(String id) {
         store.update(overrides -> {
             requireId(overrides, id);
-            return overrides.stream().filter(override -> !override.id().equals(id)).toList();
+            return overrides.stream()
+                    .filter(override -> !override.id().equals(id))
+                    .toList();
         });
     }
 

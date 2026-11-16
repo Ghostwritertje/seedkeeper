@@ -44,7 +44,11 @@ class ScheduledRunTest {
         }
 
         assertTrue(torrentListsAsked() > 0, "no run started by itself within 10 s");
-        Authenticated.withApiKey().when().get("/api/v1/system").then().statusCode(200)
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/system")
+                .then()
+                .statusCode(200)
                 .body("lastRun.status", is("succeeded"))
                 .body("nextRun", notNullValue());
     }
@@ -59,7 +63,9 @@ class ScheduledRunTest {
             // Three more scheduled runs come due while the first one is still running.
             Thread.sleep(3_000);
 
-            assertEquals(0, FakeTransmissionResource.fake().requests().size(),
+            assertEquals(
+                    0,
+                    FakeTransmissionResource.fake().requests().size(),
                     "a scheduled run started while another was running");
         } finally {
             hold.release();

@@ -1,8 +1,8 @@
 package io.github.ghostwritertje.seedkeeper.system;
 
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
@@ -46,8 +46,8 @@ class LastRunAfterRestartTest {
 
         @Override
         public Map<String, String> getConfigOverrides() {
-            Map<String, String> config = TestSecrets.with("seedkeeper.transmission.url",
-                    "http://127.0.0.1:9/transmission/rpc");
+            Map<String, String> config =
+                    TestSecrets.with("seedkeeper.transmission.url", "http://127.0.0.1:9/transmission/rpc");
             config.put("seedkeeper.library-roots", "/library");
             config.put("seedkeeper.time-zone", "UTC");
             config.put("seedkeeper.data-dir", dataDirWithHistory().toString());
@@ -61,21 +61,45 @@ class LastRunAfterRestartTest {
             Path dataDir = Files.createTempDirectory("seedkeeper-restart");
             SQLiteDataSource database = new SQLiteDataSource();
             database.setUrl("jdbc:sqlite:" + dataDir.resolve("seedkeeper.db"));
-            Flyway.configure().dataSource(database).locations("classpath:db/migration").load().migrate();
+            Flyway.configure()
+                    .dataSource(database)
+                    .locations("classpath:db/migration")
+                    .load()
+                    .migrate();
             History history = new History(database);
-            Torrent movie = new Torrent("a1", "Some.Movie", Torrent.Status.SEEDING, 1, 0, "", 0, true, "/downloads",
-                    List.of(), List.of());
-            Torrent busy = new Torrent("b2", "Busy.Movie", Torrent.Status.SEEDING, 1, 0, "", 0, true, "/downloads",
-                    List.of(), List.of());
-            history.record(new RunOutcome(SUCCEEDED, SUCCEEDED.plusSeconds(4), Status.SUCCEEDED, Optional.empty(),
-                    List.of(), List.of(
-                            new Removal(Reason.ALL_MET, List.of(movie), List.of(movie), Optional.empty(),
-                                    new Deleted(List.of(Path.of("/downloads/Some.Movie/movie.mkv")), 1024,
+            Torrent movie = new Torrent(
+                    "a1", "Some.Movie", Torrent.Status.SEEDING, 1, 0, "", 0, true, "/downloads", List.of(), List.of());
+            Torrent busy = new Torrent(
+                    "b2", "Busy.Movie", Torrent.Status.SEEDING, 1, 0, "", 0, true, "/downloads", List.of(), List.of());
+            history.record(new RunOutcome(
+                    SUCCEEDED,
+                    SUCCEEDED.plusSeconds(4),
+                    Status.SUCCEEDED,
+                    Optional.empty(),
+                    List.of(),
+                    List.of(
+                            new Removal(
+                                    Reason.ALL_MET,
+                                    List.of(movie),
+                                    List.of(movie),
+                                    Optional.empty(),
+                                    new Deleted(
+                                            List.of(Path.of("/downloads/Some.Movie/movie.mkv")),
+                                            1024,
                                             List.of(Path.of("/elsewhere/a"), Path.of("/elsewhere/b")))),
-                            new Removal(Reason.ALL_MET, List.of(busy), List.of(), Optional.of("torrent is busy"),
+                            new Removal(
+                                    Reason.ALL_MET,
+                                    List.of(busy),
+                                    List.of(),
+                                    Optional.of("torrent is busy"),
                                     new Deleted(List.of(), 0, List.of())))));
-            history.record(new RunOutcome(FAILED, FAILED.plusSeconds(1), Status.FAILED,
-                    Optional.of("Transmission does not answer"), List.of(), List.of()));
+            history.record(new RunOutcome(
+                    FAILED,
+                    FAILED.plusSeconds(1),
+                    Status.FAILED,
+                    Optional.of("Transmission does not answer"),
+                    List.of(),
+                    List.of()));
             return dataDir;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -85,7 +109,8 @@ class LastRunAfterRestartTest {
     @Test
     void theApiGivesTheLastRunOfTheHistory() {
         Authenticated.withApiKey()
-                .when().get("/api/v1/system")
+                .when()
+                .get("/api/v1/system")
                 .then()
                 .statusCode(200)
                 .body("lastRun.started", is("2026-11-16T07:00:00Z"))
@@ -99,7 +124,8 @@ class LastRunAfterRestartTest {
     @Test
     void thePageGivesTheLastRunOfTheHistory() {
         Authenticated.asUser()
-                .when().get("/system")
+                .when()
+                .get("/system")
                 .then()
                 .statusCode(200)
                 .body("html.body.main.section[1].dl.dd[1]", is("Failed"))
@@ -108,7 +134,8 @@ class LastRunAfterRestartTest {
 
     @Test
     void theLastSuccessfulRunGaugeIsTheOneOfTheHistory() {
-        given().when().get("/q/metrics")
+        given().when()
+                .get("/q/metrics")
                 .then()
                 .statusCode(200)
                 .body(containsString("seedkeeper_last_successful_run_timestamp_seconds "

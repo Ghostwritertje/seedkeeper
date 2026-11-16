@@ -26,14 +26,16 @@ public record Orphans(List<Orphan> files, List<Orphan> danglingSymlinks, List<Pa
      * @param libraryLink  whether a hardlink of the file is under a library root: deleting it would free nothing.
      *                     Never true of a symlink
      */
-    public record Orphan(Path path, long size, Instant lastModified, boolean libraryLink) {
-    }
+    public record Orphan(Path path, long size, Instant lastModified, boolean libraryLink) {}
 
     /**
      * What deleting the orphan files would free: the bytes of those without a library link. A dangling symlink takes
      * none worth counting.
      */
     public long totalSize() {
-        return files.stream().filter(orphan -> !orphan.libraryLink()).mapToLong(Orphan::size).sum();
+        return files.stream()
+                .filter(orphan -> !orphan.libraryLink())
+                .mapToLong(Orphan::size)
+                .sum();
     }
 }

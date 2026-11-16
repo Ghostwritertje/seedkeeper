@@ -4,5 +4,4 @@ import io.quarkus.test.junit.QuarkusIntegrationTest;
 
 /** Runs the same checks as {@link SettingsTest} against the packaged (native) application. */
 @QuarkusIntegrationTest
-class SettingsIT extends SettingsTest {
-}
+class SettingsIT extends SettingsTest {}

@@ -13,8 +13,8 @@ import java.util.List;
  *                zone; null when there is none
  */
 @RegisterForReflection
-public record SystemStatus(String version, TransmissionStatus transmission, boolean running, LastRun lastRun,
-        String nextRun) {
+public record SystemStatus(
+        String version, TransmissionStatus transmission, boolean running, LastRun lastRun, String nextRun) {
 
     /**
      * @param reachable Transmission answered
@@ -44,8 +44,16 @@ public record SystemStatus(String version, TransmissionStatus transmission, bool
      * @param removalErrors   one line per removal that went wrong or left something undeleted
      */
     @RegisterForReflection
-    public record LastRun(String started, String ended, String status, String error, int groupsRemoved,
-            int torrentsRemoved, int filesDeleted, long spaceFreedBytes, List<String> removalErrors) {
+    public record LastRun(
+            String started,
+            String ended,
+            String status,
+            String error,
+            int groupsRemoved,
+            int torrentsRemoved,
+            int filesDeleted,
+            long spaceFreedBytes,
+            List<String> removalErrors) {
 
         public boolean succeeded() {
             return error == null;

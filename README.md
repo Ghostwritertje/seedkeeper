@@ -640,7 +640,16 @@ Requires JDK 25. Maven comes with the wrapper.
 
 ```sh
 ./mvnw verify            # compile and run the tests on the JVM; needs no Docker
+./mvnw verify -Pquality  # the same, plus the quality checks: Java formatting and POM order
 ./mvnw quarkus:dev       # run locally with live reload on http://localhost:8080
+```
+
+`./mvnw verify` is the fast loop. `./mvnw verify -Pquality` adds the Java quality checks: formatting with
+Spotless/palantir-java-format, and a sorted POM with sortpom. Run it before you push; CI runs the same build. To apply
+the formatting, Java and POM both, run:
+
+```sh
+./mvnw spotless:apply sortpom:sort
 ```
 
 `quarkus:dev` needs the configuration too: export the environment variables above and `SEEDKEEPER_TRANSMISSION_URL`.
@@ -666,8 +675,11 @@ The image listens on port 8080 and runs as any non-root uid:gid. `seedkeeper.env
 
 ## Continuous integration
 
-Every pull request and every push to `main` runs `./mvnw verify` on the JVM, and the native build with the integration
-tests and a start of the image as a non-root user (`.github/workflows/ci.yml`). Dependabot proposes updates monthly.
+Every pull request and every push to `main` runs `./mvnw verify` on the JVM, the quality build
+`./mvnw verify -Pquality` (the `Verify (quality)` job), and the native build with the integration tests and a start of
+the image as a non-root user (`.github/workflows/ci.yml`). The `Lint (non-Java)` job runs shellcheck, actionlint,
+zizmor and hadolint, at pinned versions and offline, on the shell scripts, the workflows and the Dockerfile, and the
+`Test the CI scripts` job runs the table-driven tests of `.github/scripts/`. Dependabot proposes updates monthly.
 
 ## Releases
 

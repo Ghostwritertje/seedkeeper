@@ -24,8 +24,18 @@ public class TransmissionClient implements Transmission {
 
     private static final Pattern MAJOR_MINOR = Pattern.compile("(\\d+)\\.(\\d+)");
     private static final String TOO_OLD = "older than 4.1, the oldest version seedkeeper works with";
-    private static final List<String> TORRENT_FIELDS = List.of("hash_string", "name", "status", "percent_done",
-            "error", "error_string", "seconds_seeding", "is_private", "download_dir", "trackers", "files",
+    private static final List<String> TORRENT_FIELDS = List.of(
+            "hash_string",
+            "name",
+            "status",
+            "percent_done",
+            "error",
+            "error_string",
+            "seconds_seeding",
+            "is_private",
+            "download_dir",
+            "trackers",
+            "files",
             "file_stats");
 
     private final URI url;
@@ -33,7 +43,10 @@ public class TransmissionClient implements Transmission {
 
     @Inject
     TransmissionClient(SeedkeeperConfig config) {
-        this(config.transmission().url(), config.transmission().username(), config.transmission().password());
+        this(
+                config.transmission().url(),
+                config.transmission().username(),
+                config.transmission().password());
     }
 
     public TransmissionClient(URI url, String username, String password) {
@@ -50,8 +63,8 @@ public class TransmissionClient implements Transmission {
 
     @Override
     public TransmissionSession session() {
-        JsonNode result = call("session_get",
-                Map.of("fields", List.of("version", "incomplete_dir", "incomplete_dir_enabled")));
+        JsonNode result =
+                call("session_get", Map.of("fields", List.of("version", "incomplete_dir", "incomplete_dir_enabled")));
         String version = result.path("version").asText("");
         if (!isSupported(version)) {
             throw TransmissionException.unsupported("Transmission " + version + " is " + TOO_OLD, version);
@@ -64,7 +77,8 @@ public class TransmissionClient implements Transmission {
 
     @Override
     public List<Torrent> torrents() {
-        JsonNode torrents = call("torrent_get", Map.of("fields", TORRENT_FIELDS)).path("torrents");
+        JsonNode torrents =
+                call("torrent_get", Map.of("fields", TORRENT_FIELDS)).path("torrents");
         if (!torrents.isArray()) {
             throw notJsonRpc(null);
         }
@@ -91,7 +105,8 @@ public class TransmissionClient implements Transmission {
         for (JsonNode file : torrent.path("files")) {
             // A file Transmission says nothing about counts as wanted: the careful side, it can only keep a torrent.
             boolean wanted = fileStats.path(index++).path("wanted").asBoolean(true);
-            files.add(new Torrent.File(file.path("name").asText(), file.path("length").asLong(), wanted));
+            files.add(new Torrent.File(
+                    file.path("name").asText(), file.path("length").asLong(), wanted));
         }
         Torrent.Status status;
         try {
@@ -99,10 +114,18 @@ public class TransmissionClient implements Transmission {
         } catch (IllegalArgumentException e) {
             throw notJsonRpc(e);
         }
-        return new Torrent(torrent.path("hash_string").asText(), torrent.path("name").asText(), status,
-                torrent.path("percent_done").asDouble(), torrent.path("error").asInt(),
-                torrent.path("error_string").asText(), torrent.path("seconds_seeding").asLong(),
-                torrent.path("is_private").asBoolean(), torrent.path("download_dir").asText(), trackers, files);
+        return new Torrent(
+                torrent.path("hash_string").asText(),
+                torrent.path("name").asText(),
+                status,
+                torrent.path("percent_done").asDouble(),
+                torrent.path("error").asInt(),
+                torrent.path("error_string").asText(),
+                torrent.path("seconds_seeding").asLong(),
+                torrent.path("is_private").asBoolean(),
+                torrent.path("download_dir").asText(),
+                trackers,
+                files);
     }
 
     /** True for 4.1 and newer. The version looks like "4.1.0 (5e6a9e0a3d)"; one that can't be read is not supported. */
@@ -129,8 +152,8 @@ public class TransmissionClient implements Transmission {
         JsonNode result = response.result();
         if (result != null && result.isTextual()) {
             // The pre-4.1 format: {"result": "method name not recognized", "arguments": {}}
-            throw TransmissionException.unsupported(here() + " is " + TOO_OLD + " (it does not speak JSON-RPC 2.0)",
-                    null);
+            throw TransmissionException.unsupported(
+                    here() + " is " + TOO_OLD + " (it does not speak JSON-RPC 2.0)", null);
         }
         if (result == null || !result.isObject()) {
             throw notJsonRpc(null);
@@ -151,11 +174,14 @@ public class TransmissionClient implements Transmission {
             }
         } catch (WebApplicationException e) {
             int status = e.getResponse().getStatus();
-            throw TransmissionException.unreachable(here() + switch (status) {
-                case 401 -> " rejected the username or password (HTTP 401)";
-                case 409 -> " keeps refusing its own session id (HTTP 409 twice in a row)";
-                default -> " answered HTTP " + status;
-            }, e);
+            throw TransmissionException.unreachable(
+                    here()
+                            + switch (status) {
+                                case 401 -> " rejected the username or password (HTTP 401)";
+                                case 409 -> " keeps refusing its own session id (HTTP 409 twice in a row)";
+                                default -> " answered HTTP " + status;
+                            },
+                    e);
         } catch (RuntimeException e) {
             Throwable root = rootCause(e);
             if (root instanceof IOException || root instanceof TimeoutException) {
@@ -167,8 +193,8 @@ public class TransmissionClient implements Transmission {
     }
 
     private TransmissionException notJsonRpc(Throwable cause) {
-        return TransmissionException.unreachable(here() + " gave an answer that is not JSON-RPC; is the URL right?",
-                cause);
+        return TransmissionException.unreachable(
+                here() + " gave an answer that is not JSON-RPC; is the URL right?", cause);
     }
 
     /** The URL without a {@code user:password@} part, fit to show. */
@@ -177,7 +203,13 @@ public class TransmissionClient implements Transmission {
             return url;
         }
         try {
-            return new URI(url.getScheme(), null, url.getHost(), url.getPort(), url.getPath(), url.getQuery(),
+            return new URI(
+                    url.getScheme(),
+                    null,
+                    url.getHost(),
+                    url.getPort(),
+                    url.getPath(),
+                    url.getQuery(),
                     url.getFragment());
         } catch (java.net.URISyntaxException e) {
             return URI.create(url.getScheme() + "://" + url.getHost());

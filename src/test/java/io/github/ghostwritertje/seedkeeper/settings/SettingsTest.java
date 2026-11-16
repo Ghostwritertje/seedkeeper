@@ -24,7 +24,8 @@ class SettingsTest {
     @Test
     void pageShowsTheScheduleTransmissionThePathsAndTheLogin() {
         Authenticated.asUser()
-                .when().get("/settings")
+                .when()
+                .get("/settings")
                 .then()
                 .statusCode(200)
                 .contentType(containsString("text/html"))
@@ -32,10 +33,14 @@ class SettingsTest {
                 .body(section("run") + ".dl.dt", contains("Schedule", "Time zone"))
                 .body(section("run") + ".dl.dd", contains("0 0 6 1 1 ?", "Asia/Kolkata"))
                 .body(section("transmission") + ".dl.dt", is("URL"))
-                .body(section("transmission") + ".dl.dd", is(FakeTransmissionResource.fake().url().toString()))
+                .body(
+                        section("transmission") + ".dl.dd",
+                        is(FakeTransmissionResource.fake().url().toString()))
                 .body(section("paths") + ".dl.dt", contains("Downloads root", "Library roots", "Data dir"))
-                .body(section("paths") + ".dl.dd",
-                        contains(FakeTransmissionResource.downloads().toString(),
+                .body(
+                        section("paths") + ".dl.dd",
+                        contains(
+                                FakeTransmissionResource.downloads().toString(),
                                 FakeTransmissionResource.library().toString(),
                                 FakeTransmissionResource.dataDir().toString()))
                 .body(section("login") + ".dl.dt", is("Username"))
@@ -45,30 +50,40 @@ class SettingsTest {
     @Test
     void pageShowsEveryTrackerWithItsHostsAndTheMinimumThatApplies() {
         Authenticated.asUser()
-                .when().get("/settings")
+                .when()
+                .get("/settings")
                 .then()
                 .statusCode(200)
                 .body(section("trackers") + ".dl.dt", is("Default minimum seed time"))
                 .body(section("trackers") + ".dl.dd", is("30d"))
                 .body(section("trackers") + ".table.thead.tr.th", contains("Tracker", "Hosts", "Minimum seed time"))
                 .body(section("trackers") + ".table.tbody.tr.size()", is(3))
-                .body(section("trackers") + ".table.tbody.tr[0].td",
+                .body(
+                        section("trackers") + ".table.tbody.tr[0].td",
                         contains("tracker-a", "tracker-a.example", "30d (default)"))
-                .body(section("trackers") + ".table.tbody.tr[1].td",
+                .body(
+                        section("trackers") + ".table.tbody.tr[1].td",
                         contains("tracker-b", "tracker-b.example, tracker-b.example.org", "14d"))
-                .body(section("trackers") + ".table.tbody.tr[2].td",
+                .body(
+                        section("trackers") + ".table.tbody.tr[2].td",
                         contains("public", "Every torrent that is not private", "1d"));
     }
 
     @Test
     void pageShowsEachSecretAsSetAndNeverItsValue() {
         Authenticated.asUser()
-                .when().get("/settings")
+                .when()
+                .get("/settings")
                 .then()
                 .statusCode(200)
-                .body(section("secrets") + ".dl.dt", contains("SEEDKEEPER_TRANSMISSION_USERNAME",
-                        "SEEDKEEPER_TRANSMISSION_PASSWORD", "SEEDKEEPER_AUTH_PASSWORD", "SEEDKEEPER_API_KEY",
-                        "QUARKUS_HTTP_AUTH_SESSION_ENCRYPTION_KEY"))
+                .body(
+                        section("secrets") + ".dl.dt",
+                        contains(
+                                "SEEDKEEPER_TRANSMISSION_USERNAME",
+                                "SEEDKEEPER_TRANSMISSION_PASSWORD",
+                                "SEEDKEEPER_AUTH_PASSWORD",
+                                "SEEDKEEPER_API_KEY",
+                                "QUARKUS_HTTP_AUTH_SESSION_ENCRYPTION_KEY"))
                 .body(section("secrets") + ".dl.dd", contains("set", "set", "set", "set", "set"))
                 .body(not(containsString(FakeTransmission.USERNAME)))
                 .body(not(containsString(FakeTransmission.PASSWORD)))
@@ -79,7 +94,10 @@ class SettingsTest {
 
     @Test
     void theNavigationLeadsToTheSettingsView() {
-        Authenticated.asUser().when().get("/system").then()
+        Authenticated.asUser()
+                .when()
+                .get("/system")
+                .then()
                 .body("html.body.header.nav.a.find { it.@href == '/settings' }", is("Settings"));
     }
 
