@@ -1,7 +1,7 @@
 package io.github.ghostwritertje.seedkeeper.decide;
 
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict.Member;
-import io.github.ghostwritertje.seedkeeper.overrides.KeepOverride;
+import io.github.ghostwritertje.seedkeeper.keep.KeepOverride;
 import io.github.ghostwritertje.seedkeeper.snapshot.FileId;
 import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot;
 import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot.SnapshotTorrent;

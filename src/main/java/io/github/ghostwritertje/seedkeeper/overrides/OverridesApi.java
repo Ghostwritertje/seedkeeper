@@ -1,8 +1,8 @@
-package io.github.ghostwritertje.seedkeeper.groups;
+package io.github.ghostwritertje.seedkeeper.overrides;
 
-import io.github.ghostwritertje.seedkeeper.groups.OverridesService.Listed;
-import io.github.ghostwritertje.seedkeeper.groups.OverridesService.OverridesUnavailable;
-import io.github.ghostwritertje.seedkeeper.overrides.KeepOverride;
+import io.github.ghostwritertje.seedkeeper.keep.KeepOverride;
+import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.Listed;
+import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.OverridesUnavailable;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.ws.rs.GET;

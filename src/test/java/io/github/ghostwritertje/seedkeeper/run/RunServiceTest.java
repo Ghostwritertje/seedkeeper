@@ -5,8 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
-import io.github.ghostwritertje.seedkeeper.overrides.KeepOverride;
-import io.github.ghostwritertje.seedkeeper.overrides.OverrideStore;
+import io.github.ghostwritertje.seedkeeper.keep.KeepOverride;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideStore;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Status;
 import io.github.ghostwritertje.seedkeeper.transmission.StubTransmission;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;

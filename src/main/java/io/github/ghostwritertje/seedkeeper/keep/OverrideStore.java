@@ -1,7 +1,7 @@
-package io.github.ghostwritertje.seedkeeper.overrides;
+package io.github.ghostwritertje.seedkeeper.keep;
 
 import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
-import io.github.ghostwritertje.seedkeeper.overrides.OverridesFile.Unreadable;
+import io.github.ghostwritertje.seedkeeper.keep.OverridesFile.Unreadable;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
