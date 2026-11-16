@@ -22,8 +22,7 @@ class SkipTestsThatStartTheAppTest {
                 Arguments.argumentSet("@QuarkusIntegrationTest", TESTS + "groups.GroupsIT", true),
                 Arguments.argumentSet("a QuarkusUnitTest extension", TESTS + "startup.UnusableDataDirTest", true),
                 Arguments.argumentSet("a plain JUnit test", TESTS + "decide.DecideTest", false),
-                Arguments.argumentSet(
-                        "a plain JUnit test with a temp dir", TESTS + "overrides.OverrideStoreTest", false));
+                Arguments.argumentSet("a plain JUnit test with a temp dir", TESTS + "keep.OverrideStoreTest", false));
     }
 
     @ParameterizedTest
