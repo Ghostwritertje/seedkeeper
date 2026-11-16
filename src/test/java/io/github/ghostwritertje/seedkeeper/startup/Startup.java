@@ -8,7 +8,7 @@ final class Startup {
 
     private Startup() {}
 
-    /** Puts the application (classes and templates) in the archive a QuarkusUnitTest starts. */
+    /** Puts the application (classes and templates) in the archive a QuarkusExtensionTest starts. */
     static void application(JavaArchive jar) {
         jar.addPackages(true, SeedkeeperConfig.class.getPackage())
                 .addAsResource("templates/layout.html")

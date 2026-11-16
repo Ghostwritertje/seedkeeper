@@ -5,6 +5,7 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 import io.github.ghostwritertje.seedkeeper.decide.TrackerError.Kind;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -64,7 +65,7 @@ class TrackerErrorTest {
     @MethodSource("unregisteredMessages")
     void eachRowIsMatchedByItsOwnPatternOnly(String pattern, String message) {
         List<String> matching = TrackerError.UNREGISTERED_PATTERNS.stream()
-                .filter(message.toLowerCase()::contains)
+                .filter(message.toLowerCase(Locale.ROOT)::contains)
                 .toList();
 
         assertEquals(List.of(pattern), matching);

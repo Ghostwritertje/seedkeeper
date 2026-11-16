@@ -44,6 +44,8 @@ public record GroupVerdict(
     }
 
     /**
+     * One torrent of the group, with what the verdict took into account.
+     *
      * @param tracker  the tracker the torrent belongs to; empty when it is unmanaged
      * @param seedTime time actually spent seeding
      * @param trackerError what the tracker reports to be wrong with the torrent; empty when nothing

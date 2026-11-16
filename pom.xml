@@ -206,7 +206,7 @@
                 </configuration>
                 <!--
                   The tests in the `startup` package start the application with a broken configuration
-                  (QuarkusUnitTest). Quarkus can't run those and @QuarkusTest classes in one JVM, so they
+                  (QuarkusExtensionTest). Quarkus can't run those and @QuarkusTest classes in one JVM, so they
                   get a run of their own.
                 -->
                 <executions>

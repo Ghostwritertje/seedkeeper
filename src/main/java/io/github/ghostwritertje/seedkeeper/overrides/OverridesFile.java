@@ -121,7 +121,7 @@ final class OverridesFile {
     /** A key that is absent, or present without a value. */
     private static boolean blank(Object value) {
         return value == null
-                || value instanceof String text && (text.isBlank() || text.equals("~") || text.equals("null"));
+                || (value instanceof String text && (text.isBlank() || text.equals("~") || text.equals("null")));
     }
 
     /**
@@ -176,7 +176,7 @@ final class OverridesFile {
                 case '\r' -> quoted.append("\\r");
                 case '\t' -> quoted.append("\\t");
                 default -> {
-                    if (c < 0x20 || c >= 0x7f && c < 0xa0 || c == 0x2028 || c == 0x2029 || c == 0xfeff) {
+                    if (c < 0x20 || (c >= 0x7f && c < 0xa0) || c == 0x2028 || c == 0x2029 || c == 0xfeff) {
                         quoted.append(String.format("\\u%04x", c));
                     } else {
                         quoted.appendCodePoint(c);

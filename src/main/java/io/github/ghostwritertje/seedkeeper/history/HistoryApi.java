@@ -29,6 +29,8 @@ import java.util.function.Function;
 public class HistoryApi {
 
     /**
+     * One run.
+     *
      * @param id              counts up: a later run has a higher id
      * @param started         ISO 8601, to the second, with the offset of the configured time zone
      * @param status          {@code succeeded} or {@code failed}
@@ -49,6 +51,8 @@ public class HistoryApi {
             long spaceFreedBytes) {}
 
     /**
+     * One removal a run carried out.
+     *
      * @param runId        the {@code id} of the run that did it
      * @param started      when that run started
      * @param reason       the kebab-case code of the reason the torrents had to leave
@@ -67,6 +71,8 @@ public class HistoryApi {
             List<Member> members) {}
 
     /**
+     * One torrent of the removal.
+     *
      * @param tracker        null when the torrent was unmanaged
      * @param trackerMessage what the tracker said about the torrent; null when it said nothing
      * @param unfinished     true when the download was not complete

@@ -17,6 +17,8 @@ public record SystemStatus(
         String version, TransmissionStatus transmission, boolean running, LastRun lastRun, String nextRun) {
 
     /**
+     * Whether seedkeeper can work with Transmission.
+     *
      * @param reachable Transmission answered
      * @param version   as Transmission reports it; null when it didn't say
      * @param reason    why seedkeeper can't work with this Transmission; null when it can
@@ -33,6 +35,8 @@ public record SystemStatus(
     }
 
     /**
+     * What the last run did.
+     *
      * @param started         ISO 8601, to the second, with the offset of the configured time zone
      * @param ended           like {@code started}
      * @param status          {@code succeeded} or {@code failed}

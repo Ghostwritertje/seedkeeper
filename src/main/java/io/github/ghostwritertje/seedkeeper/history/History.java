@@ -103,6 +103,8 @@ public class History {
     }
 
     /**
+     * One torrent of a recorded removal, as it was when it was removed.
+     *
      * @param tracker        the tracker the torrent belonged to; empty when it was unmanaged
      * @param trackerMessage what the tracker said about the torrent (Transmission's error string of a tracker
      *                       warning or error); empty when it said nothing

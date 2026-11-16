@@ -220,6 +220,8 @@ public class TransmissionClient implements Transmission {
         return "Transmission at " + url;
     }
 
+    // An exception that is its own cause ends the chain: that is a question of identity, not of equality.
+    @SuppressWarnings("ReferenceEquality")
     private static Throwable rootCause(Throwable e) {
         Throwable root = e;
         while (root.getCause() != null && root.getCause() != root) {

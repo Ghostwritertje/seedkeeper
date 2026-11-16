@@ -35,6 +35,8 @@ public final class OrphanFinder {
     private OrphanFinder() {}
 
     /**
+     * The orphans under the downloads root, given every torrent in Transmission.
+     *
      * @param incompleteDir Transmission's incomplete dir; empty when it is not enabled
      * @throws OrphansException with one reason when the downloads root or a library root can't be read: without a
      *                          library root the library links, and so the total, would be wrong
@@ -66,7 +68,7 @@ public final class OrphanFinder {
         List<Path> unreadable = new ArrayList<>();
         try {
             Files.walkFileTree(downloadsRoot, new SimpleFileVisitor<>() {
-                /** What is under a library root is the media library's, never an orphan. */
+                // What is under a library root is the media library's, never an orphan.
                 @Override
                 public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attributes) {
                     Optional<FileId> id = TorrentPaths.id(directory, LinkOption.NOFOLLOW_LINKS);
@@ -96,7 +98,7 @@ public final class OrphanFinder {
                     return FileVisitResult.CONTINUE;
                 }
 
-                /** One file or directory that can't be read doesn't hide the rest: it is skipped and counted. */
+                // One file or directory that can't be read doesn't hide the rest: it is skipped and counted.
                 @Override
                 public FileVisitResult visitFileFailed(Path path, IOException e) throws IOException {
                     if (path.equals(downloadsRoot)) {

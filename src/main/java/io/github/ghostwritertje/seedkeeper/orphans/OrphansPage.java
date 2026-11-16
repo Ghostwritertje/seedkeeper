@@ -38,6 +38,8 @@ public class OrphansPage {
     public record Listing(List<Row> rows, String total, String totalSize) {}
 
     /**
+     * One orphan, as text ready to show.
+     *
      * @param size "1.5 KiB"
      * @param age         how long ago it was last modified: "3d 2h"
      * @param libraryLink "Yes" when a hardlink of the file is under a library root; "" otherwise

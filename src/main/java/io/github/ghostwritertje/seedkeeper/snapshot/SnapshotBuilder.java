@@ -21,6 +21,8 @@ public final class SnapshotBuilder {
     private SnapshotBuilder() {}
 
     /**
+     * The snapshot of these torrents: where each wanted file is on disk, and the library index.
+     *
      * @param incompleteDir Transmission's incomplete dir; empty when it is not enabled
      * @throws SnapshotException when a library root can't be read: without it every library link would seem gone
      */

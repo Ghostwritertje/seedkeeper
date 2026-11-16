@@ -18,6 +18,8 @@ public record GroupsFilter(Optional<Verdict> verdict, Optional<Reason> reason) {
     public static final GroupsFilter NONE = new GroupsFilter(Optional.empty(), Optional.empty());
 
     /**
+     * The filter the codes in a request name.
+     *
      * @param verdict the kebab-case code of a verdict; null or blank for any
      * @param reason  the kebab-case code of a reason; null or blank for any
      * @throws UnknownFilter when a code doesn't exist; the message is fit to show to the user as it is

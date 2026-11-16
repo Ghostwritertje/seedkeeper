@@ -453,7 +453,7 @@ class GroupsTest {
         StringBuilder fileList = new StringBuilder();
         StringBuilder fileStats = new StringBuilder();
         for (String file : files) {
-            String[] parts = file.split(":");
+            String[] parts = file.split(":", 2);
             fileList.append(fileList.isEmpty() ? "" : ",")
                     .append("{\"name\":\"")
                     .append(parts[0])
