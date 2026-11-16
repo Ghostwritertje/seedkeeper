@@ -13,7 +13,7 @@ import org.eclipse.microprofile.health.Readiness;
  */
 @Readiness
 @ApplicationScoped
-public class TransmissionReadiness implements HealthCheck {
+class TransmissionReadiness implements HealthCheck {
 
     private final SystemService system;
 

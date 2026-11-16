@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.groups;
 
+import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.decide.Decide;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
@@ -17,6 +18,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 /** The groups and the verdict seedkeeper would give each right now; behind the Groups view and the API. */
+@ModuleApi
 @ApplicationScoped
 public class GroupsService {
 
@@ -49,6 +51,7 @@ public class GroupsService {
     }
 
     /** There are no verdicts right now. The message is the one reason, fit to show to the user as it is. */
+    @ModuleApi
     public static class GroupsUnavailable extends RuntimeException {
 
         private static final long serialVersionUID = 1L;

@@ -18,7 +18,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /** The Settings view: the configuration seedkeeper runs with, read-only. */
 @Path("/settings")
-public class SettingsPage {
+class SettingsPage {
 
     @CheckedTemplate
     static class Templates {

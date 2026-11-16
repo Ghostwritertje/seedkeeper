@@ -12,7 +12,7 @@ import java.util.stream.Stream;
  * Which groups to show: those with this verdict and this reason. The reason is the one that decided the verdict;
  * secondary reasons don't match. An empty side matches every group.
  */
-public record GroupsFilter(Optional<Verdict> verdict, Optional<Reason> reason) {
+record GroupsFilter(Optional<Verdict> verdict, Optional<Reason> reason) {
 
     /** Matches every group. */
     public static final GroupsFilter NONE = new GroupsFilter(Optional.empty(), Optional.empty());
@@ -55,7 +55,7 @@ public record GroupsFilter(Optional<Verdict> verdict, Optional<Reason> reason) {
     }
 
     /** A filter names a verdict or a reason that doesn't exist. */
-    public static class UnknownFilter extends RuntimeException {
+    static class UnknownFilter extends RuntimeException {
 
         private static final long serialVersionUID = 1L;
 

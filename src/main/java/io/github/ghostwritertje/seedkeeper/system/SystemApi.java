@@ -8,7 +8,7 @@ import jakarta.ws.rs.core.MediaType;
 
 /** {@code GET /api/v1/system}: the same data as the System view. */
 @Path("/api/v1/system")
-public class SystemApi {
+class SystemApi {
 
     private final SystemService system;
 

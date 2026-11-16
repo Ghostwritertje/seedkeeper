@@ -11,7 +11,7 @@ import jakarta.ws.rs.core.UriInfo;
 
 /** The login form. Quarkus's form login handles its POST ({@code /j_security_check}). */
 @Path("/login")
-public class LoginPage {
+class LoginPage {
 
     @CheckedTemplate
     static class Templates {

@@ -11,7 +11,7 @@ import java.net.URI;
 
 /** The Log out button of every page: drops the session cookie and shows the login form. */
 @Path("/logout")
-public class Logout {
+class Logout {
 
     private final SecurityIdentity identity;
 
