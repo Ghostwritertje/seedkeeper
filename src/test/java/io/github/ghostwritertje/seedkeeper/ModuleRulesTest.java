@@ -29,7 +29,7 @@ class ModuleRulesTest {
      * The modules rules 2 and 3 already apply to. Temporary: each migration ticket adds the module it brings within
      * the rules, and the contract ticket deletes this list so that the rules apply to every module.
      */
-    private static final Set<String> MIGRATED_MODULES = Set.of("snapshot", "transmission");
+    private static final Set<String> MIGRATED_MODULES = Set.of("decide", "snapshot", "transmission");
 
     private static final ModuleRules RULES = new ModuleRules(PRODUCTION, DOMAIN_MODULES, MIGRATED_MODULES);
 
