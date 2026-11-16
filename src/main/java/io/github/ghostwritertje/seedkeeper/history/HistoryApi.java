@@ -26,7 +26,7 @@ import java.util.function.Function;
 
 /** {@code GET /api/v1/runs} and {@code GET /api/v1/removals}: the same data as the Activity view. */
 @Path("/api/v1")
-public class HistoryApi {
+class HistoryApi {
 
     /**
      * One run.

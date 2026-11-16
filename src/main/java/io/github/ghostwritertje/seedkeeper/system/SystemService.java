@@ -31,7 +31,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /** The state of seedkeeper and of what it depends on; behind the System view, the API and the readiness check. */
 @ApplicationScoped
-public class SystemService {
+class SystemService {
 
     private final Transmission transmission;
     private final RunService runs;

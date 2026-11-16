@@ -31,7 +31,7 @@ import org.jboss.resteasy.reactive.RestForm;
 
 /** The Groups view, with its form to set a keep override on a group. */
 @Path("/groups")
-public class GroupsPage {
+class GroupsPage {
 
     @CheckedTemplate
     static class Templates {

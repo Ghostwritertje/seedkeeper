@@ -13,8 +13,7 @@ import java.util.List;
  *                zone; null when there is none
  */
 @RegisterForReflection
-public record SystemStatus(
-        String version, TransmissionStatus transmission, boolean running, LastRun lastRun, String nextRun) {
+record SystemStatus(String version, TransmissionStatus transmission, boolean running, LastRun lastRun, String nextRun) {
 
     /**
      * Whether seedkeeper can work with Transmission.

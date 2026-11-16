@@ -12,11 +12,10 @@ import jakarta.ws.rs.core.MediaType;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
 
 /** The Orphans view. */
 @Path("/orphans")
-public class OrphansPage {
+class OrphansPage {
 
     @CheckedTemplate
     static class Templates {
@@ -82,32 +81,17 @@ public class OrphansPage {
         List<Row> rows = orphans.stream()
                 .map(orphan -> new Row(
                         orphan.path().toString(),
-                        size(orphan.size()),
+                        StatusText.size(orphan.size()),
                         age(Duration.between(orphan.lastModified(), now)),
                         orphan.libraryLink() ? "Yes" : ""))
                 .toList();
         return new Listing(
                 rows,
                 "Total of " + rows.size() + " " + (rows.size() == 1 ? one : many),
-                size(orphans.stream()
+                StatusText.size(orphans.stream()
                         .filter(orphan -> !orphan.libraryLink())
                         .mapToLong(Orphans.Orphan::size)
                         .sum()));
-    }
-
-    /** Bytes in the largest binary unit that keeps the number at 1 or more: "512 B", "1.5 KiB", "3.2 GiB". */
-    public static String size(long bytes) {
-        if (bytes < 1024) {
-            return bytes + " B";
-        }
-        String[] units = {"KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};
-        double value = bytes / 1024.0;
-        int unit = 0;
-        while (value >= 1024 && unit < units.length - 1) {
-            value /= 1024;
-            unit++;
-        }
-        return String.format(Locale.ROOT, "%.1f %s", value, units[unit]);
     }
 
     /** An age in its two largest units: "3d 2h". A file modified in the future has no age yet: "0m". */

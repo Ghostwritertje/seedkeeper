@@ -3,8 +3,9 @@ package io.github.ghostwritertje.seedkeeper.transmission;
 import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent.Status;
 import java.time.Duration;
+import java.util.Locale;
 
-/** How a torrent's status and a seed time are written in the API and the UI. */
+/** How a torrent's status, a seed time and a size are written in the API and the UI. */
 @ModuleApi
 public final class StatusText {
 
@@ -48,5 +49,20 @@ public final class StatusText {
             return hours + "h" + (minutes > 0 ? " " + minutes + "m" : "");
         }
         return minutes + "m";
+    }
+
+    /** Bytes in the largest binary unit that keeps the number at 1 or more: "512 B", "1.5 KiB", "3.2 GiB". */
+    public static String size(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        }
+        String[] units = {"KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};
+        double value = bytes / 1024.0;
+        int unit = 0;
+        while (value >= 1024 && unit < units.length - 1) {
+            value /= 1024;
+            unit++;
+        }
+        return String.format(Locale.ROOT, "%.1f %s", value, units[unit]);
     }
 }
