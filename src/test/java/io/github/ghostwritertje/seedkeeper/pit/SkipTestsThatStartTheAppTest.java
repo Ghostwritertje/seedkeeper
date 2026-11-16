@@ -22,13 +22,16 @@ class SkipTestsThatStartTheAppTest {
                 Arguments.argumentSet("@QuarkusIntegrationTest", TESTS + "groups.GroupsIT", true),
                 Arguments.argumentSet("a QuarkusUnitTest extension", TESTS + "startup.UnusableDataDirTest", true),
                 Arguments.argumentSet("a plain JUnit test", TESTS + "decide.DecideTest", false),
-                Arguments.argumentSet("a plain JUnit test with a temp dir", TESTS + "overrides.OverrideStoreTest", false));
+                Arguments.argumentSet(
+                        "a plain JUnit test with a temp dir", TESTS + "overrides.OverrideStoreTest", false));
     }
 
     @ParameterizedTest
     @MethodSource("testClasses")
     void skipsATestClassOnlyWhenItStartsTheApp(String testClass, boolean skipped) throws ClassNotFoundException {
-        TestDescriptor descriptor = new ClassDescriptor(Class.forName(testClass));
+        // Not initialised: a QuarkusUnitTest builds its application in a static initialiser.
+        TestDescriptor descriptor =
+                new ClassDescriptor(Class.forName(testClass, false, getClass().getClassLoader()));
 
         assertEquals(skipped, new SkipTestsThatStartTheApp().apply(descriptor).excluded());
     }
