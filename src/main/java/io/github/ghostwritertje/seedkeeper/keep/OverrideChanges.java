@@ -9,9 +9,11 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 /** Adds, edits and deletes keep overrides; behind the forms of the Overrides view and the Groups view. */
 @ApplicationScoped
@@ -90,7 +92,7 @@ public class OverrideChanges {
      *
      * @throws InvalidOverride when it is neither
      */
-    public static Optional<LocalDate> date(String text) {
+    public static Optional<LocalDate> date(@Nullable String text) {
         if (text == null || text.isBlank()) {
             return Optional.empty();
         }
@@ -120,6 +122,12 @@ public class OverrideChanges {
         InvalidOverride(String reason) {
             super(reason);
         }
+
+        /** The reason; never null, as the constructor takes one. */
+        @Override
+        public String getMessage() {
+            return Objects.requireNonNull(super.getMessage());
+        }
     }
 
     /** The override to change is not in the file. The message says so, fit to show as it is. */
@@ -129,6 +137,12 @@ public class OverrideChanges {
 
         NoSuchOverride(String reason) {
             super(reason);
+        }
+
+        /** The reason; never null, as the constructor takes one. */
+        @Override
+        public String getMessage() {
+            return Objects.requireNonNull(super.getMessage());
         }
     }
 }
