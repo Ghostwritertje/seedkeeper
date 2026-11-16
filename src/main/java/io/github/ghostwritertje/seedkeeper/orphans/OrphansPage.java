@@ -1,7 +1,7 @@
 package io.github.ghostwritertje.seedkeeper.orphans;
 
-import io.github.ghostwritertje.seedkeeper.groups.StatusText;
 import io.github.ghostwritertje.seedkeeper.orphans.OrphansService.OrphansUnavailable;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.common.annotation.RunOnVirtualThread;
@@ -23,8 +23,8 @@ public class OrphansPage {
 
         /**
          * @param unavailable why the orphans can't be listed right now; null when they can
+         * @param unreadable what could not be read and was skipped, as one line; null when everything was read
          */
-        /** @param unreadable what could not be read and was skipped, as one line; null when everything was read */
         static native TemplateInstance orphans(
                 Listing files, Listing danglingSymlinks, String unavailable, String unreadable);
     }
@@ -38,6 +38,8 @@ public class OrphansPage {
     public record Listing(List<Row> rows, String total, String totalSize) {}
 
     /**
+     * One orphan, as text ready to show.
+     *
      * @param size "1.5 KiB"
      * @param age         how long ago it was last modified: "3d 2h"
      * @param libraryLink "Yes" when a hardlink of the file is under a library root; "" otherwise

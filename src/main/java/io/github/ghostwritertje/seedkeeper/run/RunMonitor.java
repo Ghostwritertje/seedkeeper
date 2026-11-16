@@ -92,7 +92,8 @@ public class RunMonitor {
         int carriedOut = outcome.groupsRemoved();
         runs.get(outcome.status()).increment();
         removedGroups.increment(carriedOut);
-        spaceFreed.increment(outcome.spaceFreed());
+        // A double holds every byte count up to 8 PiB exactly; no run frees more.
+        spaceFreed.increment((double) outcome.spaceFreed());
         if (outcome.status() == Status.SUCCEEDED) {
             lastSuccessfulRun.set(outcome.ended().toEpochSecond());
             // A failed run has no verdicts: then the groups stay as the last run that had them left them.

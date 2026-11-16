@@ -35,6 +35,8 @@ public record Torrent(
     }
 
     /**
+     * One file of the torrent, as Transmission lists it.
+     *
      * @param name   path relative to the download dir
      * @param wanted false when the user deselected the file; such a file plays no part anywhere
      */

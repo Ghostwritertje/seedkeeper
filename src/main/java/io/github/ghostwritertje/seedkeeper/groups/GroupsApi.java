@@ -10,6 +10,7 @@ import io.github.ghostwritertje.seedkeeper.groups.GroupsService.GroupsUnavailabl
 import io.github.ghostwritertje.seedkeeper.history.History;
 import io.github.ghostwritertje.seedkeeper.history.History.HistoryException;
 import io.github.ghostwritertje.seedkeeper.history.History.ReasonsSince;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.ws.rs.GET;
@@ -28,6 +29,8 @@ import java.util.List;
 public class GroupsApi {
 
     /**
+     * One cross-seed group and its verdict.
+     *
      * @param verdict      {@code remove}, {@code left-alone} or {@code keep}
      * @param reason       the kebab-case code of the reason that decided the verdict
      * @param secondaryReasons the codes of every other reason that holds too, in the order of precedence
@@ -53,6 +56,8 @@ public class GroupsApi {
             List<Member> members) {}
 
     /**
+     * When what keeps the group is expected to end.
+     *
      * @param date         when every member is expected to have met its minimum, as an ISO 8601 date and time with
      *                     the offset of the configured time zone; null when the clock is stopped
      * @param clockStopped true when the member that sets the date is paused
@@ -63,6 +68,8 @@ public class GroupsApi {
     public record Forecast(String date, boolean clockStopped, String until) {}
 
     /**
+     * One torrent of the group.
+     *
      * @param tracker                null when the torrent is unmanaged
      * @param minimumSeedTimeSeconds null when the torrent is unmanaged
      * @param trackerError           {@code unregistered}, {@code tracker-error} or {@code tracker-warning}; null

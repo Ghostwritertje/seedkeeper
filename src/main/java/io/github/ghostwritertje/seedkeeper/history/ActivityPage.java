@@ -58,6 +58,8 @@ public class ActivityPage {
             List<Removal> removals) {}
 
     /**
+     * One removal of the run, as text ready to show.
+     *
      * @param members "Some.Movie (tracker-a)", with everything else worth knowing about the torrent in the brackets
      * @param reason  the label of the reason, "All met"
      * @param error   what went wrong, as a sentence; empty when nothing did

@@ -66,13 +66,13 @@ public class SingleUser {
         @Override
         public Uni<SecurityIdentity> authenticate(
                 UsernamePasswordAuthenticationRequest request, AuthenticationRequestContext context) {
-            // Both are always compared, so a wrong username takes as long as a wrong password.
+            // Both are always compared, above, so a wrong username takes as long as a wrong password.
             boolean username =
                     Secrets.same(request.getUsername(), user.config.auth().username());
             boolean password = Secrets.same(
                     new String(request.getPassword().getPassword()),
                     user.config.auth().password());
-            return user.identityWhen(username & password);
+            return user.identityWhen(username && password);
         }
     }
 

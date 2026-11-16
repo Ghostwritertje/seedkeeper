@@ -4,8 +4,8 @@ import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.decide.Decide;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
-import io.github.ghostwritertje.seedkeeper.overrides.OverrideStore;
-import io.github.ghostwritertje.seedkeeper.overrides.OverridesException;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideStore;
+import io.github.ghostwritertje.seedkeeper.keep.OverridesException;
 import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot;
 import io.github.ghostwritertje.seedkeeper.snapshot.SnapshotBuilder;
 import io.github.ghostwritertje.seedkeeper.snapshot.SnapshotException;
@@ -50,6 +50,8 @@ public class GroupsService {
 
     /** There are no verdicts right now. The message is the one reason, fit to show to the user as it is. */
     public static class GroupsUnavailable extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
 
         GroupsUnavailable(String reason, Throwable cause) {
             super(reason, cause);

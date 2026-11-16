@@ -5,7 +5,7 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict.Member;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules.ManagedTracker;
-import io.github.ghostwritertje.seedkeeper.overrides.KeepOverride;
+import io.github.ghostwritertje.seedkeeper.keep.KeepOverride;
 import io.github.ghostwritertje.seedkeeper.snapshot.FileId;
 import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot;
 import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot.SnapshotTorrent;
@@ -50,7 +50,7 @@ class DecideTest {
     private static final ZonedDateTime NOW = ZonedDateTime.parse("2026-11-15T10:00:00+01:00[Europe/Brussels]");
 
     /** A finished, seeding, private torrent of tracker-a with one wanted file that has no library link. */
-    private static final class Case {
+    static final class Case {
 
         private String hash = "hash-1";
         private String announce = TRACKER_A;
@@ -786,7 +786,7 @@ class DecideTest {
     }
 
     /** What one verdict says, short enough to compare a whole list: its members' hashes, verdict and reason. */
-    private record Said(List<String> members, Verdict verdict, Reason reason) {}
+    record Said(List<String> members, Verdict verdict, Reason reason) {}
 
     private static Said said(Verdict verdict, Reason reason, String... members) {
         return new Said(List.of(members), verdict, reason);

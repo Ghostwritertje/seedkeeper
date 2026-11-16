@@ -3,7 +3,7 @@ package io.github.ghostwritertje.seedkeeper.settings;
 import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules.ManagedTracker;
-import io.github.ghostwritertje.seedkeeper.groups.StatusText;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import jakarta.ws.rs.GET;
@@ -41,12 +41,16 @@ public class SettingsPage {
             List<Secret> secrets) {}
 
     /**
+     * One tracker rule, as text ready to show.
+     *
      * @param hosts           the announce hosts, comma-separated; for the public tracker, which torrents it gets
      * @param minimumSeedTime the minimum that applies, marked "(default)" when the tracker sets none of its own
      */
     public record Tracker(String name, String hosts, String minimumSeedTime) {}
 
     /**
+     * One secret, and whether it is set.
+     *
      * @param variable the environment variable the secret comes from
      * @param state    "set" or "missing"; the value itself is never kept here
      */
