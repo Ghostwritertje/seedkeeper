@@ -119,6 +119,11 @@ jobs:
         with:
           app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
           private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          # The agent's token: every permission the implementer App has (docs/agents/github-apps.md), named here so
+          # that a permission later added to the App doesn't reach the agent unseen.
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
 
       # The pull request's branch, with history. The action restores CLAUDE.md and .claude/, including the hook that
       # blocks native builds, from the base branch.

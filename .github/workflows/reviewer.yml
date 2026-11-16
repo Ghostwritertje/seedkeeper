@@ -88,6 +88,12 @@ jobs:
         with:
           app-id: ${{ secrets.REVIEWER_APP_ID }}
           private-key: ${{ secrets.REVIEWER_APP_KEY }}
+          # The agent's token: every permission the reviewer App has (docs/agents/github-apps.md), named here so that
+          # a permission later added to the App doesn't reach the agent unseen.
+          permission-checks: read
+          permission-contents: read
+          permission-issues: write
+          permission-pull-requests: write
 
       # The pull request's head, with history, so the review can diff it against its base.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
