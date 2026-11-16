@@ -1,0 +1,107 @@
+/*
+ * seedkeeper's stylesheet. Classless: it styles plain HTML elements only, so the templates carry no class names.
+ */
+:root {
+  color-scheme: light dark;
+  --text: light-dark(#1c1e21, #e4e6eb);
+  --muted: light-dark(#5c6370, #9aa1ac);
+  --background: light-dark(#ffffff, #16181c);
+  --surface: light-dark(#f4f5f7, #22252b);
+  --border: light-dark(#d9dce1, #383c44);
+  --accent: light-dark(#1f6f43, #6fcf97);
+  --alert: light-dark(#a4262c, #ff8a8a);
+  --alert-surface: light-dark(#fdeceb, #3a1f21);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0 auto;
+  max-width: 64rem;
+  padding: 0 1rem 3rem;
+  font: 1rem/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background: var(--background);
+}
+
+body > header {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+nav {
+  display: flex;
+  gap: 1rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+h1 {
+  margin: 1.5rem 0 1rem;
+  font-size: 1.6rem;
+}
+
+h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+section {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+}
+
+dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1.5rem;
+  margin: 0;
+}
+
+dt {
+  color: var(--muted);
+}
+
+dd {
+  margin: 0;
+}
+
+[role="alert"] {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 0.25rem solid var(--alert);
+  border-radius: 0.25rem;
+  color: var(--alert);
+  background: var(--alert-surface);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}

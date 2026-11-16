@@ -1,0 +1,268 @@
+name: Implement an issue
+
+# The implementer's pick-up path, called by implementer.yml for an issue just labelled `ready-for-agent` and for each
+# dependent an issue's closing unblocked. The label lifecycle: docs/agents/issue-tracker.md. Setting up the App and
+# the secrets: docs/agents/github-apps.md. Why it runs this way: docs/adr/0001-agent-runner.md.
+#
+# Only a user with write access starts it: the pick-up job checks the labeller's permission before it touches the
+# issue, and the action checks the run's actor again. Bots don't start it.
+
+on:
+  workflow_call:
+    inputs:
+      issue:
+        description: The issue to implement.
+        type: number
+        required: true
+      labeller:
+        description: The user who added `ready-for-agent`; empty when it isn't a user.
+        type: string
+        required: true
+    secrets:
+      IMPLEMENTER_APP_ID:
+        required: true
+      IMPLEMENTER_APP_KEY:
+        required: true
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+# bash -eo pipefail, not the default bash -e: a failed fetch at the head of a pipe fails the step.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Deterministic checks before any agent runs: who labelled it, whether it still carries the label, sub-issues,
+  # open blockers. Only then swap the labels. One pick-up per issue at a time, so two runs for the same issue (a
+  # relabel and a blocker closing) can't both start it: the second finds `ready-for-agent` gone.
+  pick-up:
+    name: Pick up the issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: implementer-pick-up-${{ inputs.issue }}
+      cancel-in-progress: false
+    outputs:
+      start: ${{ steps.check.outputs.start }}
+      branch: ${{ steps.branch.outputs.name }}
+    steps:
+      # The scripts come from the default branch.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      - name: Mint the implementer App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
+          private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          permission-issues: write
+
+      - name: Check the issue can be started
+        id: check
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ inputs.issue }}
+          LABELLER: ${{ inputs.labeller }}
+        run: |
+          if [ -z "$LABELLER" ]; then
+            echo "::notice::No user added ready-for-agent to #$ISSUE: not starting."
+            echo "start=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$(gh api "repos/$GH_REPO/collaborators/$LABELLER/permission" | .github/scripts/write-access.sh)" != true ]; then
+            echo "::notice::$LABELLER doesn't have write access: not starting."
+            echo "start=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          issue="$(gh api "repos/$GH_REPO/issues/$ISSUE")"
+          if ! jq -e '.state == "open" and any(.labels[]; .name == "ready-for-agent")' <<<"$issue" > /dev/null; then
+            echo "::notice::#$ISSUE is closed or no longer labelled ready-for-agent: not starting."
+            echo "start=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          jq -r '.title' <<<"$issue" > "$RUNNER_TEMP/title"
+          sub_issues="$(jq '.sub_issues_summary.total // 0' <<<"$issue")"
+          open_blockers="$(jq '.issue_dependencies_summary.blocked_by // 0' <<<"$issue")"
+
+          if [ "$sub_issues" -gt 0 ]; then
+            gh issue edit "$ISSUE" --remove-label ready-for-agent
+            gh issue comment "$ISSUE" --body "The implementer doesn't take this issue: it has $sub_issues sub-issues, so it is a spec, not a ticket. Label its sub-issues \`ready-for-agent\` instead."
+            echo "start=false" >> "$GITHUB_OUTPUT"
+          elif [ "$open_blockers" -gt 0 ]; then
+            gh issue comment "$ISSUE" --body "The implementer is waiting: this issue has $open_blockers open blockers. \`ready-for-agent\` stays on; the implementer starts when the last one closes."
+            echo "start=false" >> "$GITHUB_OUTPUT"
+          else
+            gh issue edit "$ISSUE" --remove-label ready-for-agent --add-label agent:in-progress
+            echo "start=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # agent/issue-<n>-<slug>: the slug is the title in lowercase, letters and digits only, at most 40 characters.
+      # Only [a-z0-9/-] reaches claude_args below.
+      - name: Name the branch
+        id: branch
+        if: steps.check.outputs.start == 'true'
+        env:
+          ISSUE: ${{ inputs.issue }}
+        run: |
+          slug="$(tr -d '\n' < "$RUNNER_TEMP/title" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | cut -c1-40 | sed 's/^-*//; s/-*$//')"
+          echo "name=agent/issue-$ISSUE${slug:+-$slug}" >> "$GITHUB_OUTPUT"
+
+  implement:
+    name: Implement the issue
+    needs: pick-up
+    if: needs.pick-up.outputs.start == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # One run per issue, so several issues run in parallel. A run in progress is never cancelled; relabelling the same
+    # issue queues behind it.
+    concurrency:
+      group: implementer-issue-${{ inputs.issue }}
+      cancel-in-progress: false
+    steps:
+      - name: Mint the implementer App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
+          private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          # The agent's token: every permission the implementer App has (docs/agents/github-apps.md), named here so
+          # that a permission later added to the App doesn't reach the agent unseen.
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+
+      # The default branch, with history. Its CLAUDE.md and .claude/, including the hook that blocks native builds,
+      # are what the agent runs with.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The prompt comes from the default branch, read before a retry switches to the agent branch.
+      - name: Read the implementer prompt
+        id: prompt
+        run: |
+          {
+            echo 'text<<IMPLEMENTER_PROMPT_EOF'
+            cat .github/prompts/implementer.md
+            echo 'IMPLEMENTER_PROMPT_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      # The issue's comments, as JSON the agent reads, from trusted authors only: the repo is public, so anyone can
+      # comment. Trusted are the agents' bots and users with write access. Filtered with the default branch's
+      # scripts, before a retry switches to the agent branch.
+      - name: Collect the trusted comments
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ inputs.issue }}
+          REVIEWER: ${{ vars.REVIEWER_APP_SLUG }}[bot]
+          IMPLEMENTER: ${{ steps.app-token.outputs.app-slug }}[bot]
+        run: |
+          comments="$RUNNER_TEMP/comments-all.json"
+          gh api --paginate "repos/$GH_REPO/issues/$ISSUE/comments" > "$comments"
+          # Without REVIEWER_APP_SLUG, REVIEWER is "[bot]", which is nobody's login.
+          .github/scripts/trusted-comments.sh authors < "$comments" | sort -uf | while read -r login; do
+            if [ "${login,,}" = "${REVIEWER,,}" ] || [ "${login,,}" = "${IMPLEMENTER,,}" ]; then
+              echo "$login"
+            elif [[ "$login" != *"[bot]" ]] \
+              && [ "$(gh api "repos/$GH_REPO/collaborators/$login/permission" | .github/scripts/write-access.sh)" = true ]; then
+              echo "$login"
+            fi
+          done > "$RUNNER_TEMP/trusted.txt"
+          .github/scripts/trusted-comments.sh keep "$RUNNER_TEMP/trusted.txt" < "$comments" > /tmp/issue-comments.json
+          echo "$(jq length /tmp/issue-comments.json) comments from trusted authors on #$ISSUE."
+
+      # A retry continues on the branch an earlier run pushed. The action restores CLAUDE.md and .claude/ from the
+      # base only on pull requests, so this step does it here: an earlier run can't loosen the next one's settings.
+      - name: Check out the agent branch
+        env:
+          BRANCH: ${{ needs.pick-up.outputs.branch }}
+        run: |
+          base="$(git rev-parse HEAD)"
+          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+            git fetch origin "$BRANCH"
+            git switch -c "$BRANCH" FETCH_HEAD
+            git restore --source "$base" --staged --worktree -- CLAUDE.md .claude
+          else
+            git switch -c "$BRANCH"
+          fi
+
+      # As the Verify (JVM) job in ci.yml does.
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+
+      # The allowlist is exact: --permission-mode default denies whatever it doesn't list, and the denies are on the
+      # command line so they also bind the action's own git scripts. Pushes go to the agent branch only, and the
+      # pull request tools take the agent branch, so they reach only this issue's pull request. The step's own
+      # timeout, under the job's, fails the job, so a timeout reaches the blocked job.
+      - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        timeout-minutes: 55
+        env:
+          CLAUDE_BRANCH: ${{ needs.pick-up.outputs.branch }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          base_branch: ${{ github.event.repository.default_branch }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ inputs.issue }}
+            ISSUE COMMENTS: /tmp/issue-comments.json
+            BRANCH: ${{ needs.pick-up.outputs.branch }}
+            BASE: ${{ github.event.repository.default_branch }}
+
+            ${{ steps.prompt.outputs.text }}
+          claude_args: >-
+            --model claude-opus-5-5
+            --max-turns 150
+            --permission-mode default
+            --allowedTools
+            "Read,Glob,Grep,Edit,MultiEdit,Write,Agent,Skill,TodoWrite,Bash(./mvnw:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git branch --show-current),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git commit:*),Bash(git restore:*),Bash(git push origin ${{ needs.pick-up.outputs.branch }}),Bash(git push -u origin ${{ needs.pick-up.outputs.branch }}),Bash(gh issue view:*),Bash(gh issue comment ${{ inputs.issue }}:*),Bash(gh issue edit ${{ inputs.issue }}:*),Bash(gh pr create --base ${{ github.event.repository.default_branch }} --head ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr view:*),Bash(gh pr comment ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr edit ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr ready ${{ needs.pick-up.outputs.branch }})"
+            --disallowedTools
+            "Bash(gh pr merge:*),Bash(gh pr review:*),Bash(gh pr edit *auto-merge*),Bash(gh api:*),Bash(git push --force:*),Bash(git push -f:*),Bash(git push --force-with-lease:*),Bash(git push * --force*),Bash(git push * -f*),Bash(git push *+*),Bash(git push --delete:*),Bash(git push * --delete*),Bash(git reset --hard:*),Bash(git rebase:*),Bash(./mvnw *-Dnative*),Bash(./mvnw *-Pnative*)"
+
+      # The issue's work is in its pull request, or the agent labelled it agent:blocked or needs-decision.
+      - name: Clear agent:in-progress
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ inputs.issue }}
+        run: gh issue edit "$ISSUE" --remove-label agent:in-progress
+
+  # A crash, a timeout or an exhausted quota fails the job. Nothing retries on its own.
+  blocked:
+    name: Report a failed run
+    needs: [pick-up, implement]
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Mint the implementer App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
+          private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          permission-issues: write
+      - name: Label the issue agent:blocked and link the run
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ inputs.issue }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue edit "$ISSUE" --remove-label agent:in-progress --add-label agent:blocked
+          gh issue comment "$ISSUE" --body "The implementer agent failed: it crashed, timed out or ran out of quota. Nothing retries on its own. See the run: $RUN_URL
+
+          To retry, remove \`agent:blocked\` and add \`ready-for-agent\`."

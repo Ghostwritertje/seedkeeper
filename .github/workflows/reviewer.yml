@@ -1,0 +1,282 @@
+name: Reviewer
+
+# The reviewer agent reviews every non-draft, non-Dependabot pull request as the reviewer App, and never writes
+# code. What it checks and how it reports: docs/agents/review.md. Setting up the App and the secrets:
+# docs/agents/github-apps.md. Why it runs this way: docs/adr/0001-agent-runner.md.
+#
+# Only `pull_request`, never `pull_request_target`: pull requests from forks get no secrets, and the action's
+# default check lets only users with write access start a review. The one bot that may start one is the implementer
+# App's, `vars.IMPLEMENTER_APP_SLUG` + `[bot]`, so its pushes are reviewed again: that is the review/fix loop.
+#
+# Auto-merge: the reviewer may approve an implementer pull request and add `auto-merge` (docs/agents/auto-merge.md).
+# After the review, the gate job runs .github/scripts/auto-merge-gate.sh and, when it passes, turns on a squash
+# auto-merge with the workflow's own token: the reviewer App can't write contents, so it can't merge. Any new push to
+# an implementer pull request first withdraws an earlier auto-merge, so every head is approved again. Why:
+# docs/adr/0002-auto-merge-policy.md.
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+
+permissions:
+  contents: read
+
+# bash -eo pipefail, not the default bash -e: a failed fetch at the head of a pipe fails the step.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # An approval and `auto-merge` hold for the head they were given on, not for later pushes: GitHub keeps an
+  # auto-merge on when the implementer pushes, and the ruleset requires no approval. Runs on drafts too, and before
+  # the review, so the label it removes is never one this run's review adds.
+  withdraw:
+    name: Withdraw an earlier auto-merge
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login == format('{0}[bot]', vars.IMPLEMENTER_APP_SLUG)
+      && (github.event.pull_request.auto_merge != null
+        || contains(github.event.pull_request.labels.*.name, 'auto-merge'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Turn off auto-merge and remove the auto-merge label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          state="$(gh pr view "$PR" --json autoMergeRequest,labels)"
+          if [ "$(jq '.autoMergeRequest != null' <<<"$state")" = true ]; then
+            gh pr merge "$PR" --disable-auto
+            echo "::notice::Turned off the earlier auto-merge: this head needs its own approval."
+          fi
+          if [ "$(jq 'any(.labels[]; .name == "auto-merge")' <<<"$state")" = true ]; then
+            gh pr edit "$PR" --remove-label auto-merge
+          fi
+
+  review:
+    name: Review
+    needs: withdraw
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # !cancelled(): the review runs whether withdraw ran or was skipped, but not when it failed, since an auto-merge
+    # may still be on.
+    if: >-
+      !cancelled() && needs.withdraw.result != 'failure'
+      && github.event.pull_request.draft == false
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && (github.event.sender.type == 'User'
+        || github.event.sender.login == format('{0}[bot]', vars.IMPLEMENTER_APP_SLUG))
+    # One review per pull request: a new push cancels the review still in progress.
+    concurrency:
+      group: reviewer-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    outputs:
+      reviewer: ${{ steps.app-token.outputs.app-slug }}[bot]
+    env:
+      # Only the implementer's pull requests may be approved and marked auto-merge; GitHub compares case-insensitively.
+      AGENT_PULL_REQUEST: ${{ github.event.pull_request.user.login == format('{0}[bot]', vars.IMPLEMENTER_APP_SLUG) }}
+    steps:
+      - name: Mint the reviewer App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.REVIEWER_APP_ID }}
+          private-key: ${{ secrets.REVIEWER_APP_KEY }}
+          # The agent's token: every permission the reviewer App has (docs/agents/github-apps.md), named here so that
+          # a permission later added to the App doesn't reach the agent unseen.
+          permission-checks: read
+          permission-contents: read
+          permission-issues: write
+          permission-pull-requests: write
+
+      # The pull request's head, with history, so the review can diff it against its base.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The prompt comes from the base branch, like the CLAUDE.md and .claude/ the action restores, so a pull
+      # request can't rewrite its own reviewer's instructions. Only a pull request whose base has no prompt at all,
+      # the one that adds it, reads its own; any other failure to read the base's copy fails the step.
+      - name: Read the reviewer prompt
+        id: prompt
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          file=.github/prompts/reviewer.md
+          if git cat-file -e "origin/$BASE_REF:$file" 2>/dev/null; then
+            git show "origin/$BASE_REF:$file" > "$RUNNER_TEMP/reviewer.md"
+          else
+            echo "::notice::The base branch has no reviewer prompt: reading this pull request's own."
+            cp "$file" "$RUNNER_TEMP/reviewer.md"
+          fi
+          {
+            echo 'text<<REVIEWER_PROMPT_EOF'
+            cat "$RUNNER_TEMP/reviewer.md"
+            echo 'REVIEWER_PROMPT_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      # The round of this review: the reviewer's earlier summary reviews with a round marker, plus one. And how it
+      # may hand a clear fix back: ready-for-agent on an implementer pull request for three rounds, then
+      # needs-decision; on anybody else's pull request not at all. The script comes from the base branch, like the
+      # prompt, so a pull request can't lift its own cap; a base without it allows no handback at all.
+      - name: Count the review rounds
+        id: round
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          REVIEWER: ${{ steps.app-token.outputs.app-slug }}[bot]
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          IMPLEMENTER: ${{ vars.IMPLEMENTER_APP_SLUG }}[bot]
+        run: |
+          file=.github/scripts/review-round.sh
+          if ! git cat-file -e "origin/$BASE_REF:$file" 2>/dev/null; then
+            echo "::notice::The base branch has no round counter: no handback."
+            printf 'round=1\nhandback=none\n' | tee -a "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git show "origin/$BASE_REF:$file" > "$RUNNER_TEMP/review-round.sh"
+          gh api --paginate "repos/$GH_REPO/pulls/$PR/reviews" \
+            | bash "$RUNNER_TEMP/review-round.sh" "$REVIEWER" "$AUTHOR" "$IMPLEMENTER" | tee -a "$GITHUB_OUTPUT"
+
+      # The allowlist is exact: read the code and the pull request, post inline comments, submit the summary
+      # review, add needs-decision, add ready-for-agent only while the round allows a handback, and approve and add
+      # auto-merge only on an implementer pull request.
+      # --permission-mode default denies whatever it doesn't list, and the denies are on the command line so they
+      # also bind the action's own git scripts. allowed_bots lets the implementer App's pushes start a review.
+      # The step's own timeout, under the job's, fails the job, so a timeout is reported as a failure, while a
+      # review cancelled by a new push stays cancelled.
+      - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        timeout-minutes: 18
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          allowed_bots: ${{ vars.IMPLEMENTER_APP_SLUG }}[bot]
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+            BASE: origin/${{ github.event.pull_request.base.ref }}
+            HEAD: ${{ github.event.pull_request.head.sha }}
+            ROUND: ${{ steps.round.outputs.round }}
+            HANDBACK: ${{ steps.round.outputs.handback }}
+            AUTO-MERGE: ${{ env.AGENT_PULL_REQUEST == 'true' && 'allowed' || 'not allowed' }}
+
+            ${{ steps.prompt.outputs.text }}
+          claude_args: >-
+            --model claude-opus-5-5
+            --max-turns 40
+            --permission-mode default
+            --allowedTools
+            "Read,Glob,Grep,Agent,Skill,mcp__github_inline_comment__create_inline_comment,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(gh pr view ${{ github.event.pull_request.number }}:*),Bash(gh pr diff ${{ github.event.pull_request.number }}:*),Bash(gh issue view:*),Bash(gh pr review ${{ github.event.pull_request.number }} --comment:*),Bash(gh pr edit ${{ github.event.pull_request.number }} --add-label needs-decision)${{ steps.round.outputs.handback == 'ready-for-agent' && format(',Bash(gh pr edit {0} --add-label ready-for-agent)', github.event.pull_request.number) || '' }}${{ env.AGENT_PULL_REQUEST == 'true' && format(',Bash(gh pr review {0} --approve:*),Bash(gh pr edit {0} --add-label auto-merge)', github.event.pull_request.number) || '' }}"
+            --disallowedTools
+            "Edit,Write,NotebookEdit,Bash(git push:*),Bash(git commit:*),Bash(git add:*),Bash(git merge:*),Bash(git rebase:*),Bash(git reset:*),Bash(gh pr merge:*),Bash(gh api:*)"
+
+  # The auto-merge gate, with no say for the agent: it decides from the pull request as it is now, with the base
+  # branch's gate script, so a pull request can't change its own gate. When the gate passes, it turns on a squash
+  # auto-merge for the approved head only; GitHub merges once the ruleset's checks pass and the threads are resolved.
+  # When it fails, it logs the reason and does nothing else.
+  gate:
+    name: Auto-merge gate
+    needs: review
+    # !cancelled(): without it the default success() also requires withdraw, which is skipped when there's nothing
+    # to withdraw.
+    if: ${{ !cancelled() && needs.review.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      - name: Decide, and turn on auto-merge if the gate passes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          REVIEWER: ${{ needs.review.outputs.reviewer }}
+          IMPLEMENTER: ${{ vars.IMPLEMENTER_APP_SLUG }}[bot]
+        run: |
+          gate=.github/scripts/auto-merge-gate.sh inputs=.github/scripts/auto-merge-inputs.sh
+          if [ ! -f "$gate" ] || [ ! -f "$inputs" ]; then
+            echo "::notice::Not merging: the base branch has no auto-merge gate."
+            exit 0
+          fi
+
+          gh api "repos/$GH_REPO/pulls/$PR" > "$RUNNER_TEMP/pr.json"
+          pr="$(cat "$RUNNER_TEMP/pr.json")"
+          head="$(jq -r .head.sha <<<"$pr")"
+          labels="$(jq -r '.labels[].name' <<<"$pr")"
+
+          # Whether the implementer opened it, and whether the reviewer App's latest review approves the head as it
+          # is now.
+          facts="$(gh api --paginate "repos/$GH_REPO/pulls/$PR/reviews" \
+            | "$inputs" "$RUNNER_TEMP/pr.json" "$IMPLEMENTER" "$REVIEWER")"
+          implementer="$(sed -n 's/^implementer=//p' <<<"$facts")"
+          approves="$(sed -n 's/^approves=//p' <<<"$facts")"
+
+          # Both sides of a rename count. GitHub lists at most 3000 files; past that the paths aren't all known.
+          files="$(gh api --paginate "repos/$GH_REPO/pulls/$PR/files")"
+          if [ "$(jq -n '[inputs[]] | length' <<<"$files")" -lt "$(jq .changed_files <<<"$pr")" ]; then
+            echo "::notice::Not merging: GitHub doesn't list every changed path of this pull request."
+            exit 0
+          fi
+          paths="$(jq -rn '[inputs[]] | .[] | .filename, (.previous_filename // empty)' <<<"$files")"
+
+          decision="$(printf '%s\n' "$paths" | "$gate" "$implementer" "$approves" "$labels")"
+          reason="$(sed -n 's/^reason=//p' <<<"$decision")"
+          if [ "$(sed -n 's/^merge=//p' <<<"$decision")" = true ]; then
+            gh pr merge "$PR" --auto --squash --match-head-commit "$head"
+            echo "::notice::Auto-merge on for $head: $reason."
+          else
+            echo "::notice::Not merging: $reason."
+          fi
+
+  # A crash, a timeout or an exhausted quota fails the review; a review cancelled by a new push doesn't. A failed
+  # withdraw skips the review, since an auto-merge may still be on, and is reported here too.
+  blocked:
+    name: Report a failed review
+    needs: [withdraw, review]
+    if: failure() && (needs.withdraw.result == 'failure' || needs.review.result == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Mint the reviewer App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.REVIEWER_APP_ID }}
+          private-key: ${{ secrets.REVIEWER_APP_KEY }}
+          permission-issues: write
+          permission-pull-requests: write
+      - name: Label the pull request agent:blocked and link the run
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          WITHDRAW: ${{ needs.withdraw.result }}
+        run: |
+          gh pr edit "$PR" --add-label agent:blocked
+          if [ "$WITHDRAW" = failure ]; then
+            gh pr comment "$PR" --body "The reviewer couldn't withdraw the earlier auto-merge of this pull request, so it didn't review the new push: an auto-merge for an unreviewed head may still be on. Turn off auto-merge on this pull request and remove \`auto-merge\`. See the run: $RUN_URL
+
+          To retry, push a commit or close and reopen this pull request."
+          else
+            gh pr comment "$PR" --body "The reviewer agent failed: it crashed, timed out or ran out of quota. Nothing retries on its own. See the run: $RUN_URL
+
+          To retry, push a commit or close and reopen this pull request."
+          fi

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{#insert title}{/} · seedkeeper</title>
+<link rel="stylesheet" href="/seedkeeper.css">
+<script src="/htmx.min.js" defer></script>
+</head>
+<body>
+<header>
+<strong>seedkeeper</strong>
+<nav>
+<a href="/groups">Groups</a>
+<a href="/overrides">Overrides</a>
+<a href="/activity">Activity</a>
+<a href="/orphans">Orphans</a>
+<a href="/settings">Settings</a>
+<a href="/system">System</a>
+</nav>
+{! Every form needs this hidden field: a POST without the CSRF token is rejected. !}
+<form method="post" action="/logout">
+<input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<button type="submit">Log out</button>
+</form>
+</header>
+<main>
+{#insert}{/}
+</main>
+</body>
+</html>

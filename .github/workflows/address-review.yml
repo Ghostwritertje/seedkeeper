@@ -1,0 +1,300 @@
+name: Address review feedback
+
+# The implementer's fix path, called by implementer.yml for a pull request just labelled `ready-for-agent`, by a user
+# with write access or by the reviewer App. The implementer addresses the pull request's unresolved review threads on
+# the pull request's own branch, pushes, which starts a new review, and resolves the threads it handled. The label
+# lifecycle: docs/agents/issue-tracker.md. Setting up the Apps, the secrets and the variables:
+# docs/agents/github-apps.md. Why it runs this way: docs/adr/0001-agent-runner.md.
+
+on:
+  workflow_call:
+    inputs:
+      pull_request:
+        description: The pull request whose review feedback to address.
+        type: number
+        required: true
+      labeller:
+        description: Who added `ready-for-agent`, a user or the reviewer App's bot.
+        type: string
+        required: true
+    secrets:
+      IMPLEMENTER_APP_ID:
+        required: true
+      IMPLEMENTER_APP_KEY:
+        required: true
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+# bash -eo pipefail, not the default bash -e: a failed fetch at the head of a pipe fails the step.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Deterministic checks before any agent runs: who labelled it, and whether the pull request can be worked on
+  # (.github/scripts/pull-request-pick-up.sh). Only then swap the labels. One pick-up per pull request at a time, so
+  # two labellings can't both start it: the second finds `ready-for-agent` gone.
+  pick-up:
+    name: Pick up the pull request
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: implementer-pick-up-${{ inputs.pull_request }}
+      cancel-in-progress: false
+    outputs:
+      start: ${{ steps.check.outputs.start }}
+      branch: ${{ steps.check.outputs.branch }}
+      base: ${{ steps.check.outputs.base }}
+    steps:
+      # The scripts come from the base branch, so a pull request can't change how it is picked up.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      - name: Mint the implementer App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
+          private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Check the pull request can be worked on
+        id: check
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ inputs.pull_request }}
+          LABELLER: ${{ inputs.labeller }}
+          REVIEWER: ${{ vars.REVIEWER_APP_SLUG }}[bot]
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          IMPLEMENTER: ${{ steps.app-token.outputs.app-slug }}[bot]
+        run: |
+          # Without REVIEWER_APP_SLUG, REVIEWER is "[bot]", which is nobody's login.
+          if [ "$REVIEWER" != "[bot]" ] && [ "$LABELLER" = "$REVIEWER" ]; then
+            echo "The reviewer App handed #$PR back."
+          else
+            if [ "$(gh api "repos/$GH_REPO/collaborators/$LABELLER/permission" | .github/scripts/write-access.sh)" != true ]; then
+              echo "::notice::$LABELLER doesn't have write access: not starting."
+              echo "start=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          pr="$(gh api "repos/$GH_REPO/pulls/$PR")"
+          decision="$(.github/scripts/pull-request-pick-up.sh "$DEFAULT_BRANCH" "$IMPLEMENTER" <<<"$pr")"
+          if [ "$decision" != start ]; then
+            echo "::notice::Not starting on #$PR: ${decision#skip: }."
+            echo "start=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          gh pr edit "$PR" --remove-label ready-for-agent --add-label agent:in-progress
+          {
+            echo "start=true"
+            echo "branch=$(jq -r .head.ref <<<"$pr")"
+            echo "base=$(jq -r .base.ref <<<"$pr")"
+          } >> "$GITHUB_OUTPUT"
+
+  implement:
+    name: Address the review feedback
+    needs: pick-up
+    if: needs.pick-up.outputs.start == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # One run per pull request, so several run in parallel. A run in progress is never cancelled; relabelling the
+    # same pull request queues behind it.
+    concurrency:
+      group: implementer-pull-request-${{ inputs.pull_request }}
+      cancel-in-progress: false
+    steps:
+      - name: Mint the implementer App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
+          private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          # The agent's token: every permission the implementer App has (docs/agents/github-apps.md), named here so
+          # that a permission later added to the App doesn't reach the agent unseen.
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+
+      # The pull request's branch, with history. The action restores CLAUDE.md and .claude/, including the hook that
+      # blocks native builds, from the base branch.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.pick-up.outputs.branch }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The prompt and the scripts come from the base branch, so a pull request can't rewrite its own implementer's
+      # instructions or filters. A base branch without them fails the run: nothing falls back to the pull request's
+      # own copy.
+      - name: Read the prompt and the scripts
+        id: prompt
+        env:
+          BASE_REF: ${{ needs.pick-up.outputs.base }}
+        run: |
+          for file in .github/prompts/implementer-fix.md .github/scripts/review-threads.sh \
+            .github/scripts/trusted-comments.sh .github/scripts/write-access.sh; do
+            git show "origin/$BASE_REF:$file" > "$RUNNER_TEMP/$(basename "$file")"
+          done
+          {
+            echo 'text<<IMPLEMENTER_PROMPT_EOF'
+            cat "$RUNNER_TEMP/implementer-fix.md"
+            echo 'IMPLEMENTER_PROMPT_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      # The review feedback, as JSON the agent reads, from trusted authors only: the repo is public, so anyone can
+      # comment or start a review thread. Trusted are the reviewer App's bot, the implementer App's own, and users
+      # with write access. The unresolved threads a trusted author started are what the agent addresses, and the
+      # only threads it can resolve.
+      - name: Collect the trusted review feedback
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          PR: ${{ inputs.pull_request }}
+          REVIEWER: ${{ vars.REVIEWER_APP_SLUG }}[bot]
+          IMPLEMENTER: ${{ steps.app-token.outputs.app-slug }}[bot]
+        run: |
+          threads="$RUNNER_TEMP/review-threads-all.json"
+          comments="$RUNNER_TEMP/comments-all.json"
+          reviews="$RUNNER_TEMP/reviews-all.json"
+          # shellcheck disable=SC2016 # the $ are GraphQL variables
+          gh api graphql --paginate -F owner="$OWNER" -F repo="$REPO" -F number="$PR" -f query='
+            query($owner: String!, $repo: String!, $number: Int!, $endCursor: String) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $number) {
+                  reviewThreads(first: 100, after: $endCursor) {
+                    pageInfo { hasNextPage endCursor }
+                    nodes {
+                      id isResolved isOutdated path line
+                      comments(first: 100) { nodes { author { __typename login } body } }
+                    }
+                  }
+                }
+              }
+            }' > "$threads"
+          gh api --paginate "repos/$GH_REPO/issues/$PR/comments" > "$comments"
+          gh api --paginate "repos/$GH_REPO/pulls/$PR/reviews" > "$reviews"
+
+          # Without REVIEWER_APP_SLUG, REVIEWER is "[bot]", which is nobody's login.
+          {
+            bash "$RUNNER_TEMP/review-threads.sh" authors < "$threads"
+            bash "$RUNNER_TEMP/trusted-comments.sh" authors < "$comments"
+            bash "$RUNNER_TEMP/trusted-comments.sh" authors < "$reviews"
+          } | sort -uf | while read -r login; do
+            if [ "${login,,}" = "${REVIEWER,,}" ] || [ "${login,,}" = "${IMPLEMENTER,,}" ]; then
+              echo "$login"
+            elif [[ "$login" != *"[bot]" ]] \
+              && [ "$(gh api "repos/$GH_REPO/collaborators/$login/permission" | bash "$RUNNER_TEMP/write-access.sh")" = true ]; then
+              echo "$login"
+            fi
+          done > "$RUNNER_TEMP/trusted.txt"
+
+          bash "$RUNNER_TEMP/review-threads.sh" unresolved "$RUNNER_TEMP/trusted.txt" < "$threads" > /tmp/review-threads.json
+          jq -n --slurpfile comments <(bash "$RUNNER_TEMP/trusted-comments.sh" keep "$RUNNER_TEMP/trusted.txt" < "$comments") \
+            --slurpfile reviews <(bash "$RUNNER_TEMP/trusted-comments.sh" keep "$RUNNER_TEMP/trusted.txt" < "$reviews") \
+            '{comments: $comments[0], reviews: $reviews[0]}' > /tmp/pull-request-conversation.json
+          echo "$(jq length /tmp/review-threads.json) unresolved review threads from trusted authors on #$PR."
+
+      # As the Verify (JVM) job in ci.yml does.
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+
+      # The allowlist is exact: --permission-mode default denies whatever it doesn't list, and the denies are on the
+      # command line so they also bind the action's own git scripts. Pushes go to the pull request's branch only.
+      # allowed_bots lets the reviewer App's label start a run; the implementer App's own bot is listed because the
+      # action also checks the pull request's author when a bot acts on it, and the implementer writes most of these
+      # pull requests (checkBotActorPullRequestAuthor, see docs/adr/0001-agent-runner.md). Neither is a way in for
+      # other bots: implementer.yml only calls this for a user or the reviewer App. restrict_untrusted_prs is off
+      # because the action counts every bot-authored pull request as untrusted and would deny ./mvnw; forks never get
+      # here, and pull-request-pick-up.sh skips every other bot's pull request. The step's own timeout, under the
+      # job's, fails the job, so a timeout reaches the blocked job.
+      - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        timeout-minutes: 55
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          base_branch: ${{ needs.pick-up.outputs.base }}
+          allowed_bots: ${{ vars.REVIEWER_APP_SLUG }}[bot],${{ steps.app-token.outputs.app-slug }}[bot]
+          restrict_untrusted_prs: false
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ inputs.pull_request }}
+            BRANCH: ${{ needs.pick-up.outputs.branch }}
+            BASE: ${{ needs.pick-up.outputs.base }}
+            REVIEW THREADS: /tmp/review-threads.json
+            CONVERSATION: /tmp/pull-request-conversation.json
+            HANDLED THREADS: /tmp/handled-review-threads.txt
+
+            ${{ steps.prompt.outputs.text }}
+          claude_args: >-
+            --model claude-opus-5-5
+            --max-turns 150
+            --permission-mode default
+            --allowedTools
+            "Read,Glob,Grep,Edit,MultiEdit,Write,Agent,Skill,TodoWrite,Bash(./mvnw:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git branch --show-current),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git commit:*),Bash(git restore:*),Bash(git push origin ${{ needs.pick-up.outputs.branch }}),Bash(gh issue view:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment ${{ inputs.pull_request }}:*),Bash(gh pr edit ${{ inputs.pull_request }} --add-label needs-decision),Bash(gh pr edit ${{ inputs.pull_request }} --add-label agent:blocked)"
+            --disallowedTools
+            "Bash(gh pr merge:*),Bash(gh pr review:*),Bash(gh pr edit *auto-merge*),Bash(gh api:*),Bash(git push --force:*),Bash(git push -f:*),Bash(git push --force-with-lease:*),Bash(git push * --force*),Bash(git push * -f*),Bash(git push *+*),Bash(git push --delete:*),Bash(git push * --delete*),Bash(git reset --hard:*),Bash(git rebase:*),Bash(./mvnw *-Dnative*),Bash(./mvnw *-Pnative*)"
+
+      # Only threads that were unresolved when the run started, and that the agent listed as handled.
+      - name: Resolve the handled review threads
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          handled=/tmp/handled-review-threads.txt
+          [ -f "$handled" ] || { echo "The agent listed no handled threads."; exit 0; }
+          # shellcheck disable=SC2016 # the $ are GraphQL variables
+          bash "$RUNNER_TEMP/review-threads.sh" to-resolve /tmp/review-threads.json < "$handled" | while read -r id; do
+            gh api graphql -F id="$id" -f query='
+              mutation($id: ID!) { resolveReviewThread(input: {threadId: $id}) { thread { isResolved } } }' > /dev/null
+            echo "Resolved $id."
+          done
+
+      # The fixes are pushed, or the agent labelled the pull request agent:blocked or needs-decision.
+      - name: Clear agent:in-progress
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ inputs.pull_request }}
+        run: gh pr edit "$PR" --remove-label agent:in-progress
+
+  # A crash, a timeout or an exhausted quota fails the job. Nothing retries on its own.
+  blocked:
+    name: Report a failed run
+    needs: [pick-up, implement]
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Mint the implementer App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
+          private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          permission-issues: write
+          permission-pull-requests: write
+      - name: Label the pull request agent:blocked and link the run
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ inputs.pull_request }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh pr edit "$PR" --remove-label agent:in-progress --add-label agent:blocked
+          gh pr comment "$PR" --body "The implementer agent failed: it crashed, timed out or ran out of quota. Nothing retries on its own. See the run: $RUN_URL
+
+          To retry, remove \`agent:blocked\` and add \`ready-for-agent\`."

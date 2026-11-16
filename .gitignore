@@ -43,3 +43,9 @@ nb-configuration.xml
 /.quarkus/cli/plugins/
 # TLS Certificates
 .certs/
+
+# Claude Code worktrees
+.claude/worktrees/
+
+# APM module cache (the manifest, lock file and deployed .claude/skills are committed)
+apm_modules/
