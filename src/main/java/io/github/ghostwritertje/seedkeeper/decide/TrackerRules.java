@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.decide;
 
+import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import java.net.URI;
 import java.time.Duration;
@@ -14,6 +15,7 @@ import java.util.Set;
  *
  * @param publicMinimumSeedTime the minimum of the {@code public} entry; empty when the config has none
  */
+@ModuleApi
 public record TrackerRules(
         List<ManagedTracker> managed, Duration defaultMinimumSeedTime, Optional<Duration> publicMinimumSeedTime) {
 
@@ -41,7 +43,7 @@ public record TrackerRules(
      *
      * @param announceUrls the torrent's announce URLs
      */
-    public Optional<Tracker> attribute(List<String> announceUrls, boolean isPrivate) {
+    Optional<Tracker> attribute(List<String> announceUrls, boolean isPrivate) {
         Set<ManagedTracker> matched = new HashSet<>();
         boolean allHostsManaged = !announceUrls.isEmpty();
         for (String url : announceUrls) {

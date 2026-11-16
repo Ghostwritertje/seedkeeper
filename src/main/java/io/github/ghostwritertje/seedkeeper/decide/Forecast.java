@@ -15,12 +15,12 @@ import java.util.Optional;
 public record Forecast(Optional<ZonedDateTime> date, Optional<LocalDate> until) {
 
     /** The forecast of a group kept for <em>minimum not reached</em>. */
-    public Forecast(Optional<ZonedDateTime> date) {
+    Forecast(Optional<ZonedDateTime> date) {
         this(date, Optional.empty());
     }
 
     /** The forecast of a group kept by a keep override with this end date. */
-    public static Forecast until(LocalDate endDate) {
+    static Forecast until(LocalDate endDate) {
         return new Forecast(Optional.empty(), Optional.of(endDate));
     }
 
