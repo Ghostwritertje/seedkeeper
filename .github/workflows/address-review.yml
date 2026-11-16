@@ -50,7 +50,7 @@ jobs:
       base: ${{ steps.check.outputs.base }}
     steps:
       # The scripts come from the base branch, so a pull request can't change how it is picked up.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.base.ref }}
           persist-credentials: false
@@ -58,7 +58,7 @@ jobs:
 
       - name: Mint the implementer App token
         id: app-token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
           private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
@@ -115,14 +115,19 @@ jobs:
     steps:
       - name: Mint the implementer App token
         id: app-token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
           private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
+          # The agent's token: every permission the implementer App has (docs/agents/github-apps.md), named here so
+          # that a permission later added to the App doesn't reach the agent unseen.
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
 
       # The pull request's branch, with history. The action restores CLAUDE.md and .claude/, including the hook that
       # blocks native builds, from the base branch.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.pick-up.outputs.branch }}
           fetch-depth: 0
@@ -202,7 +207,7 @@ jobs:
           echo "$(jq length /tmp/review-threads.json) unresolved review threads from trusted authors on #$PR."
 
       # As the Verify (JVM) job in ci.yml does.
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: 25
@@ -276,7 +281,7 @@ jobs:
     steps:
       - name: Mint the implementer App token
         id: app-token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
           private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
