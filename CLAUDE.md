@@ -3,7 +3,8 @@
 ## Quality build
 
 `./mvnw verify` is the fast loop: compile and tests. `./mvnw verify -Pquality` adds the Java quality checks (today:
-formatting with Spotless/palantir-java-format, and a sorted POM with sortpom). Run it once when the work is done and
+formatting with Spotless/palantir-java-format, a sorted POM with sortpom, and JaCoCo's 80% line coverage floor, which
+counts `@QuarkusTest` tests; the report is in `target/site/jacoco`). Run it once when the work is done and
 fix everything it reports before you push; CI's `Verify (quality)` job runs the same build.
 
 Apply the formatting, Java and POM both, with one command:
