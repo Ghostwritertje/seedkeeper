@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.snapshot;
 
+import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot.SnapshotTorrent;
 import io.github.ghostwritertje.seedkeeper.snapshot.Snapshot.WantedFile;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
@@ -16,6 +17,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /** Reads the filesystem part of a snapshot (spec §3.1): where each wanted file is, and the library index. */
+@ModuleApi
 public final class SnapshotBuilder {
 
     private SnapshotBuilder() {}
