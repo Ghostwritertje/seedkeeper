@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.history;
 
+import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.history.History.HistoryException;
 import io.github.ghostwritertje.seedkeeper.history.History.RecordedRun;
@@ -19,6 +20,7 @@ import org.jboss.logging.Logger;
  * Keeps the history going: makes the database at start, reads the last run from it so a restart doesn't forget it,
  * and writes every run that ends to it.
  */
+@ModuleApi
 @ApplicationScoped
 public class HistoryKeeper {
 

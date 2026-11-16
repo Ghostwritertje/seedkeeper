@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.history;
 
+import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.decide.Tracker;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerError;
@@ -30,6 +31,7 @@ import javax.sql.DataSource;
  * <p>For display only. Nothing read from here is ever an input to a verdict, and the history may be lost: deleting
  * the database loses nothing else.
  */
+@ModuleApi
 @ApplicationScoped
 public class History {
 
@@ -120,6 +122,7 @@ public class History {
             boolean removed) {}
 
     /** Since when each group has its reason, as the last successful run left it. */
+    @ModuleApi
     public static final class ReasonsSince {
 
         /** No group has a date. */
@@ -152,7 +155,7 @@ public class History {
     }
 
     /** The history can't be read or written. The message is fit to show to the user as it is. */
-    public static class HistoryException extends RuntimeException {
+    static class HistoryException extends RuntimeException {
 
         private static final long serialVersionUID = 1L;
 
@@ -302,12 +305,15 @@ public class History {
         return runs(since).stream().flatMap(run -> run.removals().stream()).toList();
     }
 
-    /** Since when each group has its reason, as the last successful run left it. */
+    /**
+     * Since when each group has its reason, as the last successful run left it. The history is for display only: when
+     * it can't be read, no group has a date ({@link ReasonsSince#NONE}).
+     */
     public ReasonsSince reasonsSince() {
         try (Connection connection = database.getConnection()) {
             return new ReasonsSince(reasonsSince(connection));
         } catch (SQLException e) {
-            throw new HistoryException("The history could not be read", e);
+            return ReasonsSince.NONE;
         }
     }
 
