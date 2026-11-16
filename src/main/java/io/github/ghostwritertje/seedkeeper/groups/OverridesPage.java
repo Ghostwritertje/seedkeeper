@@ -1,11 +1,14 @@
-package io.github.ghostwritertje.seedkeeper.overrides;
+package io.github.ghostwritertje.seedkeeper.groups;
 
 import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
-import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.InvalidOverride;
-import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.Listed;
-import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.NoSuchOverride;
-import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.OverridesUnavailable;
+import io.github.ghostwritertje.seedkeeper.groups.OverridesService.InvalidOverride;
+import io.github.ghostwritertje.seedkeeper.groups.OverridesService.Listed;
+import io.github.ghostwritertje.seedkeeper.groups.OverridesService.NoSuchOverride;
+import io.github.ghostwritertje.seedkeeper.groups.OverridesService.OverridesUnavailable;
+import io.github.ghostwritertje.seedkeeper.overrides.KeepOverride;
+import io.github.ghostwritertje.seedkeeper.overrides.OverrideStore;
+import io.github.ghostwritertje.seedkeeper.overrides.OverridesException;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.common.annotation.RunOnVirtualThread;

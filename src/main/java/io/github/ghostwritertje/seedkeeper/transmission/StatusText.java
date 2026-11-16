@@ -1,4 +1,4 @@
-package io.github.ghostwritertje.seedkeeper.groups;
+package io.github.ghostwritertje.seedkeeper.transmission;
 
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent.Status;
 import java.time.Duration;
@@ -10,7 +10,7 @@ public final class StatusText {
     }
 
     /** The kebab-case code the JSON API uses. */
-    static String code(Status status) {
+    public static String code(Status status) {
         return switch (status) {
             case STOPPED -> "stopped";
             case CHECK_WAIT -> "check-wait";
@@ -23,7 +23,7 @@ public final class StatusText {
     }
 
     /** As the UI shows it. */
-    static String label(Status status) {
+    public static String label(Status status) {
         return switch (status) {
             case STOPPED -> "Stopped";
             case CHECK_WAIT -> "Queued to verify";

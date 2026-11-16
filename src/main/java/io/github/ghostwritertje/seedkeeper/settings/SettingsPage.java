@@ -3,7 +3,7 @@ package io.github.ghostwritertje.seedkeeper.settings;
 import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules.ManagedTracker;
-import io.github.ghostwritertje.seedkeeper.groups.StatusText;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import jakarta.ws.rs.GET;

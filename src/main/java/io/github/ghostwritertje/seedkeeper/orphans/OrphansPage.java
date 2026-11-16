@@ -1,6 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.orphans;
 
-import io.github.ghostwritertje.seedkeeper.groups.StatusText;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.github.ghostwritertje.seedkeeper.orphans.OrphansService.OrphansUnavailable;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;

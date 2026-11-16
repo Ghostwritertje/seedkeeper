@@ -9,6 +9,7 @@ import io.github.ghostwritertje.seedkeeper.groups.GroupsService.GroupsUnavailabl
 import io.github.ghostwritertje.seedkeeper.history.History;
 import io.github.ghostwritertje.seedkeeper.history.History.HistoryException;
 import io.github.ghostwritertje.seedkeeper.history.History.ReasonsSince;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import java.time.ZoneId;
 import jakarta.ws.rs.QueryParam;
