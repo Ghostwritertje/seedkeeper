@@ -15,6 +15,7 @@
         <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
         <maven.compiler.release>25</maven.compiler.release>
         <nullaway.version>0.14.3</nullaway.version>
+        <!-- A Spotless setting, so Dependabot doesn't track it: bump it by hand, in a pull request (ADR 0003). -->
         <palantir-java-format.version>2.103.0</palantir-java-format.version>
         <!-- PIT mutates the main classes changed since the merge base with this ref. -->
         <pit.base>origin/main</pit.base>

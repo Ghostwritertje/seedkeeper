@@ -102,5 +102,5 @@ squash merging allowed. Neither App needs a permission for it: the reviewer App'
 
 To check the setup, have the reviewer approve a small implementer pull request that touches no human-only path: it
 adds `auto-merge`, the `Auto-merge gate` job logs that auto-merge is on, and GitHub squash-merges the pull request
-once `Verify (JVM)` and `Verify (native)` pass. On a pull request that touches `.github/`, the job logs the
-human-only path and leaves the pull request open.
+once the required checks in the `main` ruleset pass (`docs/agents/auto-merge.md`). On a pull request that touches
+`.github/`, the job logs the human-only path and leaves the pull request open.

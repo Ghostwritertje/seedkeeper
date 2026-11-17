@@ -26,7 +26,8 @@ It runs the `code-review` skill against the pull request's base, along two axes,
   with its parent spec. It reports what is missing or partial, what wasn't asked for, and what looks implemented but
   wrong, quoting the issue.
 
-It doesn't run the build: CI's `Verify (JVM)` and `Verify (native)` jobs do.
+It doesn't run the build: CI's `Verify (JVM)`, `Verify (native)` and `Verify (quality)` jobs do, and
+`Lint (non-Java)` lints the scripts, the workflows and the Dockerfile.
 
 ## How it reports
 
