@@ -63,8 +63,9 @@ The human-only paths, enforced whatever the reviewer says:
 - the database migration directory, `src/main/resources/db/migration/`.
 
 The auto-merge uses the workflow's own token, as `dependabot-auto-merge.yml` does: the reviewer App can't write
-contents, so it can't merge. GitHub then merges only once the `main` ruleset is satisfied: `Verify (JVM)` and
-`Verify (native)` green, and every review thread resolved.
+contents, so it can't merge. GitHub then merges only once the `main` ruleset is satisfied: `Verify (JVM)`,
+`Verify (native)`, `Verify (quality)`, `Lint (non-Java)` and `Test the CI scripts` green, and every review thread
+resolved.
 
 **A new push withdraws it.** Any push to an implementer pull request turns off its auto-merge and removes
 `auto-merge` before the next review, so each head is approved on its own.

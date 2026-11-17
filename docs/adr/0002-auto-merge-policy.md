@@ -3,9 +3,9 @@
 An implementer pull request merges without the maintainer when the reviewer judges it a two-way door with a small
 blast radius, approves it and adds `auto-merge`, and a gate script then finds that the implementer opened it, the
 reviewer's latest review approves its current head, it carries `auto-merge` and it touches no human-only path. The
-gate turns on a squash auto-merge with the workflow's own token, and the `main` ruleset (`Verify (JVM)`,
-`Verify (native)`, resolved threads) stays the final check. The criteria and the paths are in
-`docs/agents/auto-merge.md`.
+gate turns on a squash auto-merge with the workflow's own token, and the `main` ruleset stays the final check: the
+required checks `Verify (JVM)`, `Verify (native)`, `Verify (quality)`, `Lint (non-Java)` and `Test the CI scripts`
+green, and every review thread resolved. The criteria and the paths are in `docs/agents/auto-merge.md`.
 
 ## Considered options
 
@@ -48,3 +48,7 @@ gate turns on a squash auto-merge with the workflow's own token, and the `main` 
   token that starts workflows, would let a chain of tickets implement and merge itself with no human step between
   them, which is harder to take back than to add later. After an auto-merge the maintainer starts each unblocked
   dependent by removing and re-adding its `ready-for-agent`.
+- **A quality tool bump that brings new findings doesn't merge itself.** `Verify (quality)` and `Lint (non-Java)` are
+  required checks (ADR 0003), so a Dependabot pull request that bumps a quality tool and makes it report something new
+  fails a required check. `dependabot-auto-merge.yml` turns auto-merge on, but GitHub doesn't merge until a fix makes
+  the check green.
