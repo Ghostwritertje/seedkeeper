@@ -87,7 +87,8 @@ final class Run {
                 }
             }
         } catch (TransmissionException | SnapshotException | OverridesException | Deletion.RootsUnavailable e) {
-            error = Optional.of(e.getMessage());
+            // Each of these carries its reason as the message.
+            error = Optional.of(Objects.requireNonNull(e.getMessage()));
         } catch (RuntimeException e) {
             error = Optional.of("The run broke off: " + e);
         }

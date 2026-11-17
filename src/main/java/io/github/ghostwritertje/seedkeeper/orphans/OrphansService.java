@@ -5,6 +5,7 @@ import io.github.ghostwritertje.seedkeeper.transmission.Transmission;
 import io.github.ghostwritertje.seedkeeper.transmission.TransmissionException;
 import io.github.ghostwritertje.seedkeeper.transmission.TransmissionSession;
 import jakarta.enterprise.context.ApplicationScoped;
+import java.util.Objects;
 
 /** The orphans under the downloads root right now; behind the Orphans view and the API. */
 @ApplicationScoped
@@ -30,7 +31,8 @@ class OrphansService {
             return OrphanFinder.find(
                     config.downloadsRoot(), config.libraryRoots(), transmission.torrents(), session.incompleteDir());
         } catch (TransmissionException | OrphansException e) {
-            throw new OrphansUnavailable(e.getMessage(), e);
+            // Each of these carries its reason as the message.
+            throw new OrphansUnavailable(Objects.requireNonNull(e.getMessage()), e);
         }
     }
 
@@ -41,6 +43,12 @@ class OrphansService {
 
         OrphansUnavailable(String reason, Throwable cause) {
             super(reason, cause);
+        }
+
+        /** The reason; never null, as the constructor takes one. */
+        @Override
+        public String getMessage() {
+            return Objects.requireNonNull(super.getMessage());
         }
     }
 }

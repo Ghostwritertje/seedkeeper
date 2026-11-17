@@ -26,7 +26,9 @@ public final class SkipTestsThatStartTheApp implements PostDiscoveryFilter {
 
     @Override
     public FilterResult apply(TestDescriptor descriptor) {
-        return testClass(descriptor.getSource().orElse(null))
+        return descriptor
+                .getSource()
+                .flatMap(SkipTestsThatStartTheApp::testClass)
                 .filter(SkipTestsThatStartTheApp::startsTheApp)
                 .map(testClass -> FilterResult.excluded(testClass.getName() + " starts the app"))
                 .orElseGet(() -> FilterResult.included("doesn't start the app"));
@@ -36,7 +38,7 @@ public final class SkipTestsThatStartTheApp implements PostDiscoveryFilter {
         return switch (source) {
             case ClassSource classSource -> Optional.of(classSource.getJavaClass());
             case MethodSource methodSource -> Optional.of(methodSource.getJavaClass());
-            case null, default -> Optional.empty();
+            default -> Optional.empty();
         };
     }
 

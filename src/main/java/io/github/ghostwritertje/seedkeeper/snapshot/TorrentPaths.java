@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /** Where a torrent's files can be on disk (spec §3.1), in one place for the snapshot, the orphans and deletion. */
@@ -56,7 +57,10 @@ public final class TorrentPaths {
     public static Optional<FileId> id(Path path, LinkOption... options) {
         try {
             Map<String, Object> attributes = Files.readAttributes(path, DEV_AND_INO, options);
-            return Optional.of(new FileId((Long) attributes.get("dev"), (Long) attributes.get("ino")));
+            // readAttributes returns every attribute it was asked for, or throws.
+            long dev = (Long) Objects.requireNonNull(attributes.get("dev"));
+            long ino = (Long) Objects.requireNonNull(attributes.get("ino"));
+            return Optional.of(new FileId(dev, ino));
         } catch (IOException e) {
             return Optional.empty();
         }

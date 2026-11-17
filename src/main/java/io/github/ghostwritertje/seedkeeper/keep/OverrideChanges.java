@@ -14,6 +14,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 /** Adds, edits and deletes keep overrides; behind the forms of the Overrides view and the Groups view. */
 @ModuleApi
@@ -93,7 +94,7 @@ public class OverrideChanges {
      *
      * @throws OverridesException {@link Problem#INVALID} when it is neither
      */
-    public static Optional<LocalDate> date(String text) {
+    public static Optional<LocalDate> date(@Nullable String text) {
         if (text == null || text.isBlank()) {
             return Optional.empty();
         }

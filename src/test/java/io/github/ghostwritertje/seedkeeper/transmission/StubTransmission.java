@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link Transmission} in memory, for tests that need no HTTP: it holds torrents, forgets the ones that are removed
@@ -17,7 +18,7 @@ public final class StubTransmission implements Transmission {
     private final List<String> removed = new ArrayList<>();
     private final Set<String> refusedRemovals = new HashSet<>();
     private Optional<Path> incompleteDir = Optional.empty();
-    private TransmissionException sessionFailure;
+    private @Nullable TransmissionException sessionFailure;
     private Runnable onSession = () -> {};
     private int failingReadsAfterRemoval;
     private int failingReadsLeft;

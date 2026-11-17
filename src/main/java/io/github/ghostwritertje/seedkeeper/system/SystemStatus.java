@@ -2,6 +2,7 @@ package io.github.ghostwritertje.seedkeeper.system;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /**
  * What the System view and {@code GET /api/v1/system} show.
@@ -13,7 +14,12 @@ import java.util.List;
  *                zone; null when there is none
  */
 @RegisterForReflection
-record SystemStatus(String version, TransmissionStatus transmission, boolean running, LastRun lastRun, String nextRun) {
+record SystemStatus(
+        String version,
+        TransmissionStatus transmission,
+        boolean running,
+        @Nullable LastRun lastRun,
+        @Nullable String nextRun) {
 
     /**
      * Whether seedkeeper can work with Transmission.
@@ -26,7 +32,11 @@ record SystemStatus(String version, TransmissionStatus transmission, boolean run
      *                             there is nothing to tell
      */
     @RegisterForReflection
-    public record TransmissionStatus(boolean reachable, String version, String reason, String incompleteDirWarning) {
+    public record TransmissionStatus(
+            boolean reachable,
+            @Nullable String version,
+            @Nullable String reason,
+            @Nullable String incompleteDirWarning) {
 
         public boolean usable() {
             return reason == null;
@@ -51,7 +61,7 @@ record SystemStatus(String version, TransmissionStatus transmission, boolean run
             String started,
             String ended,
             String status,
-            String error,
+            @Nullable String error,
             int groupsRemoved,
             int torrentsRemoved,
             int filesDeleted,

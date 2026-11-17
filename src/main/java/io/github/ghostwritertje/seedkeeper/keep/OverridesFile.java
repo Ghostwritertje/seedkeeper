@@ -9,9 +9,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -33,8 +35,9 @@ final class OverridesFile {
         try {
             document = textOnly().load(yaml);
         } catch (YAMLException e) {
-            throw new Unreadable("it is not valid YAML: "
-                    + e.getMessage().lines().findFirst().orElse(""));
+            String problem = Objects.requireNonNullElse(e.getMessage(), "");
+            throw new Unreadable(
+                    "it is not valid YAML: " + problem.lines().findFirst().orElse(""));
         }
         if (document == null) {
             return List.of();
@@ -61,7 +64,7 @@ final class OverridesFile {
         return List.copyOf(overrides);
     }
 
-    private static KeepOverride override(Object item, String which) {
+    private static KeepOverride override(@Nullable Object item, String which) {
         if (!(item instanceof Map<?, ?> fields)) {
             throw new Unreadable(which + " is not a set of keys (id, hashes, note, until, created)");
         }
@@ -73,14 +76,14 @@ final class OverridesFile {
         if (!blank(hashList) && !(hashList instanceof List<?>)) {
             throw new Unreadable(named + ": 'hashes' is not a list");
         }
-        List<String> hashes = blank(hashList)
-                ? List.of()
-                : ((List<?>) hashList)
-                        .stream()
-                                .filter(hash -> hash instanceof String text && !text.isBlank())
-                                .map(hash -> ((String) hash).trim().toLowerCase(Locale.ROOT))
-                                .distinct()
-                                .toList();
+        // Here hashList is blank or a list.
+        List<String> hashes = hashList instanceof List<?> list
+                ? list.stream()
+                        .filter(hash -> hash instanceof String text && !text.isBlank())
+                        .map(hash -> ((String) hash).trim().toLowerCase(Locale.ROOT))
+                        .distinct()
+                        .toList()
+                : List.of();
         if (hashes.isEmpty()) {
             throw new Unreadable(named + " has no 'hashes'");
         }
@@ -96,8 +99,8 @@ final class OverridesFile {
                 dateTime(fields.get("created"), named));
     }
 
-    private static Optional<LocalDate> date(Object value, String named) {
-        if (blank(value)) {
+    private static Optional<LocalDate> date(@Nullable Object value, String named) {
+        if (value == null || blank(value)) {
             return Optional.empty();
         }
         try {
@@ -107,8 +110,8 @@ final class OverridesFile {
         }
     }
 
-    private static Optional<OffsetDateTime> dateTime(Object value, String named) {
-        if (blank(value)) {
+    private static Optional<OffsetDateTime> dateTime(@Nullable Object value, String named) {
+        if (value == null || blank(value)) {
             return Optional.empty();
         }
         try {
@@ -119,7 +122,7 @@ final class OverridesFile {
     }
 
     /** A key that is absent, or present without a value. */
-    private static boolean blank(Object value) {
+    private static boolean blank(@Nullable Object value) {
         return value == null
                 || (value instanceof String text && (text.isBlank() || text.equals("~") || text.equals("null")));
     }
@@ -194,6 +197,12 @@ final class OverridesFile {
 
         Unreadable(String problem) {
             super(problem);
+        }
+
+        /** The problem; never null, as the constructor takes one. */
+        @Override
+        public String getMessage() {
+            return Objects.requireNonNull(super.getMessage());
         }
     }
 }

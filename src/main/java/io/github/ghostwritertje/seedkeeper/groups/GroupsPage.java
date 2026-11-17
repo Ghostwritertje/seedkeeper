@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.jboss.resteasy.reactive.RestForm;
+import org.jspecify.annotations.Nullable;
 
 /** The Groups view, with its form to set a keep override on a group. */
 @Path("/groups")
@@ -42,7 +43,8 @@ class GroupsPage {
          *                    is well
          * @param notice      why the keep override that was just set was not; null when there is nothing to tell
          */
-        static native TemplateInstance groups(List<Group> groups, Filter filter, String unavailable, String notice);
+        static native TemplateInstance groups(
+                List<Group> groups, Filter filter, @Nullable String unavailable, @Nullable String notice);
     }
 
     private static final DateTimeFormatter FORECAST_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -105,7 +107,8 @@ class GroupsPage {
     @GET
     @Produces(MediaType.TEXT_HTML)
     @RunOnVirtualThread
-    public TemplateInstance groups(@QueryParam("verdict") String verdict, @QueryParam("reason") String reason) {
+    public TemplateInstance groups(
+            @QueryParam("verdict") @Nullable String verdict, @QueryParam("reason") @Nullable String reason) {
         return page(verdict, reason, null);
     }
 
@@ -135,7 +138,7 @@ class GroupsPage {
         }
     }
 
-    private TemplateInstance page(String verdict, String reason, String notice) {
+    private TemplateInstance page(@Nullable String verdict, @Nullable String reason, @Nullable String notice) {
         GroupsFilter filter;
         try {
             filter = GroupsFilter.parse(verdict, reason);

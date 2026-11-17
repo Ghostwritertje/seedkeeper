@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -987,7 +988,7 @@ class DecideTest {
     }
 
     /** An override on hash {@code a}; {@code until} is its inclusive end date, null for none. */
-    private static KeepOverride override(String until, String... hashes) {
+    private static KeepOverride override(@Nullable String until, String... hashes) {
         return new KeepOverride(
                 "id-1",
                 List.of(hashes),

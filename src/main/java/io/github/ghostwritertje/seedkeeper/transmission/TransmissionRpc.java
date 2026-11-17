@@ -9,14 +9,17 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /** Transmission's RPC endpoint as a Quarkus REST Client: one POST that carries a JSON-RPC 2.0 call. */
 @Path("")
 interface TransmissionRpc {
 
+    /** Null when Transmission answers with an empty body. */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
+    @Nullable
     Response call(Request request);
 
     @RegisterForReflection
@@ -29,13 +32,13 @@ interface TransmissionRpc {
 
     /**
      * {@code result} is an object from Transmission 4.1 on. Older versions answer in their own format, where it is a
-     * string such as "method name not recognized".
+     * string such as "method name not recognized". Either may be missing from the answer, and is then null.
      */
     @RegisterForReflection
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Response(JsonNode result, RpcError error) {}
+    record Response(@Nullable JsonNode result, @Nullable RpcError error) {}
 
     @RegisterForReflection
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record RpcError(int code, String message) {}
+    record RpcError(int code, @Nullable String message) {}
 }

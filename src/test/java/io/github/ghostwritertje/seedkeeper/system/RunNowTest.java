@@ -28,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
@@ -106,7 +107,7 @@ class RunNowTest {
                         .filter(request -> request.body().contains("\"method\":\"torrent_remove\""))
                         .allMatch(request -> request.body().contains("\"delete_local_data\":false")),
                 "Transmission was asked to delete data");
-        assertGone(due, dueLink, due.getParent(), dueLink.getParent());
+        assertGone(due, dueLink, Objects.requireNonNull(due.getParent()), Objects.requireNonNull(dueLink.getParent()));
         assertTrue(Files.exists(linked), "the file of a group with a library link was deleted");
         assertTrue(Files.exists(inLibrary), "a file in the library was deleted");
 

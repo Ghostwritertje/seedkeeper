@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.jspecify.annotations.Nullable;
 
 /** {@link Transmission} over JSON-RPC 2.0, which Transmission speaks from 4.1 on. */
 @ApplicationScoped
@@ -145,9 +146,9 @@ class TransmissionClient implements Transmission {
         if (response == null) {
             throw notJsonRpc(null);
         }
-        if (response.error() != null) {
-            throw TransmissionException.unreachable(
-                    here() + " refused " + method + ": " + response.error().message(), null);
+        TransmissionRpc.RpcError error = response.error();
+        if (error != null) {
+            throw TransmissionException.unreachable(here() + " refused " + method + ": " + error.message(), null);
         }
         JsonNode result = response.result();
         if (result != null && result.isTextual()) {
@@ -161,7 +162,7 @@ class TransmissionClient implements Transmission {
         return result;
     }
 
-    private TransmissionRpc.Response post(TransmissionRpc.Request request) {
+    private TransmissionRpc.@Nullable Response post(TransmissionRpc.Request request) {
         try {
             try {
                 return rpc.call(request);
@@ -192,7 +193,7 @@ class TransmissionClient implements Transmission {
         }
     }
 
-    private TransmissionException notJsonRpc(Throwable cause) {
+    private TransmissionException notJsonRpc(@Nullable Throwable cause) {
         return TransmissionException.unreachable(
                 here() + " gave an answer that is not JSON-RPC; is the URL right?", cause);
     }

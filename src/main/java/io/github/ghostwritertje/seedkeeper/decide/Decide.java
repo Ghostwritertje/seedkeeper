@@ -17,6 +17,7 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -65,10 +66,11 @@ public final class Decide {
 
         Map<Boolean, List<SnapshotTorrent>> byRule1 = snapshot.torrents().stream()
                 .collect(Collectors.partitioningBy(member -> leavesItsGroup(member.torrent(), trackers)));
-        Snapshot rest = new Snapshot(byRule1.get(false), snapshot.library());
+        // partitioningBy always holds both keys.
+        Snapshot rest = new Snapshot(Objects.requireNonNull(byRule1.get(false)), snapshot.library());
 
         Map<Integer, GroupVerdict> verdicts = new TreeMap<>();
-        for (SnapshotTorrent alone : byRule1.get(true)) {
+        for (SnapshotTorrent alone : Objects.requireNonNull(byRule1.get(true))) {
             verdicts.put(position.get(alone), decide(List.of(alone), true, snapshot, trackers, overrides, now));
         }
         for (List<SnapshotTorrent> group : rest.groups()) {

@@ -10,6 +10,7 @@ import io.github.ghostwritertje.seedkeeper.keep.OverridesException;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -110,6 +111,12 @@ class OverridesService {
 
         OverridesUnavailable(String reason, Throwable cause) {
             super(reason, cause);
+        }
+
+        /** The reason; never null, as the constructor takes one. */
+        @Override
+        public String getMessage() {
+            return Objects.requireNonNull(super.getMessage());
         }
     }
 }

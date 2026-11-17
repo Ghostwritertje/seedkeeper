@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.jboss.logging.Logger;
@@ -92,7 +93,8 @@ public class RunMonitor {
             logRemoval(removal);
         }
         int carriedOut = outcome.groupsRemoved();
-        runs.get(outcome.status()).increment();
+        // The constructor registers a counter for every status.
+        Objects.requireNonNull(runs.get(outcome.status())).increment();
         removedGroups.increment(carriedOut);
         // A double holds every byte count up to 8 PiB exactly; no run frees more.
         spaceFreed.increment((double) outcome.spaceFreed());

@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 /** The Activity view: the runs of the last year and what each removed. */
 @Path("/activity")
@@ -35,7 +36,7 @@ class ActivityPage {
          * @param runs        the newest first
          * @param unavailable why the history can't be read; null when it can
          */
-        static native TemplateInstance activity(List<Run> runs, String unavailable);
+        static native TemplateInstance activity(List<Run> runs, @Nullable String unavailable);
     }
 
     /**
@@ -51,7 +52,7 @@ class ActivityPage {
             String started,
             String ended,
             String status,
-            String error,
+            @Nullable String error,
             String removed,
             int filesDeleted,
             String spaceFreed,

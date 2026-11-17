@@ -1,6 +1,7 @@
 package io.github.ghostwritertje.seedkeeper.keep;
 
 import io.github.ghostwritertje.seedkeeper.ModuleApi;
+import java.util.Objects;
 
 /**
  * A keep override can't be read or changed. The message is the one reason, fit to show to the user as it is; the
@@ -37,5 +38,11 @@ public class OverridesException extends RuntimeException {
     /** What kind of reason this is. */
     public Problem problem() {
         return problem;
+    }
+
+    /** The reason; never null, as the constructor takes one. */
+    @Override
+    public String getMessage() {
+        return Objects.requireNonNull(super.getMessage());
     }
 }

@@ -12,6 +12,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /** {@code GET /api/v1/overrides}: the same data as the Overrides view. */
 @Path("/api/v1/overrides")
@@ -34,13 +35,13 @@ class OverridesApi {
             String id,
             List<String> hashes,
             String note,
-            String until,
-            String created,
-            Boolean active,
+            @Nullable String until,
+            @Nullable String created,
+            @Nullable Boolean active,
             boolean expired,
-            Boolean stale,
-            List<List<Member>> groups,
-            String groupsUnknown) {}
+            @Nullable Boolean stale,
+            @Nullable List<List<Member>> groups,
+            @Nullable String groupsUnknown) {}
 
     @RegisterForReflection
     record Member(String hash, String name) {}

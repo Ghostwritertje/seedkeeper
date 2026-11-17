@@ -14,6 +14,7 @@
         <!-- Needs a JaCoCo release that reads Java 25 class files. Dependabot bumps it apart from Quarkus. -->
         <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
         <maven.compiler.release>25</maven.compiler.release>
+        <nullaway.version>0.14.3</nullaway.version>
         <palantir-java-format.version>2.103.0</palantir-java-format.version>
         <!-- PIT mutates the main classes changed since the merge base with this ref. -->
         <pit.base>origin/main</pit.base>
@@ -102,6 +103,11 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
+        <!-- @NullMarked and @Nullable, which NullAway reads in the quality build. Annotations only; the Quarkus BOM manages the version. -->
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
         </dependency>
         <!-- Reads overrides.yaml. The YAML parser quarkus-config-yaml already brings, so nothing new in the image. -->
         <dependency>
@@ -376,8 +382,13 @@
                                 <arg>-Werror</arg>
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
-                                <!-- Generated code is ours neither to judge nor to fix. -->
-                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/target/generated-(test-)?sources/.*</arg>
+                                <!--
+                                  Generated code is ours neither to judge nor to fix. NullAway is an Error Prone
+                                  check at error level; it checks only @NullMarked code (every package, see
+                                  NullMarkedPackagesTest), reads JSpecify's annotations, and skips @Generated
+                                  classes as well as the excluded paths.
+                                -->
+                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/target/generated-(test-)?sources/.* -Xep:NullAway:ERROR -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:JSpecifyMode=true -XepOpt:NullAway:TreatGeneratedAsUnannotated=true</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
@@ -396,6 +407,11 @@
                                     <groupId>com.google.errorprone</groupId>
                                     <artifactId>error_prone_core</artifactId>
                                     <version>${error-prone.version}</version>
+                                </path>
+                                <path>
+                                    <groupId>com.uber.nullaway</groupId>
+                                    <artifactId>nullaway</artifactId>
+                                    <version>${nullaway.version}</version>
                                 </path>
                             </annotationProcessorPaths>
                         </configuration>
