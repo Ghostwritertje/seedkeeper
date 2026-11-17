@@ -16,21 +16,35 @@ import org.junit.jupiter.api.Test;
 
 /**
  * NullAway checks only {@code @NullMarked} code, so a package without the annotation would slip past the quality
- * build unchecked. Every production package carries it, in its {@code package-info.java}.
+ * build unchecked. Every package of the app carries it, in its {@code package-info.java}, and so does every package
+ * of its tests, including those that exist only in the tests. The ArchUnit fixtures live outside the app's root
+ * package on purpose, and are left out.
  */
 class NullMarkedPackagesTest {
 
+    private static final String ROOT = "io.github.ghostwritertje.seedkeeper";
+
     @Test
     void everyProductionPackageIsNullMarked() throws IOException, URISyntaxException {
-        Map<String, String> classByPackage = productionClassByPackage();
-        assertTrue(classByPackage.containsKey("io.github.ghostwritertje.seedkeeper.decide"), classByPackage::toString);
+        Map<String, String> classByPackage = classByPackage(SeedkeeperConfig.class);
+        assertTrue(classByPackage.containsKey(ROOT + ".decide"), classByPackage::toString);
 
-        List<String> unmarked = classByPackage.entrySet().stream()
+        assertEquals(List.of(), unmarked(classByPackage), "packages without @NullMarked in package-info.java");
+    }
+
+    @Test
+    void everyTestPackageIsNullMarked() throws IOException, URISyntaxException {
+        Map<String, String> classByPackage = classByPackage(NullMarkedPackagesTest.class);
+        assertTrue(classByPackage.containsKey(ROOT + ".startup"), classByPackage::toString);
+
+        assertEquals(List.of(), unmarked(classByPackage), "test packages without @NullMarked in package-info.java");
+    }
+
+    private static List<String> unmarked(Map<String, String> classByPackage) {
+        return classByPackage.entrySet().stream()
                 .filter(entry -> !isNullMarked(entry.getValue()))
                 .map(Map.Entry::getKey)
                 .toList();
-
-        assertEquals(List.of(), unmarked, "packages without @NullMarked in package-info.java");
     }
 
     private static boolean isNullMarked(String className) {
@@ -43,9 +57,9 @@ class NullMarkedPackagesTest {
         }
     }
 
-    /** One compiled production class per package, from the directory {@link SeedkeeperConfig} was loaded from. */
-    private static Map<String, String> productionClassByPackage() throws IOException, URISyntaxException {
-        Path classes = Path.of(SeedkeeperConfig.class
+    /** One compiled class per package under {@link #ROOT}, from the directory {@code loadedFrom} was loaded from. */
+    private static Map<String, String> classByPackage(Class<?> loadedFrom) throws IOException, URISyntaxException {
+        Path classes = Path.of(loadedFrom
                 .getProtectionDomain()
                 .getCodeSource()
                 .getLocation()
@@ -57,6 +71,7 @@ class NullMarkedPackagesTest {
                     .filter(name -> name.endsWith(".class") && name.contains(separator))
                     .map(name ->
                             name.substring(0, name.length() - ".class".length()).replace(separator, "."))
+                    .filter(name -> name.startsWith(ROOT + "."))
                     .forEach(name -> classByPackage.putIfAbsent(name.substring(0, name.lastIndexOf('.')), name));
         }
         return classByPackage;
