@@ -25,24 +25,7 @@ class ModuleRulesTest {
     /** The modules that must stay pure domain code: rule 4. */
     private static final Set<String> DOMAIN_MODULES = Set.of("decide", "snapshot");
 
-    /**
-     * The modules rules 2 and 3 already apply to. Temporary: each migration ticket adds the module it brings within
-     * the rules, and the contract ticket deletes this list so that the rules apply to every module.
-     */
-    private static final Set<String> MIGRATED_MODULES = Set.of(
-            "auth",
-            "decide",
-            "groups",
-            "history",
-            "orphans",
-            "overrides",
-            "run",
-            "settings",
-            "snapshot",
-            "system",
-            "transmission");
-
-    private static final ModuleRules RULES = new ModuleRules(PRODUCTION, DOMAIN_MODULES, MIGRATED_MODULES);
+    private static final ModuleRules RULES = new ModuleRules(PRODUCTION, DOMAIN_MODULES);
 
     private static final JavaClasses PRODUCTION_CLASSES = new ClassFileImporter()
             .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
@@ -54,12 +37,12 @@ class ModuleRulesTest {
     }
 
     @Test
-    void migratedModulesAreUsedOnlyThroughTheirModuleApi() {
+    void modulesAreUsedOnlyThroughTheirModuleApi() {
         RULES.onlyApiAcrossModules().check(PRODUCTION_CLASSES);
     }
 
     @Test
-    void migratedModulesKeepToTheModuleApiBudget() {
+    void modulesKeepToTheModuleApiBudget() {
         RULES.apiBudget().check(PRODUCTION_CLASSES);
     }
 
@@ -72,7 +55,7 @@ class ModuleRulesTest {
     void rule4ReportsADomainModuleThatDependsOnQuarkus() {
         String root = FIXTURES + "domain";
         EvaluationResult result =
-                new ModuleRules(root, Set.of("decide"), Set.of()).domainIsPure().evaluate(fixture(root));
+                new ModuleRules(root, Set.of("decide")).domainIsPure().evaluate(fixture(root));
 
         assertViolation(result, "Rule 4", "module decide", "Impure", "io.quarkus.runtime.LaunchMode");
         assertFalse(result.getFailureReport().toString().contains("Endpoint"), "web isn't a domain module");
@@ -81,16 +64,24 @@ class ModuleRulesTest {
     @Test
     void rule2ReportsATypeUsedFromAnotherModuleThatIsNotModuleApi() {
         String root = FIXTURES + "api";
-        EvaluationResult result = new ModuleRules(root, Set.of(), Set.of("lib"))
-                .onlyApiAcrossModules()
-                .evaluate(fixture(root));
+        EvaluationResult result =
+                new ModuleRules(root, Set.of()).onlyApiAcrossModules().evaluate(fixture(root));
 
         assertViolation(result, "Rule 2", "module lib", "lib.Hidden", "lib.Loose", "module app", "app.Reader");
         List<String> violations = result.getFailureReport().getDetails();
         assertEquals(
-                2,
+                3,
                 violations.stream().map(ModuleRulesTest::usedType).distinct().count(),
-                () -> "only Hidden and Loose break rule 2:\n" + String.join("\n", violations));
+                () -> "only Hidden, Loose and Internal break rule 2:\n" + String.join("\n", violations));
+    }
+
+    @Test
+    void rule2ChecksAModuleWithoutAnyModuleApi() {
+        String root = FIXTURES + "api";
+        EvaluationResult result =
+                new ModuleRules(root, Set.of()).onlyApiAcrossModules().evaluate(fixture(root));
+
+        assertViolation(result, "Rule 2", "module fresh", "fresh.Internal", "module app", "app.Reader");
     }
 
     /** The type a rule 2 violation is about: the first one it names. */
@@ -101,9 +92,7 @@ class ModuleRulesTest {
     @Test
     void rule3ReportsAModuleWithMoreThan3ModuleApiBehaviourTypes() {
         String root = FIXTURES + "budget";
-        EvaluationResult result = new ModuleRules(root, Set.of(), Set.of("wide", "narrow"))
-                .apiBudget()
-                .evaluate(fixture(root));
+        EvaluationResult result = new ModuleRules(root, Set.of()).apiBudget().evaluate(fixture(root));
 
         assertViolation(
                 result, "Rule 3", "module wide", "has 4", "Wide$First", "Wide$Second", "Wide$Third", "Wide$Fourth");
@@ -117,8 +106,7 @@ class ModuleRulesTest {
     @Test
     void rule1ReportsACycleBetweenModules() {
         String root = FIXTURES + "cycle";
-        EvaluationResult result =
-                new ModuleRules(root, Set.of(), Set.of()).noCycles().evaluate(fixture(root));
+        EvaluationResult result = new ModuleRules(root, Set.of()).noCycles().evaluate(fixture(root));
 
         assertViolation(result, "Rule 1", "module a", "module b", "Alpha", "Beta");
     }

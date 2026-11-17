@@ -4,8 +4,6 @@ import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.keep.KeepOverride;
 import io.github.ghostwritertje.seedkeeper.keep.OverrideChanges;
-import io.github.ghostwritertje.seedkeeper.keep.OverrideChanges.InvalidOverride;
-import io.github.ghostwritertje.seedkeeper.keep.OverrideChanges.NoSuchOverride;
 import io.github.ghostwritertje.seedkeeper.keep.OverrideStore;
 import io.github.ghostwritertje.seedkeeper.keep.OverridesException;
 import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.Listed;
@@ -129,18 +127,13 @@ class OverridesPage {
         try {
             change.run();
             return Response.seeOther(URI.create("/overrides")).build();
-        } catch (InvalidOverride e) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(page(e.getMessage()))
-                    .build();
-        } catch (NoSuchOverride e) {
-            return Response.status(Response.Status.NOT_FOUND)
-                    .entity(page(e.getMessage()))
-                    .build();
         } catch (OverridesException e) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
-                    .entity(page(e.getMessage()))
-                    .build();
+            Response.Status status = switch (e.problem()) {
+                case INVALID -> Response.Status.BAD_REQUEST;
+                case NO_SUCH_OVERRIDE -> Response.Status.NOT_FOUND;
+                case FILE -> Response.Status.SERVICE_UNAVAILABLE;
+            };
+            return Response.status(status).entity(page(e.getMessage())).build();
         }
     }
 

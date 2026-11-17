@@ -1,6 +1,8 @@
 package io.github.ghostwritertje.seedkeeper.keep;
 
+import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
+import io.github.ghostwritertje.seedkeeper.keep.OverridesException.Problem;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -14,6 +16,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 /** Adds, edits and deletes keep overrides; behind the forms of the Overrides view and the Groups view. */
+@ModuleApi
 @ApplicationScoped
 public class OverrideChanges {
 
@@ -30,8 +33,8 @@ public class OverrideChanges {
      *
      * @param hashes info hashes; trimmed, lower-cased, blanks and repeats dropped
      * @return the override as it was added
-     * @throws InvalidOverride when no hash is left
-     * @throws OverridesException when the file can't be read or written
+     * @throws OverridesException {@link Problem#INVALID} when no hash is left, {@link Problem#FILE} when the file can't
+     *     be read or written
      */
     public KeepOverride add(Collection<String> hashes, String note, Optional<LocalDate> until) {
         List<String> cleaned = hashes.stream()
@@ -40,7 +43,7 @@ public class OverrideChanges {
                 .distinct()
                 .toList();
         if (cleaned.isEmpty()) {
-            throw new InvalidOverride("A keep override needs at least one info hash.");
+            throw invalid("A keep override needs at least one info hash.");
         }
         KeepOverride added = new KeepOverride(
                 UUID.randomUUID().toString(),
@@ -56,8 +59,8 @@ public class OverrideChanges {
     /**
      * Changes the note and the end date of an override; its id, hashes and created stay.
      *
-     * @throws NoSuchOverride when the file has no override with this id
-     * @throws OverridesException when the file can't be read or written
+     * @throws OverridesException {@link Problem#NO_SUCH_OVERRIDE} when the file has no override with this id,
+     *     {@link Problem#FILE} when the file can't be read or written
      */
     public void edit(String id, String note, Optional<LocalDate> until) {
         store.update(overrides -> {
@@ -73,8 +76,8 @@ public class OverrideChanges {
     /**
      * Deletes an override.
      *
-     * @throws NoSuchOverride when the file has no override with this id
-     * @throws OverridesException when the file can't be read or written
+     * @throws OverridesException {@link Problem#NO_SUCH_OVERRIDE} when the file has no override with this id,
+     *     {@link Problem#FILE} when the file can't be read or written
      */
     public void delete(String id) {
         store.update(overrides -> {
@@ -88,7 +91,7 @@ public class OverrideChanges {
     /**
      * The end date of a form: empty or like 2027-03-01, as a date field sends it.
      *
-     * @throws InvalidOverride when it is neither
+     * @throws OverridesException {@link Problem#INVALID} when it is neither
      */
     public static Optional<LocalDate> date(String text) {
         if (text == null || text.isBlank()) {
@@ -97,7 +100,7 @@ public class OverrideChanges {
         try {
             return Optional.of(LocalDate.parse(text.strip()));
         } catch (DateTimeParseException e) {
-            throw new InvalidOverride("The end date is not a date like 2027-03-01: " + text.strip());
+            throw invalid("The end date is not a date like 2027-03-01: " + text.strip());
         }
     }
 
@@ -107,28 +110,14 @@ public class OverrideChanges {
 
     private static void requireId(List<KeepOverride> overrides, String id) {
         if (overrides.stream().noneMatch(override -> override.id().equals(id))) {
-            throw new NoSuchOverride("There is no keep override with id " + id
-                    + " any more: it was deleted, or its id was changed in the file.");
+            throw new OverridesException(
+                    Problem.NO_SUCH_OVERRIDE,
+                    "There is no keep override with id " + id
+                            + " any more: it was deleted, or its id was changed in the file.");
         }
     }
 
-    /** What was asked for is not a keep override. The message says why, fit to show as it is. */
-    public static class InvalidOverride extends RuntimeException {
-
-        private static final long serialVersionUID = 1L;
-
-        InvalidOverride(String reason) {
-            super(reason);
-        }
-    }
-
-    /** The override to change is not in the file. The message says so, fit to show as it is. */
-    public static class NoSuchOverride extends RuntimeException {
-
-        private static final long serialVersionUID = 1L;
-
-        NoSuchOverride(String reason) {
-            super(reason);
-        }
+    private static OverridesException invalid(String reason) {
+        return new OverridesException(Problem.INVALID, reason);
     }
 }
