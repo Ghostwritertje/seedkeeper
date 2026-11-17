@@ -59,7 +59,12 @@ public class OverrideStore implements AutoCloseable {
     /** Reads the file; one that can't be read is reported by {@link #overrides()}, not here. */
     public OverrideStore(Path file) {
         this.file = file.toAbsolutePath();
-        load();
+        Loaded first = read();
+        OverridesException failure = first.failure();
+        if (failure != null) {
+            LOG.warn(failure.getMessage());
+        }
+        this.loaded = first;
     }
 
     void onStart(@Observes StartupEvent event) {
@@ -201,27 +206,29 @@ public class OverrideStore implements AutoCloseable {
         }
     }
 
+    /** Reads the file again, and warns when it can't be read for another reason than last time. */
     private void load() {
-        Loaded now;
-        try {
-            now = new Loaded(OverridesFile.parse(Files.readString(file)), null);
-        } catch (NoSuchFileException e) {
-            now = new Loaded(List.of(), null);
-        } catch (Unreadable e) {
-            now = new Loaded(List.of(), unreadable(e.getMessage(), e));
-        } catch (IOException e) {
-            // Also a file that is not UTF-8 (MalformedInputException).
-            now = new Loaded(List.of(), unreadable(e.toString(), e));
-        }
-        // Null only while the constructor runs its first load.
-        Loaded before = loaded;
+        Loaded now = read();
         OverridesException failure = now.failure();
-        OverridesException failedBefore = before == null ? null : before.failure();
+        OverridesException failedBefore = loaded.failure();
         if (failure != null
                 && (failedBefore == null || !failedBefore.getMessage().equals(failure.getMessage()))) {
             LOG.warn(failure.getMessage());
         }
         loaded = now;
+    }
+
+    private Loaded read() {
+        try {
+            return new Loaded(OverridesFile.parse(Files.readString(file)), null);
+        } catch (NoSuchFileException e) {
+            return new Loaded(List.of(), null);
+        } catch (Unreadable e) {
+            return new Loaded(List.of(), unreadable(e.getMessage(), e));
+        } catch (IOException e) {
+            // Also a file that is not UTF-8 (MalformedInputException).
+            return new Loaded(List.of(), unreadable(e.toString(), e));
+        }
     }
 
     private OverridesException unreadable(String problem, Exception cause) {
