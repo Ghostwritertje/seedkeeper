@@ -59,11 +59,8 @@ class NullMarkedPackagesTest {
 
     /** One compiled class per package under {@link #ROOT}, from the directory {@code loadedFrom} was loaded from. */
     private static Map<String, String> classByPackage(Class<?> loadedFrom) throws IOException, URISyntaxException {
-        Path classes = Path.of(loadedFrom
-                .getProtectionDomain()
-                .getCodeSource()
-                .getLocation()
-                .toURI());
+        Path classes = Path.of(
+                loadedFrom.getProtectionDomain().getCodeSource().getLocation().toURI());
         String separator = classes.getFileSystem().getSeparator();
         Map<String, String> classByPackage = new TreeMap<>();
         try (Stream<Path> files = Files.walk(classes)) {
