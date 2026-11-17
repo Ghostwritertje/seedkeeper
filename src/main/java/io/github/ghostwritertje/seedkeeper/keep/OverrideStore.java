@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.keep;
 
+import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.keep.OverridesFile.Unreadable;
 import io.quarkus.runtime.StartupEvent;
@@ -34,6 +35,7 @@ import org.jspecify.annotations.Nullable;
  * read from it, reads it again when asked ({@link #reload()}, at the start of every run) and when the file changes
  * ({@link #watch()}), and every change goes through {@link #update}, which writes the file in full and atomically.
  */
+@ModuleApi
 @ApplicationScoped
 public class OverrideStore implements AutoCloseable {
 

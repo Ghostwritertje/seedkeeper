@@ -8,8 +8,8 @@ import io.github.ghostwritertje.seedkeeper.decide.Verdict;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsFilter.UnknownFilter;
 import io.github.ghostwritertje.seedkeeper.groups.GroupsService.GroupsUnavailable;
 import io.github.ghostwritertje.seedkeeper.keep.OverrideChanges;
-import io.github.ghostwritertje.seedkeeper.keep.OverrideChanges.InvalidOverride;
 import io.github.ghostwritertje.seedkeeper.keep.OverridesException;
+import io.github.ghostwritertje.seedkeeper.keep.OverridesException.Problem;
 import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
@@ -128,12 +128,11 @@ class GroupsPage {
         try {
             overrides.add(hash == null ? List.of() : hash, note, OverrideChanges.date(until));
             return Response.seeOther(URI.create("/groups")).build();
-        } catch (InvalidOverride e) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(page(null, null, e.getMessage()))
-                    .build();
         } catch (OverridesException e) {
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+            // Adding never looks for an existing override, so NO_SUCH_OVERRIDE can't happen here.
+            Response.Status status =
+                    e.problem() == Problem.INVALID ? Response.Status.BAD_REQUEST : Response.Status.SERVICE_UNAVAILABLE;
+            return Response.status(status)
                     .entity(page(null, null, e.getMessage()))
                     .build();
         }

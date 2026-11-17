@@ -127,6 +127,7 @@ class OverrideStoreTest {
         Files.writeString(file, content);
 
         OverridesException reload = assertThrows(OverridesException.class, store::reload);
+        assertEquals(OverridesException.Problem.FILE, reload.problem());
         assertTrue(
                 reload.getMessage().startsWith("The overrides file " + file + " can't be read: "), reload.getMessage());
         assertTrue(reload.getMessage().contains(problem), reload.getMessage());

@@ -4,7 +4,6 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
-import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.Dependency;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaConstructor;
@@ -41,17 +40,14 @@ final class ModuleRules {
 
     private final String root;
     private final Set<String> domainModules;
-    private final Set<String> migratedModules;
 
     /**
      * @param root the root package
      * @param domainModules the modules rule 4 keeps free of Quarkus, Jakarta, JDBC and Jackson
-     * @param migratedModules the modules rules 2 and 3 apply to
      */
-    ModuleRules(String root, Set<String> domainModules, Set<String> migratedModules) {
+    ModuleRules(String root, Set<String> domainModules) {
         this.root = root;
         this.domainModules = domainModules;
-        this.migratedModules = migratedModules;
     }
 
     /** Rule 1: there are no dependency cycles between modules. */
@@ -64,13 +60,13 @@ final class ModuleRules {
     }
 
     /**
-     * Rule 2: a type of a migrated module may be used from another module only if it is {@link ModuleApi}, or a record
-     * or enum in the public signatures of one (or of such a record, in turn).
+     * Rule 2: a type of a module may be used from another module only if it is {@link ModuleApi}, or a record or enum
+     * in the public signatures of one (or of such a record, in turn).
      */
     ArchRule onlyApiAcrossModules() {
         return classes()
                 .that()
-                .resideInAnyPackage(packagesOf(migratedModules))
+                .resideInAPackage(root + ".*..")
                 .should(new ArchCondition<JavaClass>("be used from another module only when it is module API") {
                     @Override
                     public void check(JavaClass used, ConditionEvents events) {
@@ -93,15 +89,13 @@ final class ModuleRules {
                     }
                 })
                 .allowEmptyShould(true)
-                .as("Rule 2: other modules use only the module API of migrated modules " + sorted(migratedModules));
+                .as("Rule 2: other modules use only the module API of a module of " + root);
     }
 
-    /** Rule 3: a migrated module has at most {@value #API_BUDGET} module API types that aren't records or enums. */
+    /** Rule 3: a module has at most {@value #API_BUDGET} module API types that aren't records or enums. */
     ArchRule apiBudget() {
         return slices().matching(root + ".(*)..")
                 .namingSlices("module $1")
-                .that(DescribedPredicate.describe(
-                        "are migrated", (Slice slice) -> migratedModules.contains(slice.getNamePart(1))))
                 .should(new ArchCondition<Slice>("have at most " + API_BUDGET + " module API behaviour types") {
                     @Override
                     public void check(Slice slice, ConditionEvents events) {
@@ -121,7 +115,7 @@ final class ModuleRules {
                     }
                 })
                 .allowEmptyShould(true)
-                .as("Rule 3: migrated modules " + sorted(migratedModules) + " have at most " + API_BUDGET
+                .as("Rule 3: the modules of " + root + " have at most " + API_BUDGET
                         + " module API behaviour types each");
     }
 
@@ -201,14 +195,6 @@ final class ModuleRules {
             }
         }
         return types;
-    }
-
-    private String[] packagesOf(Set<String> modules) {
-        return modules.stream().map(module -> root + "." + module + "..").toArray(String[]::new);
-    }
-
-    private static List<String> sorted(Set<String> modules) {
-        return modules.stream().sorted().toList();
     }
 
     /** Rule 4: the domain modules don't depend on Quarkus, Jakarta (JAX-RS among it), JDBC or Jackson. */
