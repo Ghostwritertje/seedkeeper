@@ -16,6 +16,8 @@ import java.util.Optional;
  *                     end date
  * @param secondaryReasons every other reason that holds too, in the order of precedence
  * @param missingFiles how many wanted files of finished members resolve to nothing on disk
+ * @param crossSeedGroup the info hashes of every torrent of the group's cross-seed group, in snapshot order: the
+ *                     members, and also an unregistered torrent that split off from it
  */
 public record GroupVerdict(
         List<Member> members,
@@ -25,11 +27,35 @@ public record GroupVerdict(
         int files,
         Optional<Forecast> forecast,
         List<Reason> secondaryReasons,
-        int missingFiles) {
+        int missingFiles,
+        List<String> crossSeedGroup) {
 
     public GroupVerdict {
         members = List.copyOf(members);
         secondaryReasons = List.copyOf(secondaryReasons);
+        crossSeedGroup = List.copyOf(crossSeedGroup);
+    }
+
+    /** A verdict on a group that is its whole cross-seed group. */
+    public GroupVerdict(
+            List<Member> members,
+            Verdict verdict,
+            Reason reason,
+            int libraryLinks,
+            int files,
+            Optional<Forecast> forecast,
+            List<Reason> secondaryReasons,
+            int missingFiles) {
+        this(
+                members,
+                verdict,
+                reason,
+                libraryLinks,
+                files,
+                forecast,
+                secondaryReasons,
+                missingFiles,
+                members.stream().map(Member::hash).toList());
     }
 
     /** A verdict with no secondary reason and no file missing. */

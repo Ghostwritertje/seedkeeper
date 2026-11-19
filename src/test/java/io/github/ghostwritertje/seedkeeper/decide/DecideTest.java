@@ -863,6 +863,62 @@ class DecideTest {
                         .toList());
     }
 
+    /**
+     * A keep override matches a verdict group when it names a torrent of that verdict group's cross-seed group, so
+     * splitting off an unregistered torrent doesn't loosen it.
+     */
+    static Stream<Arguments> overridesOnASplitGroup() {
+        Case bridge = torrent().hash("u").wanted(SHARED, DOWNLOAD_ONLY);
+        Case c = torrent().hash("c").wanted(DOWNLOAD_ONLY);
+        return Stream.of(
+                argumentSet(
+                        "an override on the unregistered member keeps the rest of its cross-seed group",
+                        List.of(a().unregistered().seeded(400 * DAY), b().seeded(14 * DAY)),
+                        List.of(override(null, "a")),
+                        List.of(
+                                said(Verdict.REMOVE, Reason.UNREGISTERED, "a"),
+                                said(Verdict.KEEP, Reason.KEEP_OVERRIDE, "b"))),
+                argumentSet(
+                        "an override on the rest still never keeps the unregistered member",
+                        List.of(a().unregistered().seeded(400 * DAY), b().seeded(14 * DAY)),
+                        List.of(override(null, "b")),
+                        List.of(
+                                said(Verdict.REMOVE, Reason.UNREGISTERED, "a"),
+                                said(Verdict.KEEP, Reason.KEEP_OVERRIDE, "b"))),
+                argumentSet(
+                        "an override on one side keeps what only the unregistered member held to it",
+                        List.of(a().seeded(30 * DAY), bridge.unregistered(), c.seeded(14 * DAY)),
+                        List.of(override(null, "a")),
+                        List.of(
+                                said(Verdict.KEEP, Reason.KEEP_OVERRIDE, "a"),
+                                said(Verdict.REMOVE, Reason.UNREGISTERED, "u"),
+                                said(Verdict.KEEP, Reason.KEEP_OVERRIDE, "c"))),
+                argumentSet(
+                        "an override on another cross-seed group does not match",
+                        List.of(
+                                a().unregistered().seeded(400 * DAY),
+                                b().seeded(14 * DAY),
+                                torrent().hash("c").wanted(DOWNLOAD_ONLY)),
+                        List.of(override(null, "c")),
+                        List.of(
+                                said(Verdict.REMOVE, Reason.UNREGISTERED, "a"),
+                                said(Verdict.REMOVE, Reason.ALL_MET, "b"),
+                                said(Verdict.KEEP, Reason.KEEP_OVERRIDE, "c"))));
+    }
+
+    @ParameterizedTest
+    @MethodSource("overridesOnASplitGroup")
+    void aKeepOverrideMatchesTheWholeCrossSeedGroup(List<Case> members, List<KeepOverride> overrides, List<Said> said) {
+        List<GroupVerdict> verdicts = Decide.decide(snapshot(members), RULES, overrides, NOW);
+
+        assertEquals(
+                said,
+                verdicts.stream()
+                        .map(group -> new Said(
+                                group.members().stream().map(Member::hash).toList(), group.verdict(), group.reason()))
+                        .toList());
+    }
+
     @Test
     void theRestOfTheGroupIsForecastWithoutTheUnregisteredMember() {
         List<GroupVerdict> verdicts =
