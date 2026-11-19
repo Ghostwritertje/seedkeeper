@@ -152,12 +152,14 @@ overrides:
 | `until` | no | The end date, `yyyy-mm-dd`. The override still holds on that day, in `seedkeeper.time-zone`, and has expired the day after. Without it the override never ends. |
 | `created` | no | When it was set: an ISO 8601 date and time with an offset. |
 
-- An override **matches** every current group that has at least one of its hashes, and keeps the whole group.
+- An override **matches** every current group whose cross-seed group has at least one of its hashes, and keeps the
+  whole group. So when a torrent it names is unregistered and splits off into a group of its own (which is removed:
+  an override never keeps an unregistered torrent), the override still keeps the rest of its cross-seed group.
 - An **expired** override is past its end date; a **stale** one has no hash that is a torrent any more. Neither has
   any effect, and seedkeeper never deletes them: they stay, marked, until you delete them on the Overrides page
   or from the file.
-- Each [run](#runs-removing-and-deleting) adds to an override the hashes of the members its groups gained since (a
-  new cross-seed). Hashes are never removed, so an override survives the torrent it was set on.
+- Each [run](#runs-removing-and-deleting) adds to an override the hashes of the members the groups it matches gained
+  since (a new cross-seed), except those of a group the run removes. Hashes are never removed, so an override survives the torrent it was set on.
 - The file is read at the start of every run, and again whenever it changes: a hand edit shows on the pages without a
   restart. No file is the same as no overrides.
 - An override set in the UI gets a generated id (a UUID) and `created` set to now in `seedkeeper.time-zone`.

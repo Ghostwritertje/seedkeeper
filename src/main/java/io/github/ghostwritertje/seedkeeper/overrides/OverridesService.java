@@ -12,8 +12,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * The keep overrides and what each does right now; behind the Overrides view and the API. Changes go through
@@ -80,9 +78,9 @@ class OverridesService {
             throw new OverridesUnavailable(e.getMessage(), e);
         }
         LocalDate today = LocalDate.now(config.timeZone());
-        List<List<GroupVerdict.Member>> current;
+        List<GroupVerdict> current;
         try {
-            current = groups.groups().stream().map(GroupVerdict::members).toList();
+            current = groups.groups();
         } catch (GroupsUnavailable e) {
             Optional<String> reason = Optional.of(e.getMessage());
             return overrides.stream()
@@ -94,14 +92,12 @@ class OverridesService {
                         override,
                         override.expired(today),
                         current.stream()
-                                .filter(members -> override.matches(hashes(members)))
+                                // Matched through its cross-seed group, as the verdicts are.
+                                .filter(group -> override.matches(group.crossSeedGroup()))
+                                .map(GroupVerdict::members)
                                 .toList(),
                         Optional.empty()))
                 .toList();
-    }
-
-    private static Set<String> hashes(List<GroupVerdict.Member> members) {
-        return members.stream().map(GroupVerdict.Member::hash).collect(Collectors.toSet());
     }
 
     /** The overrides can't be listed right now. The message is the one reason, fit to show as it is. */

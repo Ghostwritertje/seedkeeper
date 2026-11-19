@@ -117,16 +117,31 @@ public class OverrideStore implements AutoCloseable {
     }
 
     /**
-     * Adds to every override the hashes of the groups it matches (spec §5, step 4): a group that gained a member
-     * since the override was set. Hashes are never removed. Writes only when a hash was added.
+     * A verdict group, as info hashes.
      *
-     * @param groups the info hashes of each current group
+     * @param members        the hashes of its members: what an override that matches it gets
+     * @param crossSeedGroup the hashes of the torrents of its cross-seed group: what an override matches
      */
-    public List<KeepOverride> grow(Collection<? extends Collection<String>> groups) {
+    public record Group(List<String> members, List<String> crossSeedGroup) {
+
+        public Group {
+            members = List.copyOf(members);
+            crossSeedGroup = List.copyOf(crossSeedGroup);
+        }
+    }
+
+    /**
+     * Adds to every override the hashes of the members of the groups it matches (spec §5, step 4): a group that
+     * gained a member since the override was set. An override matches a group when it names a torrent of the
+     * group's cross-seed group. Hashes are never removed. Writes only when a hash was added.
+     *
+     * @param groups each current verdict group that is to have its hashes added
+     */
+    public List<KeepOverride> grow(Collection<Group> groups) {
         return update(overrides -> overrides.stream()
                 .map(override -> override.withHashes(groups.stream()
-                        .filter(override::matches)
-                        .flatMap(Collection::stream)
+                        .filter(group -> override.matches(group.crossSeedGroup()))
+                        .flatMap(group -> group.members().stream())
                         .toList()))
                 .toList());
     }
