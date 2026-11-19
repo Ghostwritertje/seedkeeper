@@ -9,14 +9,14 @@ green, and every review thread resolved. The criteria and the paths are in `docs
 
 ## Considered options
 
-- **Merges to `main` count as reversible.** Merging doesn't release: releases come only from a `vX.Y.Z` tag
-  (`release.yml`). A bad change on `main` is reverted with another pull request before anyone runs it, so most code
-  changes are two-way doors, and their size, or the fact that behaviour changes, doesn't keep them for the
-  maintainer, who already approved the issue.
+- **Merges to `main` count as reversible.** Merging doesn't release: a release is started only by a person, with Run
+  workflow on `release.yml` or a pushed `vX.Y.Z` tag. A bad change on `main` is reverted with another pull request
+  before anyone runs it, so most code changes are two-way doors, and their size, or the fact that behaviour changes,
+  doesn't keep them for the maintainer, who already approved the issue.
 - **Removal behaviour is the exception.** A change to the Verdict or Removal behaviour, to which data a Removal
-  deletes, is reversible on `main` but not once released: a mistake deletes data for good. The tag doesn't protect
-  against that, because the maintainer doesn't re-review every merged change before tagging. So the reviewer keeps
-  it, with the other hard-to-revert changes (migrations, persisted formats, config keys users have set), for the
+  deletes, is reversible on `main` but not once released: a mistake deletes data for good. Starting a release doesn't
+  protect against that, because the maintainer doesn't re-review every merged change before releasing. So the reviewer
+  keeps it, with the other hard-to-revert changes (migrations, persisted formats, config keys users have set), for the
   maintainer.
 - **Human-only paths in the gate, not in the reviewer.** The reviewer reads issue and pull request text, which a
   prompt injection can steer, and an implementer pull request could loosen its own guardrails (the workflows, the

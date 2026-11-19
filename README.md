@@ -685,11 +685,18 @@ zizmor and hadolint, at pinned versions and offline, on the shell scripts, the w
 
 ## Releases
 
-Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml`: it sets the project version to `X.Y.Z` for that build,
-builds the native executable, runs the integration tests and publishes `ghcr.io/ghostwritertje/seedkeeper:X.Y.Z`.
-There is no `latest` tag; pin the version you want.
+A release runs entirely in GitHub Actions (`.github/workflows/release.yml`): it sets the project version to `X.Y.Z`
+for that build, builds the native executable, runs the integration tests, publishes
+`ghcr.io/ghostwritertje/seedkeeper:X.Y.Z`, and then creates the tag `vX.Y.Z` and its GitHub Release with generated
+notes. There is no `latest` tag; pin the version you want.
+
+Start one from the Actions tab (**Release** → **Run workflow** on `main`, with the version as `X.Y.Z`, no `v`), or:
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+gh workflow run release.yml -R Ghostwritertje/seedkeeper -f version=0.1.0
 ```
+
+That releases the head of `main`, and refuses when CI hasn't passed on that commit or the tag exists already.
+Pushing a tag `vX.Y.Z` (or creating a GitHub Release with a new tag) still works and releases that tag's commit.
+Either way a published `X.Y.Z` is never overwritten: a run refuses before it builds when the image is there already.
+When a run pushed the image and then failed, re-run only its failed jobs.
