@@ -132,6 +132,40 @@ class OverridesTest {
                 .body("html.body.main.table.tbody.tr[0].td[9]", is("until 2999-12-31"));
     }
 
+    /**
+     * {@code Kept}, which the override names, is unregistered and splits off; the override still matches its
+     * cross-seed, which it doesn't name, and keeps it.
+     */
+    @Test
+    void anOverrideStillMatchesTheCrossSeedOfAnUnregisteredTorrent() {
+        FakeTransmissionResource.fake()
+                .torrents("["
+                        + String.join(
+                                ",",
+                                torrent("0a0a16", "Kept", "Kept/movie.mkv")
+                                        .replace(
+                                                "\"error\": 0, \"error_string\": \"\"",
+                                                "\"error\": 2, \"error_string\": \"Unregistered torrent\""),
+                                torrent("0b0b16", "Kept.Elsewhere", "Kept.Elsewhere/movie.mkv"))
+                        + "]");
+
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/groups")
+                .then()
+                .statusCode(200)
+                .body("reason", contains("unregistered", "keep-override"))
+                .body("verdict", contains("remove", "keep"));
+        Authenticated.withApiKey()
+                .when()
+                .get("/api/v1/overrides")
+                .then()
+                .statusCode(200)
+                .body("[0].groups.size()", is(2))
+                .body("[0].groups[0].name", contains("Kept"))
+                .body("[0].groups[1].name", contains("Kept.Elsewhere"));
+    }
+
     @Test
     void anExpiredAndStaleOverrideIsMarkedBoth() throws Exception {
         edit("overrides:\n  - id: both\n    hashes: [0d0d16]\n    until: 2020-01-01\n");

@@ -69,12 +69,39 @@ public final class Decide {
         // partitioningBy always holds both keys.
         Snapshot rest = new Snapshot(Objects.requireNonNull(byRule1.get(false)), snapshot.library());
 
+        // The cross-seed group of every torrent, as the info hashes of its torrents: what a keep override matches.
+        IdentityHashMap<SnapshotTorrent, List<String>> crossSeedGroups = new IdentityHashMap<>();
+        for (List<SnapshotTorrent> group : snapshot.groups()) {
+            List<String> hashes =
+                    group.stream().map(member -> member.torrent().hash()).toList();
+            group.forEach(member -> crossSeedGroups.put(member, hashes));
+        }
+
         Map<Integer, GroupVerdict> verdicts = new TreeMap<>();
         for (SnapshotTorrent alone : Objects.requireNonNull(byRule1.get(true))) {
-            verdicts.put(position.get(alone), decide(List.of(alone), true, snapshot, trackers, overrides, now));
+            verdicts.put(
+                    position.get(alone),
+                    decide(
+                            List.of(alone),
+                            true,
+                            Objects.requireNonNull(crossSeedGroups.get(alone)),
+                            snapshot,
+                            trackers,
+                            overrides,
+                            now));
         }
         for (List<SnapshotTorrent> group : rest.groups()) {
-            verdicts.put(position.get(group.getFirst()), decide(group, false, snapshot, trackers, overrides, now));
+            SnapshotTorrent first = group.getFirst();
+            verdicts.put(
+                    position.get(first),
+                    decide(
+                            group,
+                            false,
+                            Objects.requireNonNull(crossSeedGroups.get(first)),
+                            snapshot,
+                            trackers,
+                            overrides,
+                            now));
         }
         return List.copyOf(verdicts.values());
     }
@@ -97,11 +124,13 @@ public final class Decide {
     }
 
     /**
-     * @param unregistered true when the group is one unregistered torrent that left its group
+     * @param unregistered   true when the group is one unregistered torrent that left its group
+     * @param crossSeedGroup the info hashes of the torrents of the group's cross-seed group
      */
     private static GroupVerdict decide(
             List<SnapshotTorrent> group,
             boolean unregistered,
+            List<String> crossSeedGroup,
             Snapshot snapshot,
             TrackerRules trackers,
             List<KeepOverride> overrides,
@@ -146,10 +175,9 @@ public final class Decide {
         if (group.stream().anyMatch(member -> !member.torrent().finished())) {
             holding.add(Reason.NOT_FINISHED);
         }
-        // The overrides that keep this group: they match it and have not expired.
-        Set<String> hashes = members.stream().map(Member::hash).collect(Collectors.toSet());
+        // The overrides that keep this group: they name a torrent of its cross-seed group and have not expired.
         List<KeepOverride> keeping = overrides.stream()
-                .filter(override -> override.matches(hashes) && !override.expired(now.toLocalDate()))
+                .filter(override -> override.matches(crossSeedGroup) && !override.expired(now.toLocalDate()))
                 .toList();
         if (!keeping.isEmpty()) {
             holding.add(Reason.KEEP_OVERRIDE);
@@ -177,7 +205,8 @@ public final class Decide {
                 files.size(),
                 forecast,
                 holding.stream().filter(held -> held != reason).toList(),
-                missingFiles);
+                missingFiles,
+                crossSeedGroup);
     }
 
     /** The date the overrides keep the group until: the latest end date; empty when one of them never ends. */

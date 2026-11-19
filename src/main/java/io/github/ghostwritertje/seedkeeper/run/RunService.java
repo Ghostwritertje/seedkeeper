@@ -92,15 +92,15 @@ public class RunService {
     }
 
     /**
-     * Spec §5, step 4: every override gets the hashes of the new members of the groups it matches. The groups a run
-     * decided to remove are left out: they are gone, or will be. A file that can't be read or written now doesn't
-     * fail the run, which is done; the next run adds the hashes.
+     * Spec §5, step 4: every override gets the hashes of the new members of the groups it matches, which it matches
+     * through their cross-seed group. The groups a run decided to remove are left out: they are gone, or will be. A
+     * file that can't be read or written now doesn't fail the run, which is done; the next run adds the hashes.
      */
     private void growOverrides(RunOutcome outcome) {
-        List<List<String>> groups = outcome.verdicts().stream()
+        List<OverrideStore.Group> groups = outcome.verdicts().stream()
                 .filter(group -> group.verdict() != Verdict.REMOVE)
-                .map(group ->
-                        group.members().stream().map(GroupVerdict.Member::hash).toList())
+                .map(group -> new OverrideStore.Group(
+                        group.members().stream().map(GroupVerdict.Member::hash).toList(), group.crossSeedGroup()))
                 .toList();
         try {
             overrides.grow(groups);

@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.ghostwritertje.seedkeeper.decide.Reason;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
+import io.github.ghostwritertje.seedkeeper.decide.Verdict;
 import io.github.ghostwritertje.seedkeeper.keep.KeepOverride;
 import io.github.ghostwritertje.seedkeeper.keep.OverrideStore;
 import io.github.ghostwritertje.seedkeeper.run.RunOutcome.Status;
@@ -156,6 +158,42 @@ class RunServiceTest {
                 new OverrideStore(overridesFile()).overrides().getFirst().hashes());
     }
 
+    /**
+     * The override was set on {@code original}; {@code cross-seed} joined before a run added its hash, and then the
+     * tracker deleted {@code original}. The override matches {@code cross-seed} through the cross-seed group, so
+     * keeps it and gets its hash, while {@code original} is removed.
+     */
+    @Test
+    void anOverrideOnAnUnregisteredTorrentKeepsAndGetsTheRestOfItsCrossSeedGroup() throws IOException {
+        Path original = Files.createDirectories(root.resolve("Original")).resolve("movie.mkv");
+        Files.writeString(original, "data");
+        Files.createSymbolicLink(
+                Files.createDirectories(root.resolve("cross-seed")).resolve("movie.mkv"), original);
+        transmission.add(
+                publicTorrent("original", "Original/movie.mkv", "Unregistered torrent"),
+                publicTorrent("cross-seed", "cross-seed/movie.mkv", ""));
+        Files.writeString(overridesFile(), "overrides:\n  - id: one\n    hashes: [original]\n");
+        TrackerRules trackers = new TrackerRules(List.of(), Duration.ofDays(30), Optional.of(Duration.ofDays(1)));
+
+        RunOutcome outcome = service(trackers).run().orElseThrow();
+
+        assertEquals(Status.SUCCEEDED, outcome.status());
+        assertEquals(
+                List.of(
+                        List.of("original", Verdict.REMOVE.name(), Reason.UNREGISTERED.name()),
+                        List.of("cross-seed", Verdict.KEEP.name(), Reason.KEEP_OVERRIDE.name())),
+                outcome.verdicts().stream()
+                        .map(group -> List.of(
+                                group.members().getFirst().hash(),
+                                group.verdict().name(),
+                                group.reason().name()))
+                        .toList());
+        assertEquals(List.of("original"), transmission.removed());
+        assertEquals(
+                List.of("original", "cross-seed"),
+                new OverrideStore(overridesFile()).overrides().getFirst().hashes());
+    }
+
     private Path overridesFile() {
         return root.resolve("overrides.yaml");
     }
@@ -176,8 +214,27 @@ class RunServiceTest {
                 List.of(new Torrent.File(file, 4, true)));
     }
 
+    /** A public torrent in the root that has seeded for a year, with what its tracker says. */
+    private Torrent publicTorrent(String hash, String file, String trackerMessage) {
+        return new Torrent(
+                hash,
+                hash,
+                Torrent.Status.SEEDING,
+                1,
+                trackerMessage.isEmpty() ? 0 : 2,
+                trackerMessage,
+                Duration.ofDays(365).toSeconds(),
+                false,
+                root.toString(),
+                List.of("https://elsewhere.example/announce"),
+                List.of(new Torrent.File(file, 4, true)));
+    }
+
     private RunService service() {
-        TrackerRules trackers = new TrackerRules(List.of(), Duration.ofDays(30), Optional.empty());
+        return service(new TrackerRules(List.of(), Duration.ofDays(30), Optional.empty()));
+    }
+
+    private RunService service(TrackerRules trackers) {
         OverrideStore overrides = new OverrideStore(overridesFile());
         return new RunService(
                 new Run(transmission, trackers, root, List.of(), ZoneOffset.UTC, overrides),
