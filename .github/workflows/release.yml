@@ -1,16 +1,27 @@
 name: Release
 
+# Two ways to release X.Y.Z, both entirely in GitHub Actions:
+# - Actions → Release → Run workflow on main, with the version (or `gh workflow run release.yml -f version=X.Y.Z`).
+#   It releases the head of main, once CI has passed on that commit, and creates the tag vX.Y.Z itself.
+# - Push a tag vX.Y.Z (or create a GitHub Release with a new tag, which pushes it).
+# Either way the image is published first; the tag and the GitHub Release come after, so a release page never names
+# an image that isn't there.
 on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, X.Y.Z (the tag will be vX.Y.Z)'
+        required: true
+        type: string
 
-permissions:
-  contents: read
-  packages: write
+permissions: {}
 
+# One release at a time, whichever way it was started; never cancelled halfway through a push.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}
   cancel-in-progress: false
 
 env:
@@ -21,20 +32,44 @@ jobs:
     name: Build and publish the image
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+      # Reads the CI runs of the commit a release by hand takes.
+      actions: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Take the version from the tag
+      - name: Take the version from the tag or the input
         id: version
         env:
-          TAG: ${{ github.ref_name }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Tag '$TAG' is not vX.Y.Z" >&2
+          version="$(.github/scripts/release-version.sh "$EVENT" "$REF" "$INPUT_VERSION")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Check the tag is new and CI passed on this commit
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          tag="v$VERSION"
+          existing="$(gh api "repos/$REPO/git/matching-refs/tags/$tag" --jq "map(select(.ref == \"refs/tags/$tag\")) | length")"
+          if [ "$existing" != "0" ]; then
+            echo "The tag $tag exists already: pick a new version" >&2
             exit 1
           fi
-          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          passed="$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&event=push&status=success" --jq '.total_count')"
+          if [ "$passed" = "0" ]; then
+            echo "CI has not passed on $GITHUB_SHA (the head of main) yet: wait for it, then run this again" >&2
+            exit 1
+          fi
       # No Maven cache: a published image is built only from what Maven Central serves, never from a cache
       # another workflow run could have written.
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
@@ -72,3 +107,28 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: docker push "${IMAGE}:${VERSION}"
+
+  github-release:
+    name: Tag and GitHub Release
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # The only job that can write to the repo, and it runs no build: it creates the tag and the release page.
+    permissions:
+      contents: write
+    steps:
+      # A tag created with this job's token starts no other workflow, so this run doesn't start itself again. When the
+      # release was started by creating a GitHub Release, the page is there already and is left as it is.
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          tag="v$VERSION"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "The GitHub Release $tag exists already"
+            exit 0
+          fi
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --generate-notes \
+            --notes "Image: \`${IMAGE}:${VERSION}\`"
