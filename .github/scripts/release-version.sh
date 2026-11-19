@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Prints the version a run of release.yml publishes, as X.Y.Z, or fails with the reason. A pushed tag `vX.Y.Z` is
 # released as X.Y.Z. A run started by hand (workflow_dispatch) must run on main and is given the version as input,
-# with or without the leading `v`. No network access of its own.
+# as X.Y.Z without a `v`, so that it names the same concurrency group as the tag vX.Y.Z. No network access of its own.
 # Usage: release-version.sh <event name> <ref name> [<version input>]
 set -euo pipefail
 
@@ -21,9 +21,9 @@ case "$event" in
       echo "A release is started from main, not from '$ref'" >&2
       exit 1
     fi
-    version="${input#v}"
+    version="$input"
     if [[ ! "$version" =~ $semver ]]; then
-      echo "Version '$input' is not X.Y.Z" >&2
+      echo "Version '$input' is not X.Y.Z (no leading v)" >&2
       exit 1
     fi
     ;;
