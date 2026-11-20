@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
 import io.github.ghostwritertje.seedkeeper.ScrollRegions;
@@ -23,6 +24,14 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
@@ -38,6 +47,9 @@ import org.junit.jupiter.api.Test;
 class GroupsTest {
 
     private static final long DAY = 86_400;
+
+    /** The passkey a private tracker puts in the path or the query of an announce URL. */
+    private static final String PASSKEY = "0f3c9a1e7b5d24c68e1a9f0b3d7c5e2a";
 
     @BeforeEach
     void torrents() throws IOException {
@@ -200,6 +212,18 @@ class GroupsTest {
                                 "tracker-b",
                                 "tracker-a"))
                 .body(
+                        "members.flatten().announceHosts",
+                        contains(
+                                List.of("tracker-a.example"),
+                                List.of("tracker-b.example.org"),
+                                List.of("tracker-b.example"),
+                                List.of("elsewhere.example"),
+                                List.of("tracker-a.example"),
+                                List.of("open.example"),
+                                List.of("tracker-a.example"),
+                                List.of("tracker-b.example"),
+                                List.of("tracker-a.example")))
+                .body(
                         "members.flatten().status",
                         contains(
                                 "seeding",
@@ -350,7 +374,7 @@ class GroupsTest {
                         cells(3),
                         contains(
                                 "Unknown.Tracker",
-                                "unmanaged",
+                                "unmanaged (elsewhere.example)",
                                 "400d",
                                 "Seeding",
                                 "",
@@ -424,6 +448,80 @@ class GroupsTest {
     }
 
     @Test
+    void anUnmanagedTorrentShowsItsAnnounceHostsButNeverItsPasskey() {
+        FakeTransmissionResource.fake()
+                .torrents("["
+                        + String.join(
+                                ",",
+                                torrent(
+                                        "aaaa",
+                                        "Two.Hosts",
+                                        6,
+                                        1,
+                                        DAY,
+                                        true,
+                                        List.of(
+                                                "https://Elsewhere.example/" + PASSKEY + "/announce",
+                                                "https://tracker-a.example/announce?passkey=" + PASSKEY,
+                                                "https://elsewhere.example/" + PASSKEY + "/announce"),
+                                        "Unknown.Tracker/movie.mkv:true"),
+                                torrent(
+                                        "bbbb",
+                                        "No.Trackers",
+                                        6,
+                                        1,
+                                        DAY,
+                                        true,
+                                        List.of(),
+                                        "Fresh.Movie/movie.mkv:true"))
+                        + "]");
+        List<String> logged = new ArrayList<>();
+        Handler handler = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                logged.add(String.valueOf(record.getMessage()) + " " + Arrays.toString(record.getParameters()));
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        handler.setLevel(Level.ALL);
+        Logger root = Logger.getLogger("");
+        root.addHandler(handler);
+        try {
+            String page = Authenticated.asUser()
+                    .when()
+                    .get("/groups")
+                    .then()
+                    .statusCode(200)
+                    .body(trackerCell(0), is("unmanaged (elsewhere.example, tracker-a.example)"))
+                    .body(trackerCell(1), is("unmanaged (no trackers)"))
+                    .extract()
+                    .asString();
+            String api = Authenticated.withApiKey()
+                    .when()
+                    .get("/api/v1/groups")
+                    .then()
+                    .statusCode(200)
+                    .body("members.flatten().tracker", contains(nullValue(), nullValue()))
+                    .body(
+                            "members.flatten().announceHosts",
+                            contains(List.of("elsewhere.example", "tracker-a.example"), List.of()))
+                    .extract()
+                    .asString();
+
+            assertFalse(page.contains(PASSKEY), "the page shows the passkey");
+            assertFalse(api.contains(PASSKEY), "the API gives the passkey");
+            assertFalse(logged.stream().anyMatch(line -> line.contains(PASSKEY)), "the log has the passkey");
+        } finally {
+            root.removeHandler(handler);
+        }
+    }
+
+    @Test
     void pageGivesTheReasonWhenTransmissionCannotBeUsed() {
         FakeTransmissionResource.fake().behaviour(Behaviour.RPC_ERROR);
 
@@ -467,6 +565,22 @@ class GroupsTest {
             boolean isPrivate,
             String announce,
             String... files) {
+        return torrent(hash, name, status, percentDone, secondsSeeding, isPrivate, List.of(announce), files);
+    }
+
+    /** One torrent with any number of announce URLs, none included. */
+    private static String torrent(
+            String hash,
+            String name,
+            int status,
+            double percentDone,
+            long secondsSeeding,
+            boolean isPrivate,
+            List<String> announces,
+            String... files) {
+        String trackers = announces.stream()
+                .map(announce -> "{\"announce\": \"" + announce + "\"}")
+                .collect(Collectors.joining(","));
         StringBuilder fileList = new StringBuilder();
         StringBuilder fileStats = new StringBuilder();
         for (String file : files) {
@@ -484,7 +598,7 @@ class GroupsTest {
         return """
                 {"hash_string": "%s", "name": "%s", "status": %d, "percent_done": %s, "error": 0, "error_string": "",
                  "seconds_seeding": %d, "is_private": %s, "download_dir": "%s",
-                 "trackers": [{"announce": "%s"}], "files": [%s], "file_stats": [%s]}
+                 "trackers": [%s], "files": [%s], "file_stats": [%s]}
                 """.formatted(
                         hash,
                         name,
@@ -493,12 +607,17 @@ class GroupsTest {
                         secondsSeeding,
                         isPrivate,
                         FakeTransmissionResource.downloads(),
-                        announce,
+                        trackers,
                         fileList,
                         fileStats);
     }
 
     /** The text of every cell of a row of the table, up to the form that sets a keep override. */
+    /** The Tracker cell of a row of the table. */
+    private static String trackerCell(int row) {
+        return "html.body.main.div.table.tbody.tr[" + row + "].td[1].text()";
+    }
+
     private static String cells(int row) {
         return "html.body.main.div.table.tbody.tr[" + row + "].td.take(10).collect { it.text() }";
     }
