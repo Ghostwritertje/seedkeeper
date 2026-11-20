@@ -118,7 +118,10 @@ class SystemTest {
                 .then()
                 .statusCode(200)
                 .body(RUNS + ".dl.dt[-1]", is("Next run"))
-                .body(RUNS + ".dl.dd[-1]", matchesPattern("\\d{4}-01-01 06:00:00"));
+                .body(RUNS + ".dl.dd[-1].time", matchesPattern("\\d{4}-01-01 06:00:00"))
+                .body(RUNS + ".dl.dd[-1].time.@datetime", matchesPattern("\\d{4}-01-01T06:00:00\\+05:30"))
+                .body(RUNS + ".dl.dd[-1].time.@title", matchesPattern("\\d{4}-01-01 06:00:00 Asia/Kolkata"))
+                .body(RUNS + ".dl.dd[-1].span", matchesPattern("in \\d+d( \\d+h)?"));
     }
 
     @Test

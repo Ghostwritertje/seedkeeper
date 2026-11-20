@@ -13,9 +13,9 @@
 {#if lastRun}
 <dd data-tone="{#if status.lastRun.succeeded}ok{#else}danger{/if}">{#if status.lastRun.succeeded}Succeeded{#else}Failed{/if}</dd>
 <dt>Started</dt>
-<dd>{lastRun.started}</dd>
-<dt>Ended</dt>
-<dd>{lastRun.ended}</dd>
+<dd>{#moment lastRun.started /}</dd>
+<dt>Took</dt>
+<dd>{lastRun.took}</dd>
 <dt>Removed</dt>
 <dd>{lastRun.removed}</dd>
 <dt>Files deleted</dt>
@@ -26,8 +26,9 @@
 <dd>None yet</dd>
 {/if}
 <dt>Next run</dt>
-<dd>{nextRun ?: 'Not scheduled'}</dd>
+<dd>{#if nextRun}{#moment nextRun /}{#else}Not scheduled{/if}</dd>
 </dl>
+<p id="time-zone">Times are in {timeZone}.</p>
 {#if lastRun}
 {#if status.lastRun.error}
 <p role="alert">{status.lastRun.error}</p>
