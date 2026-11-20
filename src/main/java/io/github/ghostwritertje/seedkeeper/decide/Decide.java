@@ -150,7 +150,7 @@ public final class Decide {
 
         // An unfinished member is never missing data: its files may not exist yet.
         int missingFiles = (int) group.stream()
-                .filter(member -> member.torrent().finished())
+                .filter(Decide::missing)
                 .flatMap(member -> member.wantedFiles().stream())
                 .filter(file -> file.id().isEmpty())
                 .count();
@@ -162,18 +162,8 @@ public final class Decide {
         if (unregistered || group.stream().anyMatch(member -> unregistered(member.torrent()))) {
             holding.add(Reason.UNREGISTERED);
         }
-        if (members.stream().anyMatch(member -> member.tracker().isEmpty())) {
-            holding.add(Reason.UNMANAGED);
-        }
-        if (missingFiles > 0) {
-            holding.add(Reason.MISSING_DATA);
-        }
-        if (group.stream().anyMatch(member -> member.torrent().error() == LOCAL_ERROR)) {
-            holding.add(Reason.LOCAL_ERROR);
-        }
-        if (group.stream().anyMatch(member -> verifying(member.torrent()))) {
-            holding.add(Reason.VERIFYING);
-        }
+        // Unmanaged, missing data, a local error and verifying hold when a member causes them.
+        members.forEach(member -> holding.addAll(member.causes()));
         if (group.stream().anyMatch(member -> !member.torrent().finished())) {
             holding.add(Reason.NOT_FINISHED);
         }
@@ -244,7 +234,10 @@ public final class Decide {
                 causes(member, tracker));
     }
 
-    /** The reasons this member makes hold for its group, by the same rules as {@link #decide}, in their order. */
+    /**
+     * The reasons this member makes hold for its group, in their order: the only rules for unmanaged, missing data, a
+     * local error and verifying, which {@link #decide} builds the group's reasons from.
+     */
     private static List<Reason> causes(SnapshotTorrent member, Optional<Tracker> tracker) {
         Torrent torrent = member.torrent();
         List<Reason> causes = new ArrayList<>();
