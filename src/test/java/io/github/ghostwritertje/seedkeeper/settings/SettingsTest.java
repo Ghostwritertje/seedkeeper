@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
+import io.github.ghostwritertje.seedkeeper.ScrollRegions;
 import io.github.ghostwritertje.seedkeeper.TestSecrets;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmission;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmissionResource;
@@ -60,16 +61,17 @@ class SettingsTest {
                 .statusCode(200)
                 .body(section("trackers") + ".dl.dt", is("Default minimum seed time"))
                 .body(section("trackers") + ".dl.dd", is("30d"))
-                .body(section("trackers") + ".table.thead.tr.th", contains("Tracker", "Hosts", "Minimum seed time"))
-                .body(section("trackers") + ".table.tbody.tr.size()", is(3))
+                .body(ScrollRegions.TABLE_PARENTS, ScrollRegions.regions("Trackers"))
+                .body(section("trackers") + ".div.table.thead.tr.th", contains("Tracker", "Hosts", "Minimum seed time"))
+                .body(section("trackers") + ".div.table.tbody.tr.size()", is(3))
                 .body(
-                        section("trackers") + ".table.tbody.tr[0].td",
+                        section("trackers") + ".div.table.tbody.tr[0].td",
                         contains("tracker-a", "tracker-a.example", "30d (default)"))
                 .body(
-                        section("trackers") + ".table.tbody.tr[1].td",
+                        section("trackers") + ".div.table.tbody.tr[1].td",
                         contains("tracker-b", "tracker-b.example, tracker-b.example.org", "14d"))
                 .body(
-                        section("trackers") + ".table.tbody.tr[2].td",
+                        section("trackers") + ".div.table.tbody.tr[2].td",
                         contains("public", "Every torrent that is not private", "1d"));
     }
 

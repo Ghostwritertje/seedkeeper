@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
+import io.github.ghostwritertje.seedkeeper.ScrollRegions;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmission.Behaviour;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmissionResource;
 import io.quarkus.test.common.WithTestResource;
@@ -118,10 +119,10 @@ class OrphansTest {
                 .get("/orphans")
                 .then()
                 .statusCode(200)
-                .body(files + ".table.thead.tr.th", contains("Path", "Size", "Age", "Library link"))
-                .body(files + ".table.tbody.tr[0].td[3]", is("Yes"))
-                .body(files + ".table.tbody.tr[1].td[3]", is(""))
-                .body(files + ".table.tfoot.tr.td[0]", is("512 B"));
+                .body(files + ".div.table.thead.tr.th", contains("Path", "Size", "Age", "Library link"))
+                .body(files + ".div.table.tbody.tr[0].td[3]", is("Yes"))
+                .body(files + ".div.table.tbody.tr[1].td[3]", is(""))
+                .body(files + ".div.table.tfoot.tr.td[0]", is("512 B"));
     }
 
     @Test
@@ -165,27 +166,28 @@ class OrphansTest {
                 .statusCode(200)
                 .contentType(containsString("text/html"))
                 .body("html.head.title", is("Orphans · seedkeeper"))
+                .body(ScrollRegions.TABLE_PARENTS, ScrollRegions.regions("Orphan files", "Dangling symlinks"))
                 .body(files + ".h2", is("Files"))
-                .body(files + ".table.thead.tr.th", contains("Path", "Size", "Age", "Library link"))
-                .body(files + ".table.tbody.tr.size()", is(2))
+                .body(files + ".div.table.thead.tr.th", contains("Path", "Size", "Age", "Library link"))
+                .body(files + ".div.table.tbody.tr.size()", is(2))
                 .body(
-                        files + ".table.tbody.tr[0].td[0]",
+                        files + ".div.table.tbody.tr[0].td[0]",
                         is(downloads.resolve("Removed/movie.mkv").toString()))
-                .body(files + ".table.tbody.tr[0].td[1]", is("1.5 KiB"))
+                .body(files + ".div.table.tbody.tr[0].td[1]", is("1.5 KiB"))
                 .body(
-                        files + ".table.tbody.tr[1].td[0]",
+                        files + ".div.table.tbody.tr[1].td[0]",
                         is(downloads.resolve("leftover.nfo").toString()))
-                .body(files + ".table.tbody.tr[1].td[1]", is("512 B"))
-                .body(files + ".table.tbody.tr[1].td[2]", is("3d 2h"))
-                .body(files + ".table.tbody.tr[1].td[3]", is(""))
-                .body(files + ".table.tfoot.tr.th", is("Total of 2 files"))
-                .body(files + ".table.tfoot.tr.td[0]", is("2.0 KiB"))
+                .body(files + ".div.table.tbody.tr[1].td[1]", is("512 B"))
+                .body(files + ".div.table.tbody.tr[1].td[2]", is("3d 2h"))
+                .body(files + ".div.table.tbody.tr[1].td[3]", is(""))
+                .body(files + ".div.table.tfoot.tr.th", is("Total of 2 files"))
+                .body(files + ".div.table.tfoot.tr.td[0]", is("2.0 KiB"))
                 .body(symlinks + ".h2", is("Dangling symlinks"))
-                .body(symlinks + ".table.tbody.tr.size()", is(1))
+                .body(symlinks + ".div.table.tbody.tr.size()", is(1))
                 .body(
-                        symlinks + ".table.tbody.tr[0].td[0]",
+                        symlinks + ".div.table.tbody.tr[0].td[0]",
                         is(downloads.resolve("cross-seed/movie.mkv").toString()))
-                .body(symlinks + ".table.tfoot.tr.th", is("Total of 1 dangling symlink"));
+                .body(symlinks + ".div.table.tfoot.tr.th", is("Total of 1 dangling symlink"));
     }
 
     @Test

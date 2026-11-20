@@ -46,6 +46,7 @@
 {#if settings.trackers.isEmpty}
 <p>No trackers: every torrent is unmanaged.</p>
 {#else}
+<div role="region" aria-label="Trackers" tabindex="0">
 <table>
 <thead>
 <tr><th>Tracker</th><th>Hosts</th><th>Minimum seed time</th></tr>
@@ -56,6 +57,7 @@
 {/for}
 </tbody>
 </table>
+</div>
 {/if}
 {#if !settings.hasPublicTracker}
 <p>No <code>public</code> entry: torrents that are not private and belong to no single tracker are unmanaged.</p>

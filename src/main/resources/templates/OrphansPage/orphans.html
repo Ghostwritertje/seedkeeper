@@ -13,6 +13,7 @@
 {#if files.rows.isEmpty}
 <p>No file is an orphan.</p>
 {#else}
+<div role="region" aria-label="Orphan files" tabindex="0">
 <table>
 <thead>
 <tr><th>Path</th><th>Size</th><th>Age</th><th>Library link</th></tr>
@@ -26,6 +27,7 @@
 <tr><th>{files.total}</th><td>{files.totalSize}</td><td></td><td></td></tr>
 </tfoot>
 </table>
+</div>
 {/if}
 </section>
 <section id="dangling-symlinks">
@@ -33,6 +35,7 @@
 {#if danglingSymlinks.rows.isEmpty}
 <p>No dangling symlink is an orphan.</p>
 {#else}
+<div role="region" aria-label="Dangling symlinks" tabindex="0">
 <table>
 <thead>
 <tr><th>Path</th><th>Size</th><th>Age</th></tr>
@@ -46,6 +49,7 @@
 <tr><th>{danglingSymlinks.total}</th><td>{danglingSymlinks.totalSize}</td><td></td></tr>
 </tfoot>
 </table>
+</div>
 {/if}
 </section>
 {/if}
