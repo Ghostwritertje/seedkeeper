@@ -233,7 +233,8 @@ class ManageOverridesTest {
     void theOverridesViewSaysNothingIsDoneWithoutAKnownChange() {
         Session user = Session.login();
 
-        for (String path : List.of("/overrides", "/overrides?done=", "/overrides?done=kept", "/overrides?done=%3Cscript%3E")) {
+        for (String path :
+                List.of("/overrides", "/overrides?done=", "/overrides?done=kept", "/overrides?done=%3Cscript%3E")) {
             Response page = user.page(path);
             page.then().statusCode(200).body(DONE_COUNT, is(0));
             assertFalse(page.asString().contains("<script>"), path);
