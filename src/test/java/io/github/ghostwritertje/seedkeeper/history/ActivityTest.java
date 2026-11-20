@@ -12,6 +12,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
+import io.github.ghostwritertje.seedkeeper.ScrollRegions;
 import io.github.ghostwritertje.seedkeeper.TestSecrets;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmissionResource;
 import io.quarkus.test.common.WithTestResource;
@@ -256,15 +257,19 @@ class ActivityTest {
                 .body(NEWEST_RUN + ".dl.dd[3]", is("2"))
                 .body(NEWEST_RUN + ".dl.dd[4]", is("4 B"))
                 .body(
-                        NEWEST_RUN + ".table.thead.tr.th.collect { it.text() }",
+                        ScrollRegions.tableParents(NEWEST_RUN),
+                        matchesPattern("div\\|region\\|0\\|Removals of the run of \\d{4}-\\d\\d-\\d\\d"
+                                + " \\d\\d:\\d\\d:\\d\\d"))
+                .body(
+                        NEWEST_RUN + ".div.table.thead.tr.th.collect { it.text() }",
                         contains("Removed", "Reason", "Files deleted", "Space freed", "Error"))
                 .body(
-                        NEWEST_RUN + ".table.tbody.tr[0].td[0].ul.li.collect { it.text() }",
+                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.collect { it.text() }",
                         contains("Activity.Due (tracker-a)", "Activity.Due.cross-seed (tracker-a)"))
-                .body(NEWEST_RUN + ".table.tbody.tr[0].td[1]", is("All met"))
-                .body(NEWEST_RUN + ".table.tbody.tr[0].td[2]", is("2"))
-                .body(NEWEST_RUN + ".table.tbody.tr[0].td[3]", is("4 B"))
-                .body(NEWEST_RUN + ".table.tbody.tr[0].td[4]", is(""));
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[1]", is("All met"))
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[2]", is("2"))
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3]", is("4 B"))
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[4]", is(""));
     }
 
     @Test
@@ -279,10 +284,10 @@ class ActivityTest {
                 .statusCode(200)
                 .body(NEWEST_RUN + ".dl.dd[2]", is("1 torrent in 0 groups"))
                 .body(
-                        NEWEST_RUN + ".table.tbody.tr[0].td[0].ul.li.collect { it.text() }",
+                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.collect { it.text() }",
                         contains("Activity.Due (tracker-a)", "Activity.Due.cross-seed (tracker-a, not removed)"))
                 .body(
-                        NEWEST_RUN + ".table.tbody.tr[0].td[4]",
+                        NEWEST_RUN + ".div.table.tbody.tr[0].td[4]",
                         matchesPattern("Transmission at .+ refused torrent_remove: torrent is busy\\. No files were"
                                 + " deleted\\."));
 

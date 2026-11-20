@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
+import io.github.ghostwritertje.seedkeeper.ScrollRegions;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmission.Behaviour;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmissionResource;
 import io.quarkus.test.common.WithTestResource;
@@ -127,9 +128,9 @@ class OverridesTest {
                 .get("/groups")
                 .then()
                 .statusCode(200)
-                .body("html.body.main.table.tbody.tr[0].td[6]", is("Keep"))
-                .body("html.body.main.table.tbody.tr[0].td[7]", is("Keep override"))
-                .body("html.body.main.table.tbody.tr[0].td[9]", is("until 2999-12-31"));
+                .body("html.body.main.div.table.tbody.tr[0].td[6]", is("Keep"))
+                .body("html.body.main.div.table.tbody.tr[0].td[7]", is("Keep override"))
+                .body("html.body.main.div.table.tbody.tr[0].td[9]", is("until 2999-12-31"));
     }
 
     /**
@@ -182,7 +183,7 @@ class OverridesTest {
                 .when()
                 .get("/overrides")
                 .then()
-                .body("html.body.main.table.tbody.tr[0].td[0]", is("Expired, stale"));
+                .body("html.body.main.div.table.tbody.tr[0].td[0]", is("Expired, stale"));
     }
 
     @Test
@@ -194,26 +195,27 @@ class OverridesTest {
                 .statusCode(200)
                 .contentType(containsString("text/html"))
                 .body("html.head.title", is("Overrides · seedkeeper"))
+                .body(ScrollRegions.TABLE_PARENTS, ScrollRegions.regions("Keep overrides"))
                 .body(
-                        "html.body.main.table.thead.tr.th",
+                        "html.body.main.div.table.thead.tr.th",
                         contains("Status", "Note", "Until", "Created", "Group", "Hashes", "Id", "Actions"))
-                .body("html.body.main.table.tbody.tr.size()", is(3))
+                .body("html.body.main.div.table.tbody.tr.size()", is(3))
                 // The created date is shown in the configured time zone, UTC+05:30.
-                .body("html.body.main.table.tbody.tr[0].td[0]", is("Active"))
-                .body("html.body.main.table.tbody.tr[0].td[1]", is("Rewatching this season"))
-                .body("html.body.main.table.tbody.tr[0].td[2]", is("2999-12-31"))
-                .body("html.body.main.table.tbody.tr[0].td[3]", is("2026-11-20 14:42"))
-                .body("html.body.main.table.tbody.tr[0].td[4].ul.li", contains("Kept", "Kept.Elsewhere"))
-                .body("html.body.main.table.tbody.tr[0].td[5]", is("0a0a16"))
-                .body("html.body.main.table.tbody.tr[0].td[6]", is("7f3c"))
-                .body("html.body.main.table.tbody.tr[1].td[0]", is("Expired"))
-                .body("html.body.main.table.tbody.tr[1].td[2]", is("2020-01-01"))
-                .body("html.body.main.table.tbody.tr[1].td[3]", is(""))
-                .body("html.body.main.table.tbody.tr[1].td[4].ul.li", is("Expired"))
-                .body("html.body.main.table.tbody.tr[2].td[0]", is("Stale"))
-                .body("html.body.main.table.tbody.tr[2].td[2]", is("no end date"))
-                .body("html.body.main.table.tbody.tr[2].td[4]", is("no torrent"))
-                .body("html.body.main.table.tbody.tr[2].td[5]", is("0d0d16, 0e0e16"));
+                .body("html.body.main.div.table.tbody.tr[0].td[0]", is("Active"))
+                .body("html.body.main.div.table.tbody.tr[0].td[1]", is("Rewatching this season"))
+                .body("html.body.main.div.table.tbody.tr[0].td[2]", is("2999-12-31"))
+                .body("html.body.main.div.table.tbody.tr[0].td[3]", is("2026-11-20 14:42"))
+                .body("html.body.main.div.table.tbody.tr[0].td[4].ul.li", contains("Kept", "Kept.Elsewhere"))
+                .body("html.body.main.div.table.tbody.tr[0].td[5]", is("0a0a16"))
+                .body("html.body.main.div.table.tbody.tr[0].td[6]", is("7f3c"))
+                .body("html.body.main.div.table.tbody.tr[1].td[0]", is("Expired"))
+                .body("html.body.main.div.table.tbody.tr[1].td[2]", is("2020-01-01"))
+                .body("html.body.main.div.table.tbody.tr[1].td[3]", is(""))
+                .body("html.body.main.div.table.tbody.tr[1].td[4].ul.li", is("Expired"))
+                .body("html.body.main.div.table.tbody.tr[2].td[0]", is("Stale"))
+                .body("html.body.main.div.table.tbody.tr[2].td[2]", is("no end date"))
+                .body("html.body.main.div.table.tbody.tr[2].td[4]", is("no torrent"))
+                .body("html.body.main.div.table.tbody.tr[2].td[5]", is("0d0d16, 0e0e16"));
     }
 
     @Test
@@ -287,11 +289,11 @@ class OverridesTest {
                 .body(
                         "html.body.main.p.find { it.@role == 'alert' }",
                         containsString("refused session_get: Method not found"))
-                .body("html.body.main.table.tbody.tr.size()", is(3))
-                .body("html.body.main.table.tbody.tr[0].td[0]", is("Unknown"))
-                .body("html.body.main.table.tbody.tr[0].td[4]", is("unknown"))
-                .body("html.body.main.table.tbody.tr[1].td[0]", is("Expired"))
-                .body("html.body.main.table.tbody.tr[0].td[7].form.size()", is(2))
+                .body("html.body.main.div.table.tbody.tr.size()", is(3))
+                .body("html.body.main.div.table.tbody.tr[0].td[0]", is("Unknown"))
+                .body("html.body.main.div.table.tbody.tr[0].td[4]", is("unknown"))
+                .body("html.body.main.div.table.tbody.tr[1].td[0]", is("Expired"))
+                .body("html.body.main.div.table.tbody.tr[0].td[7].form.size()", is(2))
                 .body("html.body.main.section.find { it.@id == 'add-override' }.form.@id", is("add"));
     }
 

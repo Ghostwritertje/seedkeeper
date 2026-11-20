@@ -168,7 +168,7 @@ class UnregisteredTest {
                 .then()
                 .statusCode(200)
                 .body(
-                        "html.body.main.table.thead.tr.th",
+                        "html.body.main.div.table.thead.tr.th",
                         contains(
                                 "Name",
                                 "Tracker",
@@ -268,7 +268,7 @@ class UnregisteredTest {
                 .get("/groups?reason=unregistered")
                 .then()
                 .statusCode(200)
-                .body("html.body.main.table.tbody.tr.size()", is(2))
+                .body("html.body.main.div.table.tbody.tr.size()", is(2))
                 .body(
                         "html.body.main.form.'**'.find { it.name() == 'select' && it.@name == 'reason' }"
                                 + ".option.find { it.@selected == 'selected' }.text()",
@@ -297,7 +297,7 @@ class UnregisteredTest {
 
     /** The text of every cell of a row of the table, up to the form that sets a keep override. */
     private static String cells(int row) {
-        return "html.body.main.table.tbody.tr[" + row + "].td.take(10).collect { it.text() }";
+        return "html.body.main.div.table.tbody.tr[" + row + "].td.take(10).collect { it.text() }";
     }
 
     private static Path file(Path path) throws IOException {
