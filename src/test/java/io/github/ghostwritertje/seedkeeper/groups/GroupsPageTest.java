@@ -82,10 +82,51 @@ class GroupsPageTest {
         GroupsPage.SeedProgress progress = new GroupsPage.SeedProgress("warn", 3, "3%", "1d of 30d · 29d to go");
         assertEquals(
                 List.of(
-                        new GroupsPage.Member(List.of("Cross.", "Seed"), "tracker-a", progress, "Seeding", ""),
                         new GroupsPage.Member(
-                                List.of("Cross-", "Seed.", "Elsewhere"), "tracker-a", progress, "Seeding", "")),
+                                List.of("Cross.", "Seed"), "tracker-a", progress, "Seeding", "", "0 B"),
+                        new GroupsPage.Member(
+                                List.of("Cross-", "Seed.", "Elsewhere"), "tracker-a", progress, "Seeding", "", "0 B")),
                 group.members());
+    }
+
+    @Test
+    void aGroupShowsItsSizeAndEachMemberItsOwn() {
+        GroupVerdict verdict = new GroupVerdict(
+                List.of(
+                        new GroupVerdict.Member(
+                                "1111",
+                                "Cross.Seed",
+                                Optional.of(TRACKER_A),
+                                Duration.ofDays(1),
+                                Torrent.Status.SEEDING,
+                                Optional.empty(),
+                                List.of(),
+                                3_435_973_837L),
+                        new GroupVerdict.Member(
+                                "2222",
+                                "Cross.Seed.Extras",
+                                Optional.of(TRACKER_A),
+                                Duration.ofDays(1),
+                                Torrent.Status.SEEDING,
+                                Optional.empty(),
+                                List.of(),
+                                512)),
+                Verdict.KEEP,
+                Reason.MINIMUM_NOT_REACHED,
+                0,
+                2,
+                Optional.empty(),
+                List.of(),
+                0,
+                List.of("1111", "2222"),
+                3_435_974_349L);
+
+        GroupsPage.Group group = GroupsPage.group(verdict);
+
+        assertEquals("3.2 GiB", group.size());
+        assertEquals(
+                List.of("3.2 GiB", "512 B"),
+                group.members().stream().map(GroupsPage.Member::size).toList());
     }
 
     @Test

@@ -61,6 +61,7 @@ class DecideTest {
         private long secondsSeeding = 0;
         private List<FileId> wanted = List.of(DOWNLOAD_ONLY);
         private int missing = 0;
+        private long length = 1;
         private int error = 0;
         private String errorString = "";
 
@@ -100,6 +101,12 @@ class DecideTest {
             return this;
         }
 
+        /** The length in bytes of every wanted file, the missing ones too; 1 unless set. */
+        Case length(long bytes) {
+            this.length = bytes;
+            return this;
+        }
+
         /** Adds wanted files that resolve to nothing on disk. */
         Case missing(int files) {
             this.missing = files;
@@ -136,10 +143,10 @@ class DecideTest {
         private SnapshotTorrent snapshotTorrent() {
             List<WantedFile> files = new ArrayList<>();
             for (int i = 0; i < wanted.size(); i++) {
-                files.add(new WantedFile("file-" + i, Optional.of(wanted.get(i))));
+                files.add(new WantedFile("file-" + i, length, Optional.of(wanted.get(i))));
             }
             for (int i = 0; i < missing; i++) {
-                files.add(new WantedFile("missing-" + i, Optional.empty()));
+                files.add(new WantedFile("missing-" + i, length, Optional.empty()));
             }
             Torrent torrent = new Torrent(
                     hash,
@@ -1277,8 +1284,36 @@ class DecideTest {
                         Duration.ofDays(3),
                         Status.SEEDING,
                         Optional.empty(),
-                        List.of("tracker-b.example"))),
+                        List.of("tracker-b.example"),
+                        1)),
                 verdicts.get(0).members());
+    }
+
+    @Test
+    void aSharedFileCountsOnceInTheGroupSizeAndInEveryMemberSize() {
+        // a: the shared file and one of its own. b: the shared file and one that resolves to nothing.
+        Snapshot shared = snapshot(List.of(
+                a().wanted(SHARED, DOWNLOAD_ONLY).length(10),
+                b().wanted(SHARED).missing(1).length(10)));
+
+        List<GroupVerdict> verdicts = Decide.decide(shared, RULES, NOW);
+
+        assertEquals(1, verdicts.size());
+        assertEquals(30, verdicts.get(0).size());
+        assertEquals(
+                List.of(20L, 20L),
+                verdicts.get(0).members().stream().map(Member::size).toList());
+    }
+
+    @Test
+    void anUnregisteredTorrentThatLeavesItsGroupTakesItsOwnSize() {
+        Snapshot shared = snapshot(List.of(
+                a().wanted(SHARED, DOWNLOAD_ONLY).length(10).unregistered(),
+                b().wanted(SHARED).length(10)));
+
+        List<GroupVerdict> verdicts = Decide.decide(shared, RULES, NOW);
+
+        assertEquals(List.of(20L, 10L), verdicts.stream().map(GroupVerdict::size).toList());
     }
 
     @Test

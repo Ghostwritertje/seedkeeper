@@ -136,9 +136,10 @@ public final class Decide {
             List<KeepOverride> overrides,
             ZonedDateTime now) {
         List<Member> members =
-                group.stream().map(member -> member(member.torrent(), trackers)).toList();
+                group.stream().map(member -> member(member, trackers)).toList();
 
-        // A file that several members share is one file; a file that resolves to nothing is counted per member.
+        // A file that several members share is one file; a file that resolves to nothing is counted per member. The
+        // group's size adds up these same files.
         Set<FileId> seen = new HashSet<>();
         List<WantedFile> files = group.stream()
                 .flatMap(member -> member.wantedFiles().stream())
@@ -206,7 +207,13 @@ public final class Decide {
                 forecast,
                 holding.stream().filter(held -> held != reason).toList(),
                 missingFiles,
-                crossSeedGroup);
+                crossSeedGroup,
+                size(files));
+    }
+
+    /** The bytes of these wanted files. */
+    private static long size(List<WantedFile> files) {
+        return files.stream().mapToLong(WantedFile::length).sum();
     }
 
     /** The date the overrides keep the group until: the latest end date; empty when one of them never ends. */
@@ -221,7 +228,8 @@ public final class Decide {
         return torrent.status() == Torrent.Status.CHECK_WAIT || torrent.status() == Torrent.Status.CHECKING;
     }
 
-    private static Member member(Torrent torrent, TrackerRules trackers) {
+    private static Member member(SnapshotTorrent member, TrackerRules trackers) {
+        Torrent torrent = member.torrent();
         return new Member(
                 torrent.hash(),
                 torrent.name(),
@@ -229,7 +237,8 @@ public final class Decide {
                 Duration.ofSeconds(torrent.secondsSeeding()),
                 torrent.status(),
                 TrackerError.of(torrent.error(), torrent.errorString()),
-                TrackerRules.announceHosts(torrent.trackers()));
+                TrackerRules.announceHosts(torrent.trackers()),
+                size(member.wantedFiles()));
     }
 
     /**

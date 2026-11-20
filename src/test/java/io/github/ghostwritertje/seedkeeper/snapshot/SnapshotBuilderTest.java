@@ -141,6 +141,13 @@ class SnapshotBuilderTest {
     }
 
     @Test
+    void aWantedFileHasTheLengthTransmissionReports() {
+        Snapshot snapshot = build(torrent("a", new Torrent.File("movie.mkv", 3_221_225_472L, true)));
+
+        assertEquals(3_221_225_472L, onlyFile(snapshot).length());
+    }
+
+    @Test
     void aPartFileInTheDownloadDirIsFound() throws IOException {
         Path part = file(downloads.resolve("movie.mkv.part"));
 

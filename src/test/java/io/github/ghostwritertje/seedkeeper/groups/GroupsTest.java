@@ -184,6 +184,10 @@ class GroupsTest {
                 .body("libraryLinks", contains(1, 0, 0, 0, 0, 0, 0, 0))
                 .body("files", contains(2, 1, 1, 1, 1, 1, 1, 1))
                 .body("members.collect { it.size() }", contains(1, 1, 1, 1, 1, 1, 2, 1))
+                // Every file is 4 bytes. Old.Movie's sample is not wanted, so it counts nowhere; the cross-seed
+                // group's two members share their one file, so the group counts it once.
+                .body("sizeBytes", contains(8, 4, 4, 4, 4, 4, 4, 4))
+                .body("members.flatten().sizeBytes", contains(8, 4, 4, 4, 4, 4, 4, 4, 4))
                 .body(
                         "members.flatten().hash",
                         contains("1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999"))
@@ -318,12 +322,12 @@ class GroupsTest {
                 .body(ScrollRegions.TABLE_PARENTS, ScrollRegions.regions("Groups"))
                 .body(
                         GroupsTable.HEADINGS,
-                        contains("Name", "Minimum seed time", "Verdict", "Reason", "Forecast", "Keep override"))
+                        contains("Name", "Minimum seed time", "Verdict", "Reason", "Forecast", "Size", "Keep override"))
                 // One header row per group; member rows only under the cross-seed group of two.
                 .body(GroupsTable.ROWS, contains(1, 1, 1, 1, 1, 1, 3, 1))
                 .body(GroupsTable.heading(0), contains("Linked.Show", "tracker-a · Seeding · 1 of 2 files linked"))
-                // The library links show once: under the name, not again in the reason.
-                .body(GroupsTable.cells(0), contains("Met ✓", "Keep", "Library link", ""))
+                // The library links show once: under the name, not again in the reason. Every file is 4 bytes.
+                .body(GroupsTable.cells(0), contains("Met ✓", "Keep", "Library link", "", "8 B"))
                 .body(GroupsTable.progressDetail(0), is("40d of 30d · met 10d ago"))
                 .body(GroupsTable.heading(1), contains("Fresh.Movie", "tracker-b · Seeding · 0 of 1 files linked"))
                 .body(
@@ -332,25 +336,27 @@ class GroupsTest {
                                 is("18%"),
                                 is("Keep"),
                                 is("Minimum not reached"),
-                                minuteIn(before, Duration.ofDays(11).plusHours(12))))
+                                minuteIn(before, Duration.ofDays(11).plusHours(12)),
+                                is("4 B")))
                 .body(GroupsTable.heading(2), contains("Old.Movie", "tracker-b · Stopped · 0 of 1 files linked"))
                 // Below the minimum: a meter for screen readers, the time to go as detail.
                 .body(GroupsTable.progressCell(1) + ".meter.@value", is("18"))
                 .body(GroupsTable.progressDetail(1), is("2d 12h of 14d · 11d 12h to go"))
-                .body(GroupsTable.cells(2), contains("Met ✓", "Remove", "All met", ""))
+                // Its sample is not wanted: it counts nowhere.
+                .body(GroupsTable.cells(2), contains("Met ✓", "Remove", "All met", "", "4 B"))
                 .body(GroupsTable.progressDetail(2), is("14d of 14d · met just now"))
                 .body(GroupsTable.progressCell(2) + ".meter.size()", is(0))
                 .body(
                         GroupsTable.heading(3),
                         contains("Unknown.Tracker", "unmanaged (elsewhere.example) · Seeding · 0 of 1 files linked"))
-                .body(GroupsTable.cells(3), contains("—", "Left alone", "Unmanaged", ""))
+                .body(GroupsTable.cells(3), contains("—", "Left alone", "Unmanaged", "", "4 B"))
                 .body(GroupsTable.progressDetail(3), is("400d · no minimum"))
                 .body(GroupsTable.heading(4), contains("Downloading", "tracker-a · Downloading · 0 of 1 files linked"))
-                .body(GroupsTable.cells(4), contains("0%", "Keep", "Not finished", ""))
+                .body(GroupsTable.cells(4), contains("0%", "Keep", "Not finished", "", "4 B"))
                 .body(GroupsTable.underReason(4), is("also: Minimum not reached"))
                 .body(GroupsTable.underReason(0), is(""))
                 .body(GroupsTable.heading(5), contains("ubuntu.iso", "public · Seeding · 0 of 1 files linked"))
-                .body(GroupsTable.cells(5), contains("Met ✓", "Remove", "All met", ""))
+                .body(GroupsTable.cells(5), contains("Met ✓", "Remove", "All met", "", "4 B"))
                 // The cross-seed group: a header row for the group, whose cells span the rows of its members.
                 .body(GroupsTable.heading(6), contains("Cross.Seed", "2 torrents · 0 of 1 files linked"))
                 // Its header shows its slowest member, the one that sets the forecast: 10 days to go.
@@ -360,20 +366,37 @@ class GroupsTest {
                                 is("67%"),
                                 is("Keep"),
                                 is("Minimum not reached"),
-                                minuteIn(before, Duration.ofDays(10))))
+                                minuteIn(before, Duration.ofDays(10)),
+                                // Its members share their one file: the group counts it once.
+                                is("4 B")))
                 .body(GroupsTable.progressDetail(6), is("slowest: 20d of 30d · 10d to go"))
                 .body(
                         GroupsTable.GROUPS + "[6].tr[0].td.collect { it.@rowspan.toString() }",
-                        contains("1", "3", "3", "3", "3"))
-                .body(GroupsTable.member(6, 0), contains("Cross.Seed", "tracker-a · Seeding", "67%"))
-                .body(GroupsTable.member(6, 1), contains("Cross.Seed.Elsewhere", "tracker-b · Stopped", "93%"))
+                        contains("1", "3", "3", "3", "3", "3"))
+                .body(GroupsTable.member(6, 0), contains("Cross.Seed", "tracker-a · Seeding · 4 B", "67%"))
+                .body(GroupsTable.member(6, 1), contains("Cross.Seed.Elsewhere", "tracker-b · Stopped · 4 B", "93%"))
                 // The keep form's controls name the group by its first member, so they can be told apart.
                 .body(
                         "**.find { it.name() == 'form' && it.@id == 'keep-7777' }.'**'.findAll { it.@'aria-label' != '' }"
                                 + ".collect { it.@'aria-label'.toString() }",
                         contains("Note for Cross.Seed", "Until for Cross.Seed", "Set a keep override for Cross.Seed"))
                 .body(GroupsTable.heading(7), contains("Paused.Movie", "tracker-a · Stopped · 0 of 1 files linked"))
-                .body(GroupsTable.cells(7), contains("97%", "Keep", "Minimum not reached", "clock stopped (paused)"));
+                .body(
+                        GroupsTable.cells(7),
+                        contains("97%", "Keep", "Minimum not reached", "clock stopped (paused)", "4 B"));
+    }
+
+    @Test
+    void pageSaysTheSizeIsTheDataNotTheSpaceARemovalFrees() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups")
+                .then()
+                .statusCode(200)
+                .body(
+                        "html.body.main.details.p.collect { it.text() }.join(' ')",
+                        containsString("The size is the data on disk of the group's wanted files, a file its members"
+                                + " share counted once. It is not the space a removal frees"));
     }
 
     @Test
@@ -418,8 +441,10 @@ class GroupsTest {
                 .get("/groups?verdict=remove")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.HEADINGS, contains("Name", "Minimum seed time", "Verdict", "Reason", "Keep override"))
-                .body(GroupsTable.cells(0), contains("Met ✓", "Remove", "All met"));
+                .body(
+                        GroupsTable.HEADINGS,
+                        contains("Name", "Minimum seed time", "Verdict", "Reason", "Size", "Keep override"))
+                .body(GroupsTable.cells(0), contains("Met ✓", "Remove", "All met", "4 B"));
     }
 
     @Test
