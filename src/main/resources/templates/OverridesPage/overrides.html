@@ -35,7 +35,7 @@ the file as a whole: comments added by hand are lost.</p>
 <label>Until (optional) <input type="date" name="until" value="{override.untilDate}"></label>
 <button type="submit">Save</button>
 </div></details>
-</form><form id="delete-{override_index}" method="post" action="/overrides/delete" onsubmit="return confirm('Delete this keep override? The groups it keeps can then be removed by the next run.')">
+</form><form id="delete-{override_index}" method="post" action="/overrides/delete" onsubmit="return confirm('Delete this keep override? The next run may then remove the torrents it keeps.')">
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
 <input type="hidden" name="id" value="{override.id}">
 <button type="submit" data-tone="danger">Delete</button>
