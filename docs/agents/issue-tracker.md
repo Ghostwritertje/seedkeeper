@@ -59,7 +59,7 @@ The life of an issue:
 4. **Ends** in one of these, and `agent:in-progress` goes:
    - a ready pull request that says `Closes #<n>` and lists "Decisions I made";
    - `needs-decision` on the issue, with a comment, and no pull request;
-   - a draft pull request and `agent:blocked`.
+   - `agent:blocked` on the issue, with a comment, and a draft pull request when the run has commits.
 
    After the agent, the workflow checks for one of these (`.github/scripts/agent-outcome.sh`). A run that ends in
    none of them fails: the issue gets `agent:blocked` and a comment that links the run. The run's job log and job
