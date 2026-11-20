@@ -239,6 +239,25 @@ class ManageOverridesTest {
     }
 
     @Test
+    void deletingAsksForConfirmationButSavingAndAddingDoNot() throws IOException {
+        Files.writeString(file, "overrides:\n  - id: only\n    hashes: [3c3c17]\n");
+        Session user = Session.login();
+        Response page = awaitPage(user, "only");
+
+        page.then()
+                .body(
+                        "**.find { it.name() == 'form' && it.@id == 'delete-0' }.@onsubmit",
+                        is("return confirm('Delete this keep override?"
+                                + " The next run may then remove the torrents it keeps.')"))
+                .body(
+                        "**.find { it.name() == 'form' && it.@id == 'edit-0' }.attributes().containsKey('onsubmit')",
+                        is(false))
+                .body(
+                        "**.find { it.name() == 'form' && it.@id == 'add' }.attributes().containsKey('onsubmit')",
+                        is(false));
+    }
+
+    @Test
     void anOverrideWithoutHashesOrWithAWrongDateIsRefusedAndNothingIsWritten() {
         Session user = Session.login();
         Response page = user.page("/overrides");
