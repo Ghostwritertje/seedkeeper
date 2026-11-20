@@ -3,7 +3,8 @@
  * depends on travels in data attributes instead:
  *   data-page     on <main>: which page this is, for the few page-specific layouts
  *   data-verdict  remove, left-alone or keep: the verdict of a group, coloured like a tone
- *   data-tone     ok, warn, danger or muted: the colour of a status (a <mark>, <dd> or <td>);
+ *   data-tone     ok, warn, danger or muted: the colour of a status (a <mark>, <dd> or <td>, or the <small> of a
+ *                 tracker message);
  *                 danger or quiet: the look of a <button>
  */
 :root {
@@ -510,50 +511,64 @@ dd li + li {
   margin-top: 0.4rem;
 }
 
-/* Groups: one tbody per group, so the members of a cross-seed group read as one and a removal stands out. */
+/*
+ * Groups: one tbody per group, so the members of a cross-seed group read as one and a removal stands out. Its header
+ * row names the group in a <th>; the rows of its members, when it has more than one, sit indented under it, and the
+ * group's verdict, reason, forecast and keep override span them all.
+ */
 
-[data-page="groups"] tbody > tr:not(:last-child) > td {
+[data-page="groups"] tbody > tr:not(:last-child) > :is(th, td) {
   border-bottom-style: dashed;
 }
 
-[data-page="groups"] tbody > tr:last-child > td,
+[data-page="groups"] tbody > tr:last-child > :is(th, td),
 [data-page="groups"] tbody > tr > td[rowspan] {
   border-bottom-style: solid;
 }
 
-[data-page="groups"] tbody[data-verdict="remove"] > tr > td:first-child {
+[data-page="groups"] tbody[data-verdict="remove"] > tr > :first-child {
   box-shadow: inset 3px 0 0 var(--danger);
 }
 
-/* Eleven columns: tighter than the other tables, and the headings may wrap. */
-[data-page="groups"] table {
-  font-size: 0.875rem;
+[data-page="groups"] tbody th {
+  font-weight: 400;
 }
 
-[data-page="groups"] th,
-[data-page="groups"] td {
-  padding-inline: 0.55rem;
+[data-page="groups"] tbody tr:hover > th {
+  background: var(--hover);
 }
 
-[data-page="groups"] thead th {
-  white-space: normal;
+[data-page="groups"] tbody > tr > td:first-child {
+  padding-left: 1.75rem;
 }
 
-/* Release names have no spaces: they may break anywhere, but get the room to rarely need to. */
-[data-page="groups"] td:first-child {
+/*
+ * Release names have no spaces: they break after a dot or a dash (the template puts a <wbr> there), and only inside
+ * a word when one part alone is wider than the column.
+ */
+[data-page="groups"] tbody > tr > :first-child {
   min-width: 16rem;
+  overflow-wrap: break-word;
+}
+
+[data-page="groups"] tbody > tr > td:first-child > span {
   font-weight: 500;
-  overflow-wrap: anywhere;
 }
 
-[data-page="groups"] td:nth-child(3) {
-  white-space: nowrap;
+/* The muted lines under a name or a reason: what the group is, the secondary reasons, the tracker message. */
+[data-page="groups"] tbody small {
+  display: block;
+  margin-top: 0.1rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
 }
 
-/* The tracker message: there only when the tracker reports something wrong. */
-[data-page="groups"] tr > td:nth-child(5):not(:empty) {
+[data-page="groups"] tbody small[data-tone="danger"] {
   color: var(--danger);
-  font-size: 0.875rem;
+}
+
+[data-page="groups"] tbody > tr > :nth-child(2) {
+  white-space: nowrap;
 }
 
 [data-page="groups"] td[rowspan] {

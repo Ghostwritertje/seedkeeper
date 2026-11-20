@@ -186,71 +186,17 @@ class GroupsFilterTest {
                 .then()
                 .statusCode(200)
                 .body(
-                        "html.body.main.div.table.thead.tr.th",
-                        contains(
-                                "Name",
-                                "Tracker",
-                                "Seed time / minimum",
-                                "Status",
-                                "Tracker message",
-                                "Library links",
-                                "Verdict",
-                                "Reason",
-                                "Secondary reasons",
-                                "Forecast",
-                                "Keep override"))
-                .body(
-                        cells(0),
-                        contains(
-                                "Half.Gone",
-                                "tracker-a",
-                                "400d / 30d",
-                                "Seeding",
-                                "",
-                                "0 of 2 files",
-                                "Left alone",
-                                "Missing data (1 of 2 files)",
-                                "",
-                                ""))
-                .body(
-                        cells(1),
-                        contains(
-                                "Broken.Movie",
-                                "tracker-a",
-                                "1d / 30d",
-                                "Seeding",
-                                "",
-                                "0 of 1 files",
-                                "Left alone",
-                                "Local error",
-                                "Minimum not reached",
-                                ""))
-                .body(
-                        cells(2),
-                        contains(
-                                "Checking.Movie",
-                                "tracker-a",
-                                "400d / 30d",
-                                "Verifying",
-                                "",
-                                "0 of 1 files",
-                                "Keep",
-                                "Verifying",
-                                "",
-                                ""))
-                .body(
-                        cells(5),
-                        contains(
-                                "Not.Yet",
-                                "tracker-a",
-                                "0m / 30d",
-                                "Downloading",
-                                "",
-                                "0 of 1 files",
-                                "Keep",
-                                "Not finished",
-                                "Minimum not reached",
-                                ""));
+                        GroupsTable.HEADINGS,
+                        contains("Name", "Seed time / minimum", "Verdict", "Reason", "Keep override"))
+                .body(GroupsTable.heading(0), contains("Half.Gone", "tracker-a · Seeding · 0 of 2 files linked"))
+                .body(GroupsTable.cells(0), contains("400d / 30d", "Left alone", "Missing data (1 of 2 files)"))
+                .body(GroupsTable.underReason(0), is(""))
+                .body(GroupsTable.cells(1), contains("1d / 30d", "Left alone", "Local error"))
+                .body(GroupsTable.underReason(1), is("also: Minimum not reached"))
+                .body(GroupsTable.heading(2), contains("Checking.Movie", "tracker-a · Verifying · 0 of 1 files linked"))
+                .body(GroupsTable.cells(2), contains("400d / 30d", "Keep", "Verifying"))
+                .body(GroupsTable.cells(5), contains("0m / 30d", "Keep", "Not finished"))
+                .body(GroupsTable.underReason(5), is("also: Minimum not reached"));
     }
 
     @Test
@@ -263,19 +209,9 @@ class GroupsFilterTest {
                 .when()
                 .get("/groups")
                 .then()
-                .body(
-                        cells(0),
-                        contains(
-                                "Kept.Movie",
-                                "tracker-a",
-                                "0m / 30d",
-                                "Verifying",
-                                "",
-                                "1 of 1 files",
-                                "Left alone",
-                                "Local error",
-                                "Verifying, Library link (1 of 1 files), Minimum not reached",
-                                ""));
+                .body(GroupsTable.heading(0), contains("Kept.Movie", "tracker-a · Verifying · 1 of 1 files linked"))
+                .body(GroupsTable.cells(0), contains("0m / 30d", "Left alone", "Local error"))
+                .body(GroupsTable.underReason(0), is("also: Verifying, Library link, Minimum not reached"));
     }
 
     @Test
@@ -285,17 +221,15 @@ class GroupsFilterTest {
                 .get("/groups?verdict=keep")
                 .then()
                 .statusCode(200)
-                .body(
-                        "html.body.main.div.table.tbody.tr.collect { it.td[0].text() }",
-                        contains("Checking.Movie", "Kept.Movie", "Not.Yet"))
+                .body(GroupsTable.NAMES, contains("Checking.Movie", "Kept.Movie", "Not.Yet"))
                 .body(selected("verdict"), is("keep"))
                 .body(selected("reason"), is(""));
         Authenticated.asUser()
                 .when()
                 .get("/groups?verdict=left-alone&reason=missing-data")
                 .then()
-                .body("html.body.main.div.table.tbody.tr.size()", is(1))
-                .body("html.body.main.div.table.tbody.tr[0].td[0]", is("Half.Gone"))
+                .body(GroupsTable.GROUPS + ".size()", is(1))
+                .body(GroupsTable.NAMES, is("Half.Gone"))
                 .body(selected("verdict"), is("left-alone"))
                 .body(selected("reason"), is("missing-data"));
     }
@@ -319,7 +253,7 @@ class GroupsFilterTest {
                 .body(TALLY + ".a.mark.@data-verdict", contains("remove", "left-alone", "keep"))
                 .body("html.body.main.div.table.tbody.@data-verdict", contains("keep", "keep", "keep"))
                 .body(
-                        "html.body.main.div.table.tbody.tr.collect { it.td[6].@data-verdict.text() }",
+                        GroupsTable.GROUPS + ".collect { it.tr[0].td[1].@'data-verdict'.text() }",
                         contains("keep", "keep", "keep"));
     }
 
@@ -404,11 +338,6 @@ class GroupsFilterTest {
                         is("Unknown verdict 'delete': use remove, left-alone or keep"))
                 .body("html.body.main.'**'.findAll { it.name() == 'table' }.size()", is(0))
                 .body(selected("verdict"), is(""));
-    }
-
-    /** The text of every cell of a row of the table, up to the form that sets a keep override. */
-    private static String cells(int row) {
-        return "html.body.main.div.table.tbody.tr[" + row + "].td.take(10).collect { it.text() }";
     }
 
     /** The value of the selected option of a filter. */
