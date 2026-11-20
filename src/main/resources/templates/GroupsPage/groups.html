@@ -42,14 +42,16 @@
 <p>What the next run would do, decided right now: it removes the groups marked Remove. Torrents that share files (cross-seeds) are one
 group, with one verdict. A torrent of a managed tracker that its tracker has deleted (unregistered) leaves its group and is removed on its own;
 any other tracker message is only shown. The reason is the first rule that holds; the secondary reasons are the others that hold too.
-The forecast is when a group kept for its minimum seed time is expected to have met it, if it keeps seeding.</p>
+The forecast is when a group kept for its minimum seed time is expected to have met it, if it keeps seeding.
+The size is the data on disk of the group's wanted files, a file its members share counted once. It is not the space a removal frees:
+a file with a library link stays on disk.</p>
 <p>Set a keep override to stop a group from being removed (it never causes a removal): it gets the info hash of every member, and the
 members the group gains later are added to it. It shows in the Overrides view, where it can be edited or deleted.</p>
 </details>
 <div role="region" aria-label="Groups" tabindex="0">
 <table>
 <thead>
-<tr><th>Name</th><th>Minimum seed time</th><th>Verdict</th><th>Reason</th>{#if forecasts}<th>Forecast</th>{/if}<th>Keep override</th></tr>
+<tr><th>Name</th><th>Minimum seed time</th><th>Verdict</th><th>Reason</th>{#if forecasts}<th>Forecast</th>{/if}<th>Size</th><th>Keep override</th></tr>
 </thead>
 {!
   One tbody per group, so its members read as one: a header row for the group, whose cells after the seed time span
@@ -61,7 +63,7 @@ members the group gains later are added to it. It shows in the Overrides view, w
 !}
 {#for group in groups}
 <tbody data-verdict="{group.verdictCode}">
-<tr><th scope="rowgroup"><strong>{#each group.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</strong><small>{group.summary}</small>{#if group.trackerMessage}<small data-tone="danger">{group.trackerMessage}</small>{/if}</th><td data-tone="{group.progress.tone}" tabindex="0">{#if group.progress.below}<meter min="0" max="100" value="{group.progress.percent}"></meter>{/if}{group.progress.text}<small>{group.progress.detail}</small></td><td rowspan="{group.rows}" data-verdict="{group.verdictCode}">{group.verdict}</td><td rowspan="{group.rows}">{group.reason}{#if group.secondaryReasons}<small>also: {group.secondaryReasons}</small>{/if}</td>{#if forecasts}<td rowspan="{group.rows}">{group.forecast}</td>{/if}<td rowspan="{group.rows}"><form id="keep-{group.hashes.get(0)}" method="post" action="/groups/keep">
+<tr><th scope="rowgroup"><strong>{#each group.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</strong><small>{group.summary}</small>{#if group.trackerMessage}<small data-tone="danger">{group.trackerMessage}</small>{/if}</th><td data-tone="{group.progress.tone}" tabindex="0">{#if group.progress.below}<meter min="0" max="100" value="{group.progress.percent}"></meter>{/if}{group.progress.text}<small>{group.progress.detail}</small></td><td rowspan="{group.rows}" data-verdict="{group.verdictCode}">{group.verdict}</td><td rowspan="{group.rows}">{group.reason}{#if group.secondaryReasons}<small>also: {group.secondaryReasons}</small>{/if}</td>{#if forecasts}<td rowspan="{group.rows}">{group.forecast}</td>{/if}<td rowspan="{group.rows}">{group.size}</td><td rowspan="{group.rows}"><form id="keep-{group.hashes.get(0)}" method="post" action="/groups/keep">
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
 <input type="hidden" name="verdict" value="{filter.verdictCode}">
 <input type="hidden" name="reason" value="{filter.reasonCode}">
@@ -73,7 +75,7 @@ members the group gains later are added to it. It shows in the Overrides view, w
 </div></details>
 </form></td></tr>
 {#for member in group.members}
-<tr><td><span>{#each member.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</span><small>{member.tracker} · {member.status}</small>{#if member.trackerMessage}<small data-tone="danger">{member.trackerMessage}</small>{/if}</td><td data-tone="{member.progress.tone}" tabindex="0">{#if member.progress.below}<meter min="0" max="100" value="{member.progress.percent}"></meter>{/if}{member.progress.text}<small>{member.progress.detail}</small></td></tr>
+<tr><td><span>{#each member.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</span><small>{member.tracker} · {member.status} · {member.size}</small>{#if member.trackerMessage}<small data-tone="danger">{member.trackerMessage}</small>{/if}</td><td data-tone="{member.progress.tone}" tabindex="0">{#if member.progress.below}<meter min="0" max="100" value="{member.progress.percent}"></meter>{/if}{member.progress.text}<small>{member.progress.detail}</small></td></tr>
 {/for}
 </tbody>
 {/for}

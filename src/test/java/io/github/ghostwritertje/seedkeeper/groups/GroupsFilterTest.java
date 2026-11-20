@@ -185,15 +185,18 @@ class GroupsFilterTest {
                 .get("/groups")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.HEADINGS, contains("Name", "Minimum seed time", "Verdict", "Reason", "Keep override"))
+                .body(
+                        GroupsTable.HEADINGS,
+                        contains("Name", "Minimum seed time", "Verdict", "Reason", "Size", "Keep override"))
                 .body(GroupsTable.heading(0), contains("Half.Gone", "tracker-a · Seeding · 0 of 2 files linked"))
-                .body(GroupsTable.cells(0), contains("Met ✓", "Left alone", "Missing data (1 of 2 files)"))
+                // The file that is gone still counts: the size is what Transmission says the data is.
+                .body(GroupsTable.cells(0), contains("Met ✓", "Left alone", "Missing data (1 of 2 files)", "8 B"))
                 .body(GroupsTable.underReason(0), is(""))
-                .body(GroupsTable.cells(1), contains("3%", "Left alone", "Local error"))
+                .body(GroupsTable.cells(1), contains("3%", "Left alone", "Local error", "4 B"))
                 .body(GroupsTable.underReason(1), is("also: Minimum not reached"))
                 .body(GroupsTable.heading(2), contains("Checking.Movie", "tracker-a · Verifying · 0 of 1 files linked"))
-                .body(GroupsTable.cells(2), contains("Met ✓", "Keep", "Verifying"))
-                .body(GroupsTable.cells(5), contains("0%", "Keep", "Not finished"))
+                .body(GroupsTable.cells(2), contains("Met ✓", "Keep", "Verifying", "4 B"))
+                .body(GroupsTable.cells(5), contains("0%", "Keep", "Not finished", "4 B"))
                 .body(GroupsTable.underReason(5), is("also: Minimum not reached"));
     }
 
@@ -208,7 +211,7 @@ class GroupsFilterTest {
                 .get("/groups")
                 .then()
                 .body(GroupsTable.heading(0), contains("Kept.Movie", "tracker-a · Verifying · 1 of 1 files linked"))
-                .body(GroupsTable.cells(0), contains("0%", "Left alone", "Local error"))
+                .body(GroupsTable.cells(0), contains("0%", "Left alone", "Local error", "4 B"))
                 .body(GroupsTable.underReason(0), is("also: Verifying, Library link, Minimum not reached"));
     }
 

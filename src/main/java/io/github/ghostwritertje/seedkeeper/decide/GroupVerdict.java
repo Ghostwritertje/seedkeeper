@@ -18,6 +18,8 @@ import java.util.Optional;
  * @param missingFiles how many wanted files of finished members resolve to nothing on disk
  * @param crossSeedGroup the info hashes of every torrent of the group's cross-seed group, in snapshot order: the
  *                     members, and also an unregistered torrent that split off from it
+ * @param size         the bytes of the group's wanted files, a file that several members share counted once, the way
+ *                     {@code files} counts it: the size of its data, not the space a removal would free
  */
 public record GroupVerdict(
         List<Member> members,
@@ -28,7 +30,8 @@ public record GroupVerdict(
         Optional<Forecast> forecast,
         List<Reason> secondaryReasons,
         int missingFiles,
-        List<String> crossSeedGroup) {
+        List<String> crossSeedGroup,
+        long size) {
 
     public GroupVerdict {
         members = List.copyOf(members);
@@ -36,7 +39,7 @@ public record GroupVerdict(
         crossSeedGroup = List.copyOf(crossSeedGroup);
     }
 
-    /** A verdict on a group that is its whole cross-seed group. */
+    /** A verdict on a group that is its whole cross-seed group, with a size of 0. */
     public GroupVerdict(
             List<Member> members,
             Verdict verdict,
@@ -55,10 +58,11 @@ public record GroupVerdict(
                 forecast,
                 secondaryReasons,
                 missingFiles,
-                members.stream().map(Member::hash).toList());
+                members.stream().map(Member::hash).toList(),
+                0);
     }
 
-    /** A verdict with no secondary reason and no file missing. */
+    /** A verdict with no secondary reason, no file missing and a size of 0. */
     public GroupVerdict(
             List<Member> members,
             Verdict verdict,
@@ -77,6 +81,7 @@ public record GroupVerdict(
      * @param trackerError what the tracker reports to be wrong with the torrent; empty when nothing
      * @param announceHosts the hosts of the torrent's announce URLs, once each, in announce order; never the full
      *                      URL, which may hold a passkey
+     * @param size     the bytes of the torrent's wanted files
      */
     public record Member(
             String hash,
@@ -85,13 +90,14 @@ public record GroupVerdict(
             Duration seedTime,
             Torrent.Status status,
             Optional<TrackerError> trackerError,
-            List<String> announceHosts) {
+            List<String> announceHosts,
+            long size) {
 
         public Member {
             announceHosts = List.copyOf(announceHosts);
         }
 
-        /** A member with no announce hosts. */
+        /** A member with no announce hosts and a size of 0. */
         public Member(
                 String hash,
                 String name,
@@ -99,10 +105,10 @@ public record GroupVerdict(
                 Duration seedTime,
                 Torrent.Status status,
                 Optional<TrackerError> trackerError) {
-            this(hash, name, tracker, seedTime, status, trackerError, List.of());
+            this(hash, name, tracker, seedTime, status, trackerError, List.of(), 0);
         }
 
-        /** A member whose tracker reports nothing wrong, with no announce hosts. */
+        /** A member whose tracker reports nothing wrong, with no announce hosts and a size of 0. */
         public Member(String hash, String name, Optional<Tracker> tracker, Duration seedTime, Torrent.Status status) {
             this(hash, name, tracker, seedTime, status, Optional.empty());
         }

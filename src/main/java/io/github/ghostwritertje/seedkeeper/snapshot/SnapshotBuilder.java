@@ -35,8 +35,8 @@ public final class SnapshotBuilder {
                         torrent,
                         torrent.files().stream()
                                 .filter(Torrent.File::wanted)
-                                .map(file ->
-                                        new WantedFile(file.name(), TorrentPaths.resolve(torrent, file, incompleteDir)))
+                                .map(file -> new WantedFile(
+                                        file.name(), file.length(), TorrentPaths.resolve(torrent, file, incompleteDir)))
                                 .toList()))
                 .toList();
         return new Snapshot(resolved, library);

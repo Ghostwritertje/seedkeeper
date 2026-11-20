@@ -37,10 +37,11 @@ public record Snapshot(List<SnapshotTorrent> torrents, Set<FileId> library) {
     /**
      * A wanted file of a torrent, and the file on disk it resolves to.
      *
-     * @param name path relative to the download dir
-     * @param id   the file it resolves to, following symlinks; empty when none of the candidate paths exists
+     * @param name   path relative to the download dir
+     * @param length its size in bytes, as Transmission reports it
+     * @param id     the file it resolves to, following symlinks; empty when none of the candidate paths exists
      */
-    public record WantedFile(String name, Optional<FileId> id) {}
+    public record WantedFile(String name, long length, Optional<FileId> id) {}
 
     /**
      * The cross-seed groups (spec §3.3): two torrents are in one group when any of their resolved wanted files are

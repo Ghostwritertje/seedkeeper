@@ -86,6 +86,7 @@ class GroupsPage {
      * @param secondaryReasons every other reason that holds, written like the reason and separated by commas
      * @param forecast         "2026-11-25 10:00" in the configured time zone, "clock stopped (paused)", "until 2027-03-01" (the
      *                         end date of a keep override), or empty
+     * @param size             "3.2 GiB": the data of its wanted files, a file its members share counted once
      * @param members          its members, each on a row of its own; empty for a group of one, which its header row
      *                         shows whole
      * @param hashes           the info hashes of the members, for the form that sets a keep override
@@ -101,6 +102,7 @@ class GroupsPage {
             String reason,
             String secondaryReasons,
             String forecast,
+            String size,
             List<Member> members,
             List<String> hashes) {
 
@@ -163,9 +165,15 @@ class GroupsPage {
      * @param progress its seed time toward its minimum seed time
      * @param trackerMessage "Unregistered: Unregistered torrent", "Tracker error: Passkey does not exist!", or
      *                       empty when the tracker reports nothing wrong
+     * @param size     "3.2 GiB": the data of its own wanted files
      */
     public record Member(
-            List<String> name, String tracker, SeedProgress progress, String status, String trackerMessage) {}
+            List<String> name,
+            String tracker,
+            SeedProgress progress,
+            String status,
+            String trackerMessage,
+            String size) {}
 
     /**
      * How far a seed time is toward its minimum seed time, as text ready to show. The minimum is met at the same moment
@@ -368,6 +376,7 @@ class GroupsPage {
                 reason(group.reason(), group),
                 group.secondaryReasons().stream().map(r -> reason(r, group)).collect(Collectors.joining(", ")),
                 forecast,
+                StatusText.size(group.size()),
                 one ? List.of() : members,
                 group.members().stream().map(GroupVerdict.Member::hash).toList());
     }
@@ -403,7 +412,8 @@ class GroupsPage {
                 member.tracker().map(Tracker::name).orElseGet(() -> unmanaged(member.announceHosts())),
                 SeedProgress.of(member),
                 StatusText.label(member.status()),
-                member.trackerError().map(GroupsPage::trackerMessage).orElse(""));
+                member.trackerError().map(GroupsPage::trackerMessage).orElse(""),
+                StatusText.size(member.size()));
     }
 
     /** "unmanaged (elsewhere.example, tracker-a.example)", or "unmanaged (no trackers)" when there are no hosts. */

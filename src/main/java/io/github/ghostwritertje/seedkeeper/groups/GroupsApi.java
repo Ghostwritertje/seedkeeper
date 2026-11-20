@@ -42,6 +42,8 @@ class GroupsApi {
      * @param reasonSince  the start of the first of the unbroken row of successful runs, up to the last one, that
      *                     gave the group this reason, as an ISO 8601 date and time with the offset of the configured
      *                     time zone; null when the last successful run didn't see the group with this reason
+     * @param sizeBytes    the bytes of the members' wanted files, a file that several members share counted once: the
+     *                     size of the data, not the space a removal would free
      */
     @RegisterForReflection
     public record Group(
@@ -52,6 +54,7 @@ class GroupsApi {
             int libraryLinks,
             int missingFiles,
             int files,
+            long sizeBytes,
             @Nullable Forecast forecast,
             List<Member> members) {}
 
@@ -81,6 +84,7 @@ class GroupsApi {
      *                               tracker error
      * @param announceHosts          the hosts of the torrent's announce URLs, once each, in announce order; empty when
      *                               it has none. Only the hosts: an announce URL may hold a passkey
+     * @param sizeBytes              the bytes of the torrent's wanted files
      */
     @RegisterForReflection
     public record Member(
@@ -92,7 +96,8 @@ class GroupsApi {
             @Nullable Long minimumSeedTimeSeconds,
             @Nullable String trackerError,
             @Nullable String trackerMessage,
-            List<String> announceHosts) {}
+            List<String> announceHosts,
+            long sizeBytes) {}
 
     /** The body of a 503: why there are no verdicts right now. Of a 400: what is wrong with the filter. */
     @RegisterForReflection
@@ -145,6 +150,7 @@ class GroupsApi {
                 group.libraryLinks(),
                 group.missingFiles(),
                 group.files(),
+                group.size(),
                 group.forecast().map(GroupsApi::forecast).orElse(null),
                 group.members().stream().map(GroupsApi::member).toList());
     }
@@ -171,6 +177,7 @@ class GroupsApi {
                         .orElse(null),
                 member.trackerError().map(error -> error.kind().code()).orElse(null),
                 member.trackerError().map(TrackerError::message).orElse(null),
-                member.announceHosts());
+                member.announceHosts(),
+                member.size());
     }
 }
