@@ -11,8 +11,8 @@ import java.time.Duration;
 /**
  * A {@link FakeTransmission} with a realistic set of torrents, and their files on disk, for running the app by hand:
  * the {@code run-app} skill starts it. It covers every verdict and the cases the views have to show: a cross-seed
- * group, a library link, an unregistered torrent (one of them a cross-seed of a torrent that stays), a tracker error, a torrent still downloading, a paused one, a public
- * one, a torrent whose files are missing and orphans.
+ * group, a library link, an unregistered torrent (one of them a cross-seed of a torrent that stays), a tracker error, a
+ * torrent still downloading, a paused one, a public one, a torrent whose files are missing and orphans.
  *
  * <p>Argument: the root directory. It creates {@code downloads/}, {@code library/} and {@code data/} under it, so the
  * app runs with {@code seedkeeper.downloads-root=<root>/downloads}, {@code seedkeeper.library-roots=<root>/library}
