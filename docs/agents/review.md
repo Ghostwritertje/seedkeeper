@@ -17,7 +17,9 @@ reviewed again. A new push cancels the review in progress and starts a new one.
 
 ## What it checks
 
-It runs the `code-review` skill against the pull request's base, along two axes, reported separately:
+It runs the `code-review` skill against the pull request's base, along two axes, reported separately. It reviews
+both axes itself, one after the other, without the skill's sub-agents: a headless run ends when the agent stops to
+wait for a background sub-agent, before anything is posted.
 
 - **Standards.** Does the code follow this repo's standards: `CLAUDE.md`, the ADRs in `docs/adr/`, the docs in
   `docs/agents/`, and the domain language of `GLOSSARY.md`? It also flags the skill's code smells, as judgement
@@ -112,5 +114,5 @@ read-only contents permission enforce this.
 
 ## When it fails
 
-A crash, a timeout or an exhausted quota adds `agent:blocked` to the pull request, with a comment linking the
-workflow run. Nothing retries on its own: push a commit, or close and reopen the pull request, to review it again.
+A crash, a timeout, an exhausted quota or a run that ends without submitting this round's summary review on the head
+adds `agent:blocked` to the pull request, with a comment linking the workflow run. Nothing retries on its own: push a commit, or close and reopen the pull request, to review it again.
