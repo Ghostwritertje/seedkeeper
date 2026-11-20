@@ -29,6 +29,7 @@ class GroupsFilterTest {
     /** The verdict the filter form keeps when the reason changes: the chips choose it, the form has no control for it. */
     private static final String VERDICT =
             "html.body.main.form.'**'.find { it.name() == 'input' && it.@name == 'verdict' }.@value";
+
     private static final int SEEDING = 6;
     private static final int CHECKING = 2;
     private static final int DOWNLOADING = 4;
