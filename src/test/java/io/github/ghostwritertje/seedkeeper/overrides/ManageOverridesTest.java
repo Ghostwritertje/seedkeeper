@@ -258,6 +258,30 @@ class ManageOverridesTest {
     }
 
     @Test
+    void theControlsOfARowNameTheirOverrideAndKeepTheirVisibleText() throws IOException {
+        Files.writeString(file, "overrides:\n  - id: abc\n    hashes: [3c3c17]\n");
+        Session user = Session.login();
+        Response page = awaitPage(user, "abc");
+
+        page.then()
+                .body(
+                        "**.find { it.name() == 'form' && it.@id == 'edit-0' }.'**'.findAll { it.@'aria-label' != '' }"
+                                + ".collect { it.@'aria-label'.toString() }",
+                        contains(
+                                "Note of keep override abc", "Until of keep override abc", "Save keep override abc"))
+                .body(
+                        "**.find { it.name() == 'form' && it.@id == 'edit-0' }.'**'.find { it.name() == 'button' }",
+                        is("Save"))
+                .body(
+                        "**.find { it.name() == 'form' && it.@id == 'delete-0' }.'**'.find { it.name() == 'button' }"
+                                + ".@'aria-label'",
+                        is("Delete keep override abc"))
+                .body(
+                        "**.find { it.name() == 'form' && it.@id == 'delete-0' }.'**'.find { it.name() == 'button' }",
+                        is("Delete"));
+    }
+
+    @Test
     void anOverrideWithoutHashesOrWithAWrongDateIsRefusedAndNothingIsWritten() {
         Session user = Session.login();
         Response page = user.page("/overrides");
