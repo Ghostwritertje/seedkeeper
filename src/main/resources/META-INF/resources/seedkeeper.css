@@ -563,6 +563,16 @@ dd li + li {
   font-size: 0.8125rem;
 }
 
+/* Why a removal deleted no files or freed no space, under the number. */
+[data-page="activity"] tbody small {
+  display: block;
+  max-width: 16rem;
+  margin-top: 0.1rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  white-space: normal;
+}
+
 [data-page="groups"] tbody small[data-tone="danger"] {
   color: var(--danger);
 }

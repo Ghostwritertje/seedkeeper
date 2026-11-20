@@ -1,6 +1,7 @@
 package io.github.ghostwritertje.seedkeeper.history;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
@@ -267,8 +268,10 @@ class ActivityTest {
                         NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.collect { it.text() }",
                         contains("Activity.Due (tracker-a)", "Activity.Due.cross-seed (tracker-a)"))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[1]", is("All met"))
-                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[2]", is("2"))
-                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3]", is("4 B"))
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[2].span", is("2"))
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[2].small.size()", is(0))
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3].span", is("4 B"))
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3].small.size()", is(0))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[4]", is(""));
     }
 
@@ -301,6 +304,50 @@ class ActivityTest {
                 .statusCode(200)
                 .body(NEWEST_RUN + ".dl.dd[0]", is("Failed"))
                 .body(NEWEST_RUN + ".p.find { it.@role == 'alert' }", containsString("is older than 4.1"));
+    }
+
+    @Test
+    void pageExplainsTheNumbersAndARemovalThatDeletedNoFiles() {
+        Path downloads = FakeTransmissionResource.downloads();
+        // An unregistered cross-seed of a torrent still seeding leaves on its own; the file stays for the other one.
+        FakeTransmissionResource.fake()
+                .torrents("["
+                        + torrent("act3", "Activity.Fresh", 2 * DAY, downloads, "Activity.Fresh/movie.mkv")
+                        + ","
+                        + torrent(
+                                        "gone1",
+                                        "Activity.Fresh.unregistered",
+                                        2 * DAY,
+                                        downloads,
+                                        "Activity.Fresh/movie.mkv")
+                                .replace(
+                                        "\"error\": 0, \"error_string\": \"\"",
+                                        "\"error\": 2, \"error_string\": \"Unregistered torrent\"")
+                        + "]");
+        runNow();
+
+        Authenticated.asUser()
+                .when()
+                .get("/activity")
+                .then()
+                .statusCode(200)
+                .body(
+                        "html.body.main.p[0]",
+                        allOf(
+                                containsString("Removed counts"),
+                                containsString("Files deleted counts"),
+                                containsString("Space freed counts")))
+                .body(
+                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li",
+                        is("Activity.Fresh.unregistered (tracker-a, tracker said: Unregistered torrent)"))
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[2].span", is("0"))
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3].span", is("0 B"))
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3].small.size()", is(0))
+                .body(
+                        NEWEST_RUN + ".div.table.tbody.tr[0].td[2].small",
+                        is("Data kept: every file is still used by a torrent that stays (a cross-seed), or was no"
+                                + " longer on disk."))
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[4]", is(""));
     }
 
     @Test
