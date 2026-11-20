@@ -253,8 +253,10 @@ password is `SEEDKEEPER_AUTH_PASSWORD`. Without a login a page redirects to the 
 the top of every page.
 
 A login is kept in a cookie encrypted with `QUARKUS_HTTP_AUTH_SESSION_ENCRYPTION_KEY`, so it survives a restart of
-seedkeeper as long as that key stays the same. It ends after 30 minutes without a request. Changing the key logs
-everyone out.
+seedkeeper as long as that key stays the same. It ends after 7 days without a request, and survives closing the
+browser: the cookie is kept for 7 days (`quarkus.http.auth.form.timeout` and `quarkus.http.auth.form.cookie-max-age`,
+overridable with `QUARKUS_HTTP_AUTH_FORM_TIMEOUT` and `QUARKUS_HTTP_AUTH_FORM_COOKIE_MAX_AGE`). **Log out** ends it at
+once. Changing the key logs everyone out.
 
 The session cookie is `HttpOnly` and `SameSite=Strict`: scripts can't read it and other sites can't send it.
 
