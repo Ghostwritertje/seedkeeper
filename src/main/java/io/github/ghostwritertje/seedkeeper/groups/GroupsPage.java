@@ -418,12 +418,17 @@ class GroupsPage {
      * Below the minimum, that member sets the forecast.
      */
     private static SeedProgress slowest(List<GroupVerdict.Member> members) {
+        return slowestManaged(members)
+                .map(member -> SeedProgress.of(member).slowest())
+                .orElse(SeedProgress.NO_MINIMUM);
+    }
+
+    /** The managed member that meets its minimum last; empty when no member is managed. */
+    static Optional<GroupVerdict.Member> slowestManaged(List<GroupVerdict.Member> members) {
         return members.stream()
                 .filter(member -> member.tracker().isPresent())
                 .max(Comparator.comparing((GroupVerdict.Member member) ->
-                        member.tracker().orElseThrow().minimumSeedTime().minus(member.seedTime())))
-                .map(member -> SeedProgress.of(member).slowest())
-                .orElse(SeedProgress.NO_MINIMUM);
+                        member.tracker().orElseThrow().minimumSeedTime().minus(member.seedTime())));
     }
 
     private static Member member(GroupVerdict.Member member, Reason reason) {
