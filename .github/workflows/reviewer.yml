@@ -102,21 +102,23 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # The prompt comes from the base branch, like the CLAUDE.md and .claude/ the action restores, so a pull
-      # request can't rewrite its own reviewer's instructions. Only a pull request whose base has no prompt at all,
-      # the one that adds it, reads its own; any other failure to read the base's copy fails the step.
+      # The prompt and the session summary script come from the base branch, like the CLAUDE.md and .claude/ the
+      # action restores, so a pull request can't rewrite its own reviewer's instructions, or what runs after the
+      # session. Only a pull request whose base has no copy at all, the one that adds it, reads its own; any other
+      # failure to read the base's copy fails the step.
       - name: Read the reviewer prompt
         id: prompt
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
-          file=.github/prompts/reviewer.md
-          if git cat-file -e "origin/$BASE_REF:$file" 2>/dev/null; then
-            git show "origin/$BASE_REF:$file" > "$RUNNER_TEMP/reviewer.md"
-          else
-            echo "::notice::The base branch has no reviewer prompt: reading this pull request's own."
-            cp "$file" "$RUNNER_TEMP/reviewer.md"
-          fi
+          for file in .github/prompts/reviewer.md .github/scripts/session-summary.sh; do
+            if git cat-file -e "origin/$BASE_REF:$file" 2>/dev/null; then
+              git show "origin/$BASE_REF:$file" > "$RUNNER_TEMP/$(basename "$file")"
+            else
+              echo "::notice::The base branch has no $file: reading this pull request's own."
+              cp "$file" "$RUNNER_TEMP/$(basename "$file")"
+            fi
+          done
           {
             echo 'text<<REVIEWER_PROMPT_EOF'
             cat "$RUNNER_TEMP/reviewer.md"
@@ -159,6 +161,7 @@ jobs:
       # The step's own timeout, under the job's, fails the job, so a timeout is reported as a failure, while a
       # review cancelled by a new push stays cancelled.
       - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        id: claude
         timeout-minutes: 18
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -182,6 +185,14 @@ jobs:
             "Read,Glob,Grep,Skill,mcp__github_inline_comment__create_inline_comment,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(gh pr view ${{ github.event.pull_request.number }}:*),Bash(gh pr diff ${{ github.event.pull_request.number }}:*),Bash(gh issue view:*),Bash(gh pr review ${{ github.event.pull_request.number }} --comment:*),Bash(gh pr edit ${{ github.event.pull_request.number }} --add-label needs-decision)${{ steps.round.outputs.handback == 'ready-for-agent' && format(',Bash(gh pr edit {0} --add-label ready-for-agent)', github.event.pull_request.number) || '' }}${{ env.AGENT_PULL_REQUEST == 'true' && format(',Bash(gh pr review {0} --approve:*),Bash(gh pr edit {0} --add-label auto-merge)', github.event.pull_request.number) || '' }}"
             --disallowedTools
             "Edit,Write,NotebookEdit,Bash(git push:*),Bash(git commit:*),Bash(git add:*),Bash(git merge:*),Bash(git rebase:*),Bash(git reset:*),Bash(gh pr merge:*),Bash(gh api:*)"
+
+      # The job log hides the session (show_full_output is off: the repo is public). The job summary lists its
+      # permission denials, and its turns and cost, so a missing allowlist entry shows. Also after a failed run.
+      - name: Summarize the session
+        if: always()
+        env:
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        run: bash "$RUNNER_TEMP/session-summary.sh" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
 
       # The agent can end its run without submitting a review and still succeed. This step fails the job then, so
       # the blocked job labels the pull request agent:blocked instead of the review passing for done. The check

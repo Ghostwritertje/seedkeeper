@@ -146,10 +146,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # The prompt comes from the default branch, read before a retry switches to the agent branch.
+      # The prompt and the session summary script come from the default branch, read before a retry switches to the
+      # agent branch, so the agent can't change what runs after its session.
       - name: Read the implementer prompt
         id: prompt
         run: |
+          cp .github/scripts/session-summary.sh "$RUNNER_TEMP/session-summary.sh"
           {
             echo 'text<<IMPLEMENTER_PROMPT_EOF'
             cat .github/prompts/implementer.md
@@ -223,6 +225,7 @@ jobs:
       # pull request tools take the agent branch, so they reach only this issue's pull request. The step's own
       # timeout, under the job's, fails the job, so a timeout reaches the blocked job.
       - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        id: claude
         timeout-minutes: 55
         env:
           CLAUDE_BRANCH: ${{ needs.pick-up.outputs.branch }}
@@ -247,6 +250,14 @@ jobs:
             "Read,Glob,Grep,Edit,MultiEdit,Write,Agent,Skill,TodoWrite,Bash(./mvnw:*),Bash(.claude/skills/run-app/run-app.sh:*),Bash(.claude/skills/run-app/browser.sh:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git branch --show-current),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git commit:*),Bash(git restore:*),Bash(git push origin ${{ needs.pick-up.outputs.branch }}),Bash(git push -u origin ${{ needs.pick-up.outputs.branch }}),Bash(gh issue view:*),Bash(gh issue comment ${{ inputs.issue }}:*),Bash(gh issue edit ${{ inputs.issue }}:*),Bash(gh pr create --base ${{ github.event.repository.default_branch }} --head ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr view:*),Bash(gh pr comment ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr edit ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr ready ${{ needs.pick-up.outputs.branch }})"
             --disallowedTools
             "Bash(gh pr merge:*),Bash(gh pr review:*),Bash(gh pr edit *auto-merge*),Bash(gh api:*),Bash(git push --force:*),Bash(git push -f:*),Bash(git push --force-with-lease:*),Bash(git push * --force*),Bash(git push * -f*),Bash(git push *+*),Bash(git push --delete:*),Bash(git push * --delete*),Bash(git reset --hard:*),Bash(git rebase:*),Bash(./mvnw *-Dnative*),Bash(./mvnw *-Pnative*)"
+
+      # The job log hides the session (show_full_output is off: the repo is public). The job summary lists its
+      # permission denials, and its turns and cost, so a missing allowlist entry shows. Also after a failed run.
+      - name: Summarize the session
+        if: always()
+        env:
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        run: bash "$RUNNER_TEMP/session-summary.sh" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
 
       # The run-app skill's before and after screenshots, which the pull request links as SCREENSHOTS. Also after a
       # failed run: they show how far it got.
