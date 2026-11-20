@@ -66,9 +66,30 @@ class ActivityPage {
      *
      * @param members "Some.Movie (tracker-a)", with everything else worth knowing about the torrent in the brackets
      * @param reason  the label of the reason, "All met"
-     * @param error   what went wrong, as a sentence; empty when nothing did
+     * @param filesNote why no file was deleted, when none was and neither the error nor a refused path says why;
+     *                  empty otherwise
+     * @param spaceNote why no space was freed although files were deleted; empty otherwise
+     * @param error     what went wrong, as a sentence; empty when nothing did
      */
-    public record Removal(List<String> members, String reason, int filesDeleted, String spaceFreed, String error) {}
+    public record Removal(
+            List<String> members,
+            String reason,
+            int filesDeleted,
+            String filesNote,
+            String spaceFreed,
+            String spaceNote,
+            String error) {}
+
+    /**
+     * A removal that deleted no file, with no error or refused path to say why: each wanted file of the removed
+     * torrents was still used by a torrent that stays, or was not on disk. The history doesn't record which.
+     */
+    static final String NOTHING_DELETED = "Data kept: every file is still used by a torrent that stays (a cross-seed),"
+            + " or was no longer on disk.";
+
+    /** Files were deleted, but each was a symlink or not the last hard link of its data. */
+    static final String NOTHING_FREED = "Data kept: what was deleted was a symlink, or a file still linked elsewhere,"
+            + " such as in the library.";
 
     /**
      * The page of runs the Activity view shows, and how many pages there are.
@@ -151,7 +172,8 @@ class ActivityPage {
                 run.removals().stream().map(ActivityPage::removal).toList());
     }
 
-    private static Removal removal(RecordedRemoval removal) {
+    /** One removal as the view shows it; says why it deleted or freed nothing when the error doesn't. */
+    static Removal removal(RecordedRemoval removal) {
         List<String> errors = new ArrayList<>();
         removal.error().ifPresent(error -> errors.add(error + ". No files were deleted."));
         if (removal.pathsRefused() > 0) {
@@ -159,11 +181,16 @@ class ActivityPage {
                     + " not deleted (outside the downloads root and the incomplete dir, under a library root, or"
                     + " the filesystem refused).");
         }
+        boolean explained = !errors.isEmpty();
         return new Removal(
                 removal.members().stream().map(ActivityPage::member).toList(),
                 reason(removal.reason()),
                 removal.filesDeleted(),
+                !explained && removal.filesDeleted() == 0 ? NOTHING_DELETED : "",
                 StatusText.size(removal.spaceFreed()),
+                removal.error().isEmpty() && removal.filesDeleted() > 0 && removal.spaceFreed() == 0
+                        ? NOTHING_FREED
+                        : "",
                 String.join(" ", errors));
     }
 

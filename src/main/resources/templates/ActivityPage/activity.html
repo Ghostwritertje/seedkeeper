@@ -6,7 +6,10 @@
 {#else if runs.isEmpty}
 <p>No run has ended yet. The <a href="/system">System view</a> shows when the next one starts.</p>
 {#else}
-<p>The runs of the last year, the newest first, and what each removed.</p>
+<p>The runs of the last year, the newest first, and what each removed. Removed counts the torrents taken out of
+Transmission, and the verdict groups removed in full. Files deleted counts the files and symlinks taken off the disk:
+only those no torrent that stays still uses. Space freed counts the size of the deleted files that were the last link
+to their data, so a file still linked in the library, or a symlink, frees nothing.</p>
 {#for run in runs}
 <article>
 <h2>{run.started}</h2>
@@ -36,8 +39,8 @@
 <tr>
 <td><ul>{#for member in removal.members}<li>{member}</li>{/for}</ul></td>
 <td>{removal.reason}</td>
-<td>{removal.filesDeleted}</td>
-<td>{removal.spaceFreed}</td>
+<td><span>{removal.filesDeleted}</span>{#if removal.filesNote}<small>{removal.filesNote}</small>{/if}</td>
+<td><span>{removal.spaceFreed}</span>{#if removal.spaceNote}<small>{removal.spaceNote}</small>{/if}</td>
 <td>{removal.error}</td>
 </tr>
 {/for}
