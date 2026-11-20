@@ -24,9 +24,13 @@
 <dt>Downloads root</dt>
 <dd>{settings.downloadsRoot}</dd>
 <dt>Library roots</dt>
+<dd>
+<ul>
 {#for root in settings.libraryRoots}
-<dd>{root}</dd>
+<li>{root}</li>
 {/for}
+</ul>
+</dd>
 <dt>Data dir</dt>
 <dd>{settings.dataDir}</dd>
 </dl>

@@ -498,9 +498,15 @@ tfoot td {
   border-top: 1px solid var(--border-strong);
 }
 
-td ul {
+td ul,
+dd ul {
   padding: 0;
   list-style: none;
+}
+
+/* The values of one label, such as the library roots: the gap of the grid's rows, so a wrapped one reads as one. */
+dd li + li {
+  margin-top: 0.4rem;
 }
 
 /* Groups: one tbody per group, so the members of a cross-seed group read as one and a removal stands out. */
