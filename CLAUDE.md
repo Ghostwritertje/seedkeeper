@@ -25,7 +25,7 @@ Apply the formatting, Java and POM both, with one command:
 
 ## Native build and image: CI only
 
-Verify locally on the JVM: `./mvnw verify` (needs no Docker) and `./mvnw quarkus:dev`.
+Verify locally on the JVM: `./mvnw verify` (needs no Docker), and run the app with the `run-app` skill.
 
 The native build (`-Dnative`), the image build (`Dockerfile.native-micro`) and the image smoke test
 (`.github/scripts/smoke-test-image.sh`) run in GitHub Actions, never on this machine. Docker here is a shared Rancher
