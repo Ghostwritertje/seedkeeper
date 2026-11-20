@@ -8,6 +8,8 @@ import io.github.ghostwritertje.seedkeeper.keep.OverrideStore;
 import io.github.ghostwritertje.seedkeeper.keep.OverridesException;
 import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.Listed;
 import io.github.ghostwritertje.seedkeeper.overrides.OverridesService.OverridesUnavailable;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText.Stamp;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.common.annotation.RunOnVirtualThread;
@@ -20,7 +22,6 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import org.jboss.resteasy.reactive.RestForm;
@@ -79,14 +80,13 @@ class OverridesPage {
         }
     }
 
-    private static final DateTimeFormatter CREATED = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-
     /**
      * One override, as text ready to show.
      *
      * @param status    "Active", "Expired", "Stale", "Expired, stale", or "Unknown" when the groups are unknown
      * @param until     "2027-03-01" or "no end date"
-     * @param created   "2026-11-20 10:12" in the configured time zone; empty when the file doesn't say
+     * @param created   "2026-11-20 10:12" in the configured time zone, for a {@code <time>}; null when the file
+     *                  doesn't say
      * @param groups    the names of the members of every group it matches; empty when it is stale or unknown
      * @param known     false when the groups can't be known right now
      * @param hashes    separated by commas
@@ -96,7 +96,7 @@ class OverridesPage {
             String status,
             String note,
             String until,
-            String created,
+            @Nullable Stamp created,
             List<List<String>> groups,
             boolean known,
             String hashes,
@@ -205,8 +205,8 @@ class OverridesPage {
                 override.note(),
                 override.until().map(Object::toString).orElse("no end date"),
                 override.created()
-                        .map(created -> CREATED.format(created.atZoneSameInstant(config.timeZone())))
-                        .orElse(""),
+                        .map(created -> StatusText.stamp(created.atZoneSameInstant(config.timeZone())))
+                        .orElse(null),
                 listed.groups().stream()
                         .map(group ->
                                 group.stream().map(GroupVerdict.Member::name).toList())

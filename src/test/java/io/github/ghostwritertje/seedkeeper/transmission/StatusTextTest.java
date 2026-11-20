@@ -3,6 +3,7 @@ package io.github.ghostwritertje.seedkeeper.transmission;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.github.ghostwritertje.seedkeeper.transmission.StatusText.Moment;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText.Stamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -34,6 +35,13 @@ class StatusTextTest {
                         "2026-11-21 04:30:00 Europe/Brussels",
                         "in 15h 30m"),
                 StatusText.moment(Instant.parse("2026-11-21T03:30:00Z"), BRUSSELS, NOW));
+    }
+
+    @Test
+    void aStampIsWrittenToTheMinuteAndKeepsTheSecondInItsDatetime() {
+        assertEquals(
+                new Stamp("2026-12-02T10:15:42+01:00", "2026-12-02 10:15", "2026-12-02 10:15 Europe/Brussels"),
+                StatusText.stamp(Instant.parse("2026-12-02T09:15:42.500Z").atZone(BRUSSELS)));
     }
 
     @Test

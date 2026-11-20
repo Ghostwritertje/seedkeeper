@@ -80,6 +80,28 @@ public final class StatusText {
                 relative(Duration.between(now.truncatedTo(ChronoUnit.SECONDS), zoned.toInstant())));
     }
 
+    /**
+     * A moment written to the minute, in a {@code <time>} element, with no relative time: for a moment the row around
+     * it already puts in context.
+     *
+     * @param datetime ISO 8601 to the second, with the offset: "2026-11-20T10:12:00+01:00"
+     * @param text     "2026-11-20 10:12"
+     * @param title    the text with the time zone, for the tooltip: "2026-11-20 10:12 Europe/Brussels"
+     */
+    public record Stamp(String datetime, String text, String title) {}
+
+    private static final DateTimeFormatter MINUTE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+    /** A moment in the time zone it is in, to the minute. */
+    public static Stamp stamp(ZonedDateTime moment) {
+        ZonedDateTime second = moment.truncatedTo(ChronoUnit.SECONDS);
+        String text = second.format(MINUTE);
+        return new Stamp(
+                second.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+                text,
+                text + " " + moment.getZone().getId());
+    }
+
     private static String relative(Duration untilThen) {
         if (untilThen.abs().compareTo(Duration.ofMinutes(1)) < 0) {
             return untilThen.isPositive() ? "in under a minute" : "just now";

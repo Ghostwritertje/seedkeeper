@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.groups;
 
+import io.github.ghostwritertje.seedkeeper.decide.Forecast;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.decide.Reason;
 import io.github.ghostwritertje.seedkeeper.decide.Tracker;
@@ -11,6 +12,7 @@ import io.github.ghostwritertje.seedkeeper.keep.OverrideChanges;
 import io.github.ghostwritertje.seedkeeper.keep.OverridesException;
 import io.github.ghostwritertje.seedkeeper.keep.OverridesException.Problem;
 import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText.Stamp;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.common.annotation.RunOnVirtualThread;
@@ -25,7 +27,6 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
 import java.net.URI;
 import java.time.Duration;
-import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -67,8 +68,6 @@ class GroupsPage {
     /** The value of {@code done} that says a keep override was just set. */
     private static final String KEPT = "kept";
 
-    private static final DateTimeFormatter FORECAST_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-
     /** Where a long release name may break: after a dot or a dash that something follows. */
     private static final Pattern NAME_BREAKS = Pattern.compile("(?<=[.-])(?=.)");
 
@@ -90,6 +89,7 @@ class GroupsPage {
      * @param secondaryReasons every other reason that holds, written like the reason and separated by commas
      * @param forecast         "2026-11-25 10:00" in the configured time zone, "clock stopped (paused)", "until 2027-03-01" (the
      *                         end date of a keep override), or empty
+     * @param forecastDate     the forecast when it is a moment, for a {@code <time>}; null when it is anything else
      * @param size             "3.2 GiB": the data of its wanted files, a file its members share counted once
      * @param members          its members, each on a row of its own; empty for a group of one, which its header row
      *                         shows whole
@@ -107,6 +107,7 @@ class GroupsPage {
             String hint,
             String secondaryReasons,
             String forecast,
+            @Nullable Stamp forecastDate,
             String size,
             List<Member> members,
             List<String> hashes) {
@@ -378,10 +379,16 @@ class GroupsPage {
 
     static Group group(GroupVerdict group) {
         String libraryLinks = group.libraryLinks() + " of " + group.files() + " files linked";
+        @Nullable
+        Stamp forecastDate = group.forecast()
+                .filter(f -> f.until().isEmpty())
+                .flatMap(Forecast::date)
+                .map(StatusText::stamp)
+                .orElse(null);
         String forecast = group.forecast()
                 .map(f -> f.until()
                         .map(endDate -> "until " + endDate)
-                        .orElseGet(() -> f.date().map(FORECAST_DATE::format).orElse("clock stopped (paused)")))
+                        .orElseGet(() -> forecastDate == null ? "clock stopped (paused)" : forecastDate.text()))
                 .orElse("");
         List<Member> members = group.members().stream()
                 .map(member -> member(member, group.reason()))
@@ -402,6 +409,7 @@ class GroupsPage {
                 hint(group.reason()),
                 group.secondaryReasons().stream().map(r -> reason(r, group)).collect(Collectors.joining(", ")),
                 forecast,
+                forecastDate,
                 StatusText.size(group.size()),
                 one ? List.of() : members,
                 group.members().stream().map(GroupVerdict.Member::hash).toList());
