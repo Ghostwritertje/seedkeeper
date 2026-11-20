@@ -276,8 +276,8 @@ jobs:
             echo "::notice::Not merging: $reason."
           fi
 
-  # A crash, a timeout, an exhausted quota or a run that posts no review fails the review; a review cancelled by a new push doesn't. A failed
-  # withdraw skips the review, since an auto-merge may still be on, and is reported here too.
+  # A crash, a timeout, an exhausted quota or a run that posts no review fails the review; a review cancelled by a new
+  # push doesn't. A failed withdraw skips the review, since an auto-merge may still be on, and is reported here too.
   blocked:
     name: Report a failed review
     needs: [withdraw, review]
