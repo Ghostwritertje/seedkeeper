@@ -115,4 +115,5 @@ read-only contents permission enforce this.
 ## When it fails
 
 A crash, a timeout, an exhausted quota or a run that ends without submitting this round's summary review on the head
-adds `agent:blocked` to the pull request, with a comment linking the workflow run. Nothing retries on its own: push a commit, or close and reopen the pull request, to review it again.
+adds `agent:blocked` to the pull request, with a comment linking the workflow run. Nothing retries on its own: push
+a commit, or close and reopen the pull request, to review it again.

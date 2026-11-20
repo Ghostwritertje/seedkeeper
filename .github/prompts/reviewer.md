@@ -15,9 +15,9 @@ files, commit or push. Nobody answers questions during this run, so don't ask an
 ## Review
 
 Run the `code-review` skill with `<BASE>` as the fixed point, with one change: don't spawn sub-agents. You have no
-`Agent` tool, and this run ends as soon as you stop to wait for one. Where step 4 of the skill hands the Standards and
-Spec reviews to sub-agents, do each yourself, one after the other, each with its brief from the skill, and keep their
-findings apart. Then aggregate as the skill says. The pull request's head is checked out, so
+`Agent` tool, and this run ends as soon as you stop to wait for one. Where the skill spawns the Standards and Spec
+sub-agents, do each review yourself, one after the other, each with its brief from the skill, and keep their findings
+apart. Then aggregate as the skill says. The pull request's head is checked out, so
 `git diff <BASE>...HEAD` is the pull request's diff. For the spec, use the issue the pull request closes or names
 (`Closes #<n>`, `Part of #<n>`, `#<n>`); read it with `gh issue view <n> --json number,title,body,comments`, and
 read its parent spec when it has one. When the pull request names no issue, its body is the spec.
