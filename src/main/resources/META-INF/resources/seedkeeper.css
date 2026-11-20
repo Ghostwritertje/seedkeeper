@@ -6,6 +6,7 @@
  *   data-tone     ok, warn, danger or muted: the colour of a status (a <mark>, <dd> or <td>, or the <small> of a
  *                 tracker message);
  *                 danger or quiet: the look of a <button>
+ *   data-quiet    on an <article> of the Activity view: a run that succeeded and removed nothing, shown on one line
  */
 :root {
   color-scheme: light dark;
@@ -792,6 +793,27 @@ article > dl > dd {
 
 article table {
   box-shadow: none;
+}
+
+/* A run that succeeded and removed nothing: one line, its start and "Succeeded · nothing to remove". */
+article[data-quiet] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+  margin: 0.5rem 0;
+  padding-block: 0.6rem;
+  box-shadow: none;
+}
+
+article[data-quiet] > h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+article[data-quiet] > p {
+  margin: 0;
+  color: var(--muted);
 }
 
 /* Orphans: sizes and ages line up on the right. */

@@ -11,6 +11,12 @@ Transmission, and the verdict groups removed in full. Files deleted counts the f
 only those no torrent that stays still uses. Space freed counts the size of the deleted files that were the last link
 to their data, so a file still linked in the library, or a symlink, frees nothing.</p>
 {#for run in runs}
+{#if run.quiet}
+<article data-quiet>
+<h2>{run.started}</h2>
+<p><mark data-tone="ok">{run.status}</mark> · nothing to remove</p>
+</article>
+{#else}
 <article>
 <h2>{run.started}</h2>
 <dl>
@@ -49,6 +55,7 @@ to their data, so a file still linked in the library, or a symlink, frees nothin
 </div>
 {/if}
 </article>
+{/if}
 {/for}
 {#if pages.several}
 <nav aria-label="Pages">

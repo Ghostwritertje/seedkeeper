@@ -59,7 +59,18 @@ class ActivityPage {
             String removed,
             int filesDeleted,
             String spaceFreed,
-            List<Removal> removals) {}
+            List<Removal> removals) {
+
+        /** Whether the run succeeded and removed nothing, so the view shows it on one line. */
+        public boolean quiet() {
+            return status.equals("Succeeded") && error == null && removals.isEmpty();
+        }
+
+        /** Whether a removal of the run has an error, so the view gives the errors a column. */
+        public boolean removalErrors() {
+            return removals.stream().anyMatch(removal -> !removal.error().isEmpty());
+        }
+    }
 
     /**
      * One removal of the run, as text ready to show.
