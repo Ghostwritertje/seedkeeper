@@ -98,7 +98,7 @@ class ActivityPagingTest {
                 .statusCode(200)
                 .body("html.body.main.article[0].@data-quiet", notNullValue())
                 .body("html.body.main.article[0].children().size()", is(2))
-                .body("html.body.main.article[0].h2", is("2026-11-02 00:00:00"))
+                .body("html.body.main.article[0].h2.time", is("2026-11-02 00:00:00"))
                 .body("html.body.main.article[0].p.text()", matchesPattern("Succeeded\\s*·\\s*nothing to remove\\s*"))
                 .body("html.body.main.article[0].p.mark", is("Succeeded"))
                 .body("html.body.main.article[0].p.mark.@data-tone", is("ok"))

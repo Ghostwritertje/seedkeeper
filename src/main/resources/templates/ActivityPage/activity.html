@@ -14,7 +14,7 @@ to their data, so a file still linked in the library, or a symlink, frees nothin
 {#for run in runs}
 {#if run.quiet}
 <article data-quiet>
-<h2>{run.started}</h2>
+<h2>{#moment run.started /}</h2>
 <p><mark data-tone="ok">{run.status}</mark> · nothing to remove</p>
 </article>
 {#else}
