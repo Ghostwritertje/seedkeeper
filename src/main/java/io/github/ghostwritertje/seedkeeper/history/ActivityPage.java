@@ -13,6 +13,7 @@ import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import java.math.BigInteger;
 import java.time.Instant;
@@ -24,7 +25,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
-/** The Activity view: the runs of the last year and what each removed. */
+/** The Activity view: the runs of the last year and what each removed, 20 runs to a page. */
 @Path("/activity")
 class ActivityPage {
 
@@ -34,10 +35,11 @@ class ActivityPage {
     static class Templates {
 
         /**
-         * @param runs        the newest first
+         * @param runs        the runs of this page, the newest first
+         * @param pages       which page this is, out of how many
          * @param unavailable why the history can't be read; null when it can
          */
-        static native TemplateInstance activity(List<Run> runs, @Nullable String unavailable);
+        static native TemplateInstance activity(List<Run> runs, Pages pages, @Nullable String unavailable);
     }
 
     /**
@@ -127,12 +129,13 @@ class ActivityPage {
     @GET
     @Produces(MediaType.TEXT_HTML)
     @RunOnVirtualThread
-    public TemplateInstance activity() {
+    public TemplateInstance activity(@QueryParam("page") @Nullable String page) {
         try {
-            return Templates.activity(
-                    history.runs(Optional.empty()).stream().map(this::run).toList(), null);
+            List<RecordedRun> runs = history.runs(Optional.empty());
+            Pages pages = Pages.of(page, runs.size());
+            return Templates.activity(pages.of(runs).stream().map(this::run).toList(), pages, null);
         } catch (HistoryException e) {
-            return Templates.activity(List.of(), e.getMessage());
+            return Templates.activity(List.of(), Pages.of(null, 0), e.getMessage());
         }
     }
 
