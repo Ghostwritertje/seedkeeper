@@ -2,6 +2,7 @@ package io.github.ghostwritertje.seedkeeper.transmission;
 
 import io.github.ghostwritertje.seedkeeper.ModuleApi;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent.Status;
+import io.quarkus.qute.TemplateData;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -65,6 +66,9 @@ public final class StatusText {
      * @param title    the text with the time zone, for the tooltip: "2026-11-20 10:00:00 Europe/Brussels"
      * @param relative how long ago or until when, from now: "3h ago", "in 15h 30m", "just now"
      */
+    // The {#moment} tag's parameter isn't type-checked, so Qute only generates a value resolver for it with this; the
+    // native image has no reflection to fall back on.
+    @TemplateData
     public record Moment(String datetime, String text, String title, String relative) {}
 
     private static final DateTimeFormatter MOMENT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -88,6 +92,8 @@ public final class StatusText {
      * @param text     "2026-11-20 10:12"
      * @param title    the text with the time zone, for the tooltip: "2026-11-20 10:12 Europe/Brussels"
      */
+    // As Moment: the {#stamp} tag's parameter isn't type-checked, so the native image needs the generated resolver.
+    @TemplateData
     public record Stamp(String datetime, String text, String title) {}
 
     private static final DateTimeFormatter MINUTE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
