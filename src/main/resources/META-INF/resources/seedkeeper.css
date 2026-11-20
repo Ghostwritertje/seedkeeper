@@ -753,7 +753,7 @@ article table {
 /*
  * Small screens: a wide table scrolls sideways on its own instead of the whole page, inside the named region around
  * it (<div role="region" tabindex="0">), which a keyboard can focus and scroll. The table keeps its own display, and
- * with it its semantics.
+ * with it its semantics; the region takes over its frame, so the frame stays whole while the table scrolls.
  */
 
 @media (max-width: 60rem) {
@@ -763,6 +763,21 @@ article table {
 
   div[role="region"] {
     overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+
+  section div[role="region"],
+  article div[role="region"] {
+    box-shadow: none;
+  }
+
+  div[role="region"] > table {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   thead th {
