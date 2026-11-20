@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE — throwaway. Not part of the app, never served by it.
+  Question: "What does seedkeeper look like once every open UI issue is implemented?"
+  (#84 #87 #90 #102 #103 #108–#120, plus the closed #79 #83 #85 #86 #88 #89.)
+  One static file, invented data (no real torrents, trackers or hosts). Pages via #page, Groups has three
+  structurally different variants via #groups?variant=A|B|C, cycled with the floating bar or ← →.
+  Open it: `open prototype/ui-all-issues/index.html`.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE · seedkeeper</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231f7a4a'/%3E%3Cpath d='M16 26V15' stroke='%23fff' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='M16 16c0-5 -3.5-8-9-8 0 5.5 3.5 8 9 8z' fill='%23fff'/%3E%3Cpath d='M16 14c0-4.5 3-7.5 9-7.5 0 5-3 7.5-9 7.5z' fill='%23bfe8cf'/%3E%3C/svg%3E">
+<style>
+:root {
+  color-scheme: light dark;
+  --text: light-dark(#1b1f24, #e6e8eb);
+  --muted: light-dark(#5d6672, #9aa3ae);
+  --background: light-dark(#f6f7f9, #111316);
+  --surface: light-dark(#ffffff, #1a1d21);
+  --hover: light-dark(#f1f3f5, #23272c);
+  --border: light-dark(#e2e5e9, #2e333a);
+  --border-strong: light-dark(#c9ced5, #434a53);
+  --accent: light-dark(#1f7a4a, #5fd394);
+  --accent-strong: light-dark(#17633b, #7fe0aa);
+  --accent-surface: light-dark(#e6f4ec, #16301f);
+  --on-accent: light-dark(#ffffff, #0d1a12);
+  --ok: light-dark(#1f7a4a, #6fd39b);
+  --ok-surface: light-dark(#e3f4ea, #173322);
+  --warn: light-dark(#8a5a00, #f2c264);
+  --warn-surface: light-dark(#fdf3dc, #3a2d12);
+  --danger: light-dark(#b42318, #ff8f86);
+  --danger-surface: light-dark(#fdeceb, #3c1d1b);
+  --muted-surface: light-dark(#eef0f3, #262a30);
+  --radius: 0.5rem;
+  --shadow: 0 1px 2px light-dark(rgb(16 24 40 / 6%), rgb(0 0 0 / 40%));
+  --popover-shadow: 0 8px 24px light-dark(rgb(16 24 40 / 16%), rgb(0 0 0 / 55%));
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; font: 0.9375rem/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--text); background: var(--background); -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-underline-offset: 0.15em; }
+h1 { font-size: 1.6rem; letter-spacing: -0.02em; margin: 1.5rem 0 0.75rem; }
+h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
+p.lead { color: var(--muted); max-width: 46rem; margin: 0 0 1rem; }
+code { font-family: var(--mono); font-size: 0.85em; background: var(--muted-surface); padding: 0.1em 0.35em; border-radius: 0.3rem; }
+.mono { font-family: var(--mono); font-size: 0.82rem; }
+.muted { color: var(--muted); }
+.small { font-size: 0.82rem; }
+.show-sm { display: none; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* header — #118 compact nav: one scrollable row on small screens; #115 brand → overview; #83 current view */
+body > header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 0.5rem 2rem; padding: 0.6rem max(1rem, calc((100% - 90rem) / 2 + 1.5rem)); border-bottom: 1px solid var(--border); background: var(--surface); }
+.brand { display: flex; align-items: center; gap: 0.5rem; font-size: 1.05rem; font-weight: 700; color: var(--text); text-decoration: none; flex: none; }
+.brand::before { content: ""; width: 1.4rem; height: 1.4rem; background: var(--accent); border-radius: 0.35rem; mask: none; }
+header nav { display: flex; gap: 0.25rem; margin-right: auto; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+header nav a { padding: 0.35rem 0.75rem; border-radius: 999px; color: var(--muted); font-weight: 500; text-decoration: none; white-space: nowrap; }
+header nav a:hover { color: var(--text); background: var(--hover); }
+header nav a[aria-current="page"] { color: var(--accent-strong); background: var(--accent-surface); }
+header nav a .count { font-size: 0.72rem; font-weight: 700; background: var(--warn-surface); color: var(--warn); border-radius: 999px; padding: 0 0.4rem; margin-left: 0.3rem; }
+main { max-width: 90rem; margin: 0 auto; padding: 0.5rem 1.5rem 6rem; }
+footer.tz { max-width: 90rem; margin: 0 auto; padding: 0 1.5rem 5rem; color: var(--muted); font-size: 0.8rem; }
+
+/* building blocks */
+button, .btn { font: inherit; font-weight: 600; font-size: 0.875rem; border-radius: var(--radius); border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); padding: 0.45rem 0.9rem; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem; }
+button.quiet, .btn.quiet { background: transparent; border-color: var(--border-strong); color: var(--text); }
+button.link { background: none; border: none; color: var(--accent); padding: 0; font-weight: 500; text-decoration: underline; }
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input, select { font: inherit; font-size: 0.9rem; padding: 0.42rem 0.6rem; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+label.f { display: grid; gap: 0.2rem; font-size: 0.8rem; color: var(--muted); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.5); box-shadow: var(--shadow); padding: 1.1rem 1.25rem; margin-bottom: 1rem; }
+.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
+.grid > .card { margin: 0; }
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1.5rem; margin: 0; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; }
+dl.kv dd ul { list-style: none; margin: 0; padding: 0; }
+.pill { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; font-weight: 600; border-radius: 999px; padding: 0.05rem 0.55rem; background: var(--muted-surface); color: var(--muted); white-space: nowrap; }
+.pill[data-tone="ok"], [data-verdict="keep"].pill { background: var(--ok-surface); color: var(--ok); }
+.pill[data-tone="warn"], [data-verdict="left-alone"].pill { background: var(--warn-surface); color: var(--warn); }
+.pill[data-tone="danger"], [data-verdict="remove"].pill { background: var(--danger-surface); color: var(--danger); }
+.dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; display: inline-block; flex: none; background: var(--muted); }
+.dot[data-verdict="keep"] { background: var(--ok); } .dot[data-verdict="left-alone"] { background: var(--warn); } .dot[data-verdict="remove"] { background: var(--danger); }
+[role="status"].done { background: var(--ok-surface); color: var(--ok); border-left: 3px solid var(--ok); padding: 0.6rem 0.9rem; border-radius: var(--radius); margin: 0 0 1rem; font-weight: 500; }
+[role="status"].info { background: var(--muted-surface); color: var(--text); border-left: 3px solid var(--border-strong); padding: 0.6rem 0.9rem; border-radius: var(--radius); margin: 0 0 1rem; }
+[role="alert"] { background: var(--danger-surface); color: var(--danger); border-left: 3px solid var(--danger); padding: 0.6rem 0.9rem; border-radius: var(--radius); margin: 0 0 1rem; }
+.hint { font-size: 0.82rem; color: var(--warn); background: var(--warn-surface); border-radius: var(--radius); padding: 0.35rem 0.6rem; margin-top: 0.35rem; }
+
+/* #90: every table in a named, focusable scroll region */
+div[role="region"] { position: relative; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; }
+th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border); white-space: nowrap; background: var(--surface); }
+th button.sort { all: unset; cursor: pointer; } th button.sort:hover { color: var(--text); }
+th[aria-sort] { color: var(--text); }
+td { padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+tbody tr:hover td { background: var(--hover); }
+tr:last-child td { border-bottom: none; }
+.name { overflow-wrap: anywhere; } /* #111 break at dots via <wbr> */
+
+/* #120 seed progress: text always visible, colour is secondary, detail on hover + focus + screen readers */
+.seed { display: inline-flex; align-items: center; gap: 0.45rem; white-space: nowrap; font-variant-numeric: tabular-nums; position: relative; cursor: help; border-radius: 0.3rem; }
+.seed meter { width: 3.6rem; height: 0.45rem; }
+.seed[data-state="below"] { color: var(--warn); font-weight: 600; }
+.seed[data-state="met"] { color: var(--ok); font-weight: 600; }
+.seed[data-state="none"] { color: var(--muted); }
+.seed .tip { display: none; position: absolute; left: 0; top: calc(100% + 0.3rem); z-index: 20; background: var(--text); color: var(--background); font-weight: 500; font-size: 0.78rem; padding: 0.35rem 0.55rem; border-radius: 0.35rem; box-shadow: var(--popover-shadow); }
+.seed:hover .tip, .seed:focus .tip { display: block; }
+meter::-webkit-meter-bar { background: var(--muted-surface); border: none; border-radius: 999px; height: 0.45rem; }
+meter::-webkit-meter-optimum-value { background: var(--ok); border-radius: 999px; }
+meter::-webkit-meter-suboptimum-value { background: var(--warn); border-radius: 999px; }
+
+/* filters — #113 one verdict control (chips), reason auto-applies with counts, #110 search */
+.toolbar { display: flex; flex-wrap: wrap; gap: 0.6rem 0.75rem; align-items: end; margin-bottom: 1rem; }
+.chips { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.chip { display: inline-flex; gap: 0.45rem; align-items: center; padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); text-decoration: none; font-weight: 500; cursor: pointer; font-size: 0.9rem; }
+.chip b { font-size: 0.75rem; border-radius: 999px; padding: 0 0.45rem; background: var(--muted-surface); color: var(--muted); }
+.chip[data-verdict="remove"] b { background: var(--danger-surface); color: var(--danger); }
+.chip[data-verdict="left-alone"] b { background: var(--warn-surface); color: var(--warn); }
+.chip[data-verdict="keep"] b { background: var(--ok-surface); color: var(--ok); }
+.chip[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+input[type="search"] { min-width: 16rem; }
+.pager { display: flex; gap: 1rem; align-items: center; justify-content: center; margin: 1rem 0; color: var(--muted); font-size: 0.875rem; }
+
+/* Groups variant A — refined table with group header rows */
+.ga tbody.group > tr.head td { background: color-mix(in srgb, var(--muted-surface) 45%, var(--surface)); border-top: 1px solid var(--border-strong); }
+.ga tbody.group > tr.member td:first-child { padding-left: 2rem; }
+.ga tr.member .name { color: var(--muted); font-size: 0.85rem; }
+.ga tr.member[data-cause] td { background: var(--warn-surface); }
+.ga .reason { display: grid; gap: 0.1rem; }
+.ga .reason small { color: var(--muted); }
+details.keep { position: relative; }
+details.keep > summary { list-style: none; cursor: pointer; font-size: 0.82rem; font-weight: 600; color: var(--accent); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 0.25rem 0.6rem; white-space: nowrap; }
+details.keep > summary::-webkit-details-marker { display: none; }
+details.keep > div { position: absolute; right: 0; top: calc(100% + 0.35rem); z-index: 15; width: 17rem; display: grid; gap: 0.6rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--popover-shadow); padding: 0.85rem; }
+
+/* Groups variant B — triage lanes */
+.lane { margin-bottom: 1.5rem; }
+.lane > header { display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.5rem; }
+.lane > header h2 { margin: 0; }
+.bucket { background: var(--surface); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.5); margin-bottom: 0.75rem; overflow: hidden; }
+.bucket > summary { cursor: pointer; padding: 0.75rem 1rem; display: flex; gap: 0.75rem; align-items: center; font-weight: 600; }
+.bucket > summary .grow { flex: 1; }
+.bucket > .what { padding: 0 1rem 0.6rem; font-size: 0.85rem; color: var(--muted); }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) 6.5rem 9rem 7.5rem auto; gap: 1rem; align-items: center; padding: 0.55rem 1rem; border-top: 1px solid var(--border); }
+.row > details:first-child > summary { cursor: pointer; list-style: none; }
+.row > details:first-child > summary::-webkit-details-marker { display: none; }
+.row > details:first-child > summary::before { content: "▸ "; color: var(--muted); }
+.row > details:first-child[open] > summary::before { content: "▾ "; }
+.row .members { margin: 0.5rem 0 0.25rem 1rem; display: grid; gap: 0.3rem; font-size: 0.85rem; }
+.row .members > div { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+.row .members > div[data-cause] { color: var(--warn); font-weight: 600; }
+
+/* Groups variant C — list + detail */
+.split { display: grid; grid-template-columns: minmax(22rem, 2fr) 3fr; gap: 1rem; align-items: start; }
+.list { background: var(--surface); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.5); max-height: calc(100vh - 15rem); overflow: auto; }
+.list button.item { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.25rem 0.6rem; padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--border); cursor: pointer; }
+.list button.item:hover { background: var(--hover); }
+.list button.item[aria-current="true"] { background: var(--accent-surface); box-shadow: inset 3px 0 0 var(--accent); }
+.list .item .dot { margin-top: 0.45rem; }
+.list .item .meta { grid-column: 2 / 4; display: flex; gap: 0.75rem; color: var(--muted); font-size: 0.8rem; }
+.detail { position: sticky; top: 4.5rem; }
+.timeline { display: flex; align-items: center; gap: 0; margin: 0.75rem 0 1rem; font-size: 0.8rem; color: var(--muted); }
+.timeline .bar { flex: 1; height: 0.4rem; background: var(--muted-surface); border-radius: 999px; position: relative; margin: 0 0.6rem; }
+.timeline .bar span { position: absolute; inset: 0 auto 0 0; background: var(--ok); border-radius: 999px; }
+
+/* overview */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.tile { display: block; background: var(--surface); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.5); padding: 1rem 1.2rem; text-decoration: none; color: var(--text); box-shadow: var(--shadow); }
+.tile:hover { border-color: var(--border-strong); }
+.tile strong { display: block; font-size: 1.9rem; letter-spacing: -0.02em; line-height: 1.1; }
+.tile[data-verdict="remove"] strong { color: var(--danger); } .tile[data-verdict="left-alone"] strong { color: var(--warn); } .tile[data-verdict="keep"] strong { color: var(--ok); }
+.tile small { color: var(--muted); }
+.warnlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.warnlist li { display: flex; gap: 0.6rem; align-items: baseline; }
+
+/* activity — #119 */
+.run-quiet { display: flex; gap: 0.75rem; align-items: center; padding: 0.45rem 1rem; color: var(--muted); font-size: 0.875rem; border-left: 2px solid var(--border); margin: 0 0 0.4rem 0.5rem; }
+.run-head { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; align-items: baseline; margin-bottom: 0.75rem; }
+.run-head h2 { margin: 0; }
+
+/* orphans — #114 */
+details.dir { border-top: 1px solid var(--border); }
+details.dir:first-of-type { border-top: none; }
+details.dir > summary { cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) 7rem 6rem; gap: 1rem; padding: 0.55rem 0.75rem; }
+details.dir > div { padding: 0 0.75rem 0.6rem 1.75rem; }
+details.dir .ln { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 5rem; gap: 1rem; font-size: 0.8rem; padding: 0.2rem 0; border-bottom: 1px dashed var(--border); }
+
+/* login */
+.login { max-width: 23rem; margin: 3rem auto; }
+.login form { display: grid; gap: 0.85rem; }
+
+/* #109/#117 times */
+time[title] { text-decoration: underline dotted var(--border-strong); text-underline-offset: 0.2em; }
+
+/* issue markers (toggle with i) */
+.iss { display: inline-block; flex: none; font: 600 0.66rem/1.4 var(--mono); color: #6b4bd1; background: #efeaff; border: 1px solid #d8cdff; border-radius: 0.3rem; padding: 0 0.3rem; margin-left: 0.35rem; vertical-align: middle; text-decoration: none; }
+body.no-iss .iss { display: none; }
+
+/* PROTOTYPE switcher — not part of the design */
+#proto { position: fixed; left: 50%; bottom: 1rem; transform: translateX(-50%); z-index: 100; display: flex; align-items: center; gap: 0.4rem; background: #111; color: #fff; padding: 0.35rem 0.5rem; border-radius: 999px; box-shadow: 0 6px 24px rgb(0 0 0 / 35%); font: 500 0.82rem system-ui; white-space: nowrap; }
+#proto button { all: unset; cursor: pointer; padding: 0.3rem 0.65rem; border-radius: 999px; background: #2b2b2b; }
+#proto button:hover { background: #444; }
+#proto button:disabled { opacity: 0.35; cursor: default; }
+#proto .lbl { padding: 0 0.4rem; min-width: 13rem; text-align: center; }
+#proto .tag { background: #f6c945; color: #111; font-weight: 800; font-size: 0.68rem; padding: 0.1rem 0.45rem; border-radius: 999px; }
+
+/* #118 small screens */
+@media (max-width: 60rem) {
+  body > header { gap: 0.75rem; }
+  header .logout { display: none; }
+  main { padding: 0.25rem 1rem 6rem; }
+  input[type="search"] { min-width: 0; width: 100%; }
+  .toolbar > * { flex: 1 1 100%; }
+  .chips .chip { flex: 1; justify-content: center; }
+  .ga .hide-sm { display: none; }
+  .show-sm { display: block; margin-top: 0.3rem; }
+  .row { grid-template-columns: minmax(0, 1fr) auto; }
+  .row .hide-sm { display: none; }
+  .split { grid-template-columns: 1fr; }
+  .detail { position: static; }
+  .list { max-height: 50vh; }
+  details.keep > div { right: auto; left: -10rem; }
+  #proto .lbl { min-width: 0; }
+}
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="#overview">seedkeeper</a>
+  <nav aria-label="Views" id="nav"></nav>
+  <button class="quiet logout" type="button" onclick="go('login', {loggedOut: 1})">Log out</button>
+</header>
+<main id="main"></main>
+<footer class="tz">Times are in Europe/Brussels <span class="iss">#117</span></footer>
+
+<div id="proto" role="toolbar" aria-label="Prototype switcher">
+  <span class="tag">PROTOTYPE</span>
+  <button type="button" id="prev" aria-label="Previous variant">←</button>
+  <span class="lbl" id="lbl"></span>
+  <button type="button" id="next" aria-label="Next variant">→</button>
+  <button type="button" id="iss" title="Show/hide issue markers (i)">#</button>
+</div>
+
+<script>
+/* ---------- invented data (stable: seeded random) ---------- */
+let rs = 7;
+const rnd = () => (rs = (rs * 16807) % 2147483647) / 2147483647;
+const pick = a => a[Math.floor(rnd() * a.length)];
+const DAY = 86400, NOW = Date.parse('2026-11-20T15:10:00+01:00') / 1000;
+const TRACKERS = [
+  { name: 'Alpha', hosts: ['alpha.example'], min: 30 },
+  { name: 'Bravo', hosts: ['tracker.bravo.example'], min: 30 },
+  { name: 'Charlie', hosts: ['charlie.example', 'charlie.example.net'], min: 14 },
+  { name: 'Delta', hosts: ['tracker.delta.example'], min: 30 },
+  { name: 'Echo', hosts: ['echo.example'], min: 60 },
+];
+const WORDS = ['Harbor', 'Lights', 'Paper', 'Orchard', 'Signal', 'Winter', 'Garden', 'Copper', 'River', 'Atlas', 'Quiet', 'Hours', 'Northern', 'Glass', 'Station', 'Little', 'Kingdom', 'Salt', 'Meridian', 'Hollow', 'Echoes', 'Velvet', 'Lantern', 'Drift', 'Static', 'Bloom'];
+const FMT = ['1080p.WEB-DL.DDP5.1.H.264-GRP', '2160p.WEB-DL.DDP5.1.DV.HDR.H.265-GRP', '1080p.BluRay.x264-GRP', '2160p.UHD.BluRay.REMUX.HDR.HEVC-GRP'];
+function title() {
+  const n = 1 + Math.floor(rnd() * 3), w = []; for (let i = 0; i < n; i++) w.push(pick(WORDS));
+  return rnd() < 0.3 ? `${w.join('.')}.S0${1 + Math.floor(rnd() * 4)}.${pick(FMT)}` : `${w.join('.')}.${2000 + Math.floor(rnd() * 26)}.${pick(FMT)}.mkv`;
+}
+const GROUPS = [];
+for (let i = 0; i < 174; i++) {
+  const t = title(), season = t.includes('.S0');
+  const files = season ? 6 + Math.floor(rnd() * 18) : 1;
+  const size = (season ? 18 + rnd() * 70 : 3 + rnd() * 55) * 2 ** 30;
+  const nm = 1 + Math.floor(rnd() * 3);
+  const used = [...TRACKERS].sort(() => rnd() - 0.5).slice(0, nm);
+  const members = used.map(tr => ({ name: t, tracker: tr, seed: Math.floor((rnd() < 0.12 ? rnd() * tr.min : tr.min + rnd() * 350) * DAY), status: 'Seeding', message: '' }));
+  let verdict = 'keep', reason = 'Library link', secondary = [], cause = null;
+  let linked = Math.round(files * (rnd() < 0.85 ? 1 : 0.3 + rnd() * 0.6));
+  if (rnd() < 0.08) linked = 0;
+  const below = members.filter(m => m.seed < m.tracker.min * DAY);
+  if (i % 8 === 3) { // unmanaged member (#102)
+    members.push({ name: t, tracker: null, hosts: [pick(['tracker.unknown.example', 'announce.other.example'])], why: pick(['host not in the config', 'not private, no public minimum']), seed: Math.floor(rnd() * 3 * DAY), status: 'Seeding', message: '' });
+    verdict = 'left-alone'; reason = 'Unmanaged'; cause = members.length - 1;
+    if (linked) secondary.push(`Library link`);
+  } else if (i % 11 === 5) {
+    verdict = 'left-alone'; reason = 'Missing data'; cause = 0;
+    members[0].status = 'Error'; members[0].missing = `${Math.max(1, Math.floor(files / 3))} of ${files} files`;
+    if (linked) secondary.push('Library link');
+  } else if (!linked && below.length) { reason = 'Minimum not reached'; }
+  else if (!linked) { verdict = i % 3 ? 'keep' : 'remove'; reason = verdict === 'remove' ? 'All met' : 'Keep override'; }
+  if (below.length && reason !== 'Minimum not reached') secondary.push('Minimum not reached');
+  if (i === 9) members[0].message = 'Tracker is down for maintenance';
+  const maxLeft = Math.max(0, ...members.filter(m => m.tracker).map(m => m.tracker.min * DAY - m.seed));
+  GROUPS.push({ id: i, name: t, members, verdict, reason, secondary, cause, files, linked, size, forecast: maxLeft > 0 ? NOW + maxLeft : null, override: reason === 'Keep override' });
+}
+// make "will be removed" non-trivial and a few due soon
+GROUPS.filter(g => g.verdict === 'remove').forEach(g => { g.members.forEach(m => m.seed = Math.max(m.seed, (m.tracker?.min || 30) * DAY + 5 * DAY)); g.forecast = null; g.secondary = []; });
+const RUNS = [];
+{ let t = Date.parse('2026-11-20T14:23:39+01:00') / 1000;
+  RUNS.push({ start: t, dur: 2, removed: [{ name: 'Paper.Orchard.2024.1080p.WEB-DL.DDP5.1.H.264-GRP.mkv', tracker: 'Alpha', message: 'Torrent has been deleted.', reason: 'Unregistered', files: 0, freed: 0, kept: 'still library-linked' }], manual: true });
+  for (let d = 0; d < 46; d++) {
+    const s = Date.parse('2026-11-20T06:00:01+01:00') / 1000 - d * DAY;
+    const r = d === 6 ? [{ name: 'Glass.Station.S02.1080p.WEB-DL.DDP5.1.H.264-GRP', tracker: 'Bravo', message: '', reason: 'All met', files: 14, freed: 41.2 * 2 ** 30 }, { name: 'Glass.Station.S02.1080p.WEB-DL.DDP5.1.H.264-GRP', tracker: 'Delta', message: '', reason: 'All met', files: 0, freed: 0, kept: 'shared with the other member' }]
+      : d === 13 ? [{ name: 'Velvet.Drift.2019.2160p.UHD.BluRay.REMUX.HDR.HEVC-GRP.mkv', tracker: 'Echo', message: '', reason: 'All met', files: 1, freed: 58.7 * 2 ** 30, error: d === 13 ? '' : '' }] : [];
+    RUNS.push({ start: s, dur: 3 + Math.floor(rnd() * 4), removed: r, failed: d === 20 });
+  }
+}
+const OVERRIDES = [
+  { name: 'Northern.Lights.S01.2160p.WEB-DL.DDP5.1.DV.HDR.H.265-GRP', hashes: 2, note: 'Rewatching in December', until: '2027-01-05' },
+  { name: 'Salt.Meridian.1998.1080p.BluRay.x264-GRP.mkv', hashes: 1, note: 'Rare, keep seeding', until: null },
+];
+
+/* ---------- helpers ---------- */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const wbr = s => esc(s).replace(/([.\-])/g, '$1<wbr>');
+const iss = (...n) => n.map(x => `<span class="iss" title="Issue #${x}">#${x}</span>`).join('');
+const dur = s => { s = Math.max(0, s); const d = Math.floor(s / DAY), h = Math.floor(s % DAY / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`; };
+const size = b => b >= 2 ** 40 ? (b / 2 ** 40).toFixed(1) + ' TiB' : b >= 2 ** 30 ? (b / 2 ** 30).toFixed(1) + ' GiB' : b >= 2 ** 20 ? (b / 2 ** 20).toFixed(1) + ' MiB' : b >= 1024 ? (b / 1024).toFixed(1) + ' KiB' : b + ' B';
+const abs = t => new Date(t * 1000).toLocaleString('sv-SE', { timeZone: 'Europe/Brussels' }).slice(0, 16);
+const rel = t => { const d = t - NOW, a = Math.abs(d); const v = a < 3600 ? `${Math.round(a / 60)} min` : a < DAY ? `${Math.round(a / 3600)} h` : `${Math.round(a / DAY)} d`; return d > 0 ? `in ${v}` : `${v} ago`; };
+const time = (t, mode = 'rel') => `<time datetime="${new Date(t * 1000).toISOString()}" title="${abs(t)}">${mode === 'rel' ? rel(t) : abs(t)}</time>`;
+const NEXT_RUN = Date.parse('2026-11-21T06:00:00+01:00') / 1000;
+const counts = { remove: 0, 'left-alone': 0, keep: 0 }; GROUPS.forEach(g => counts[g.verdict]++);
+const VLABEL = { remove: 'Remove', 'left-alone': 'Left alone', keep: 'Keep' };
+const HINTS = { // #112
+  Unmanaged: 'A member announces to a host that no tracker in the config owns. Add that host under <code>trackers</code> to manage it, or remove the member in Transmission.',
+  'Missing data': 'Files of this torrent are gone from disk. Re-verify it in Transmission, or remove it there if the files are gone for good.',
+  'Local error': 'Transmission reports a local error for a member. Check its disk and permissions.',
+  Verifying: 'Transmission is checking the data. The verdict settles after the next run.',
+};
+const EXPLAIN = { // one line per reason, for B
+  'Library link': 'Some of its files are still linked into the library.',
+  'Minimum not reached': 'A tracker’s minimum seed time is not met yet.',
+  'Keep override': 'You asked to keep it.',
+  'All met': 'No library link left and every tracker’s minimum met.',
+};
+
+/* #120 seed progress: % below the minimum, "Met ✓" at/over, "—" without one */
+function seed(m) {
+  if (!m.tracker) return `<span class="seed" data-state="none" tabindex="0">— <span class="sr">no minimum, seeded ${dur(m.seed)}</span><span class="tip" aria-hidden="true">Seeded ${dur(m.seed)} · no minimum (unmanaged)</span></span>`;
+  const min = m.tracker.min * DAY, pct = Math.floor(m.seed / min * 100);
+  const detail = m.seed >= min ? `${dur(m.seed)} of ${m.tracker.min}d · met ${dur(m.seed - min)} ago` : `${dur(m.seed)} of ${m.tracker.min}d · ${dur(min - m.seed)} to go`;
+  return m.seed >= min
+    ? `<span class="seed" data-state="met" tabindex="0">Met ✓<span class="sr">, ${detail}</span><span class="tip" aria-hidden="true">${detail}</span></span>`
+    : `<span class="seed" data-state="below" tabindex="0"><meter min="0" max="100" low="100" high="100" optimum="100" value="${pct}">${pct}%</meter>${pct}%<span class="sr">, ${detail}</span><span class="tip" aria-hidden="true">${detail}</span></span>`;
+}
+const groupSeed = g => { // the least-progressed managed member stands for the group
+  const managed = g.members.filter(m => m.tracker); if (!managed.length) return seed(g.members[0]);
+  return seed(managed.reduce((a, b) => a.seed / a.tracker.min < b.seed / b.tracker.min ? a : b));
+};
+const tracker = m => m.tracker ? esc(m.tracker.name) : `<span class="pill">Unmanaged</span> <span class="mono muted">${esc(m.hosts.join(', '))}</span>${iss(102)}<div class="small muted">${esc(m.why)}</div>`;
+const libLinks = g => g.linked ? `${g.linked} of ${g.files} file${g.files > 1 ? 's' : ''} linked` : 'no library link';
+const keepForm = g => `<details class="keep"><summary>Keep…</summary><div>
+  <label class="f">Note<input placeholder="Why keep it?" aria-label="Note for ${esc(g.name)}"></label>
+  <label class="f">Until (optional)<input type="date" aria-label="Until for ${esc(g.name)}"></label>
+  <button type="button" onclick="keepDone(${g.id})">Set a keep override</button></div></details>`;
+
+/* ---------- state + routing (hash, so it works from file://) ---------- */
+let S = {};
+function parse() { const [p, q] = location.hash.slice(1).split('?'); S = Object.fromEntries(new URLSearchParams(q || '')); S.page = p || 'overview'; }
+function go(page, params = {}) { const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== '' && v != null)).toString(); location.hash = page + (q ? '?' + q : ''); }
+function set(params) { const { page, ...rest } = S; go(page, { ...rest, ...params }); }
+const VARIANTS = { groups: [['A', 'Refined table'], ['B', 'Triage lanes'], ['C', 'List + detail']] };
+
+/* ---------- pages ---------- */
+const P = {};
+
+P.overview = () => { // #115 (#79: there is a page at /)
+  const soon = GROUPS.filter(g => g.forecast && g.forecast < NOW + 7 * DAY).sort((a, b) => a.forecast - b.forecast);
+  const last = RUNS[0];
+  return `<h1>Overview ${iss(115)}</h1>
+  <div class="tiles">
+    <a class="tile" data-verdict="remove" href="#groups?verdict=remove"><strong>${counts.remove}</strong>Remove at the next run<br><small>${time(NEXT_RUN)}</small></a>
+    <a class="tile" data-verdict="left-alone" href="#groups?verdict=left-alone"><strong>${counts['left-alone']}</strong>Left alone<br><small>need a look</small></a>
+    <a class="tile" data-verdict="keep" href="#groups?verdict=keep"><strong>${counts.keep}</strong>Keep<br><small>${size(GROUPS.filter(g => g.verdict === 'keep').reduce((a, g) => a + g.size, 0))} ${iss(103)}</small></a>
+    <a class="tile" href="#orphans"><strong>1,092</strong>Orphans<br><small>dangling symlinks</small></a>
+  </div>
+  <div class="grid">
+    <section class="card"><h2>Needs attention</h2><ul class="warnlist">
+      <li><span class="pill" data-tone="warn">${counts['left-alone']}</span><span>groups are Left alone: <a href="#groups?verdict=left-alone&reason=Unmanaged">${GROUPS.filter(g => g.reason === 'Unmanaged').length} unmanaged</a>, <a href="#groups?verdict=left-alone&reason=Missing%20data">${GROUPS.filter(g => g.reason === 'Missing data').length} missing data</a></span></li>
+      <li><span class="pill" data-tone="warn">1</span><span>tracker message: <em>Tracker is down for maintenance</em> <a href="#groups?q=${encodeURIComponent(GROUPS[9].name.split('.')[0])}">show</a></span></li>
+      <li><span class="pill" data-tone="ok">OK</span><span>Transmission reachable · last run succeeded</span></li>
+    </ul></section>
+    <section class="card"><h2>Runs</h2><dl class="kv">
+      <dt>Last run</dt><dd><span class="pill" data-tone="ok">Succeeded</span> ${time(last.start)} · took ${last.dur} s ${iss(117)}</dd>
+      <dt>Removed</dt><dd>1 torrent · data kept (still library-linked) ${iss(116)} · <a href="#activity">Activity</a></dd>
+      <dt>Next run</dt><dd>${time(NEXT_RUN)} · every day at 06:00</dd></dl>
+      <p style="margin:1rem 0 0"><button type="button" onclick="runNow()">Run now</button> <a href="#groups?verdict=remove" style="margin-left:.75rem">See what it would remove</a></p></section>
+  </div>
+  <section class="card"><h2>Due in the next 7 days ${iss(115, 120)}</h2>
+  ${soon.length ? `<div role="region" aria-label="Due soon" tabindex="0"><table><thead><tr><th>Group</th><th>Progress</th><th>Meets its minimum</th><th>Then</th></tr></thead><tbody>
+  ${soon.slice(0, 8).map(g => `<tr><td class="name"><a href="#groups?variant=C&g=${g.id}">${wbr(g.name)}</a></td><td>${groupSeed(g)}</td><td>${time(g.forecast)}</td><td>${g.linked ? '<span class="muted">kept: library link</span>' : '<span class="pill" data-tone="danger">removed at the next run after</span>'}</td></tr>`).join('')}
+  </tbody></table></div>` : '<p class="muted">Nothing.</p>'}</section>`;
+};
+
+/* Groups: shared filtering — #110 search/sort/paging, #113 single verdict control, reason auto-apply with counts */
+const REASONS = ['Unregistered', 'Unmanaged', 'Missing data', 'Local error', 'Verifying', 'Not finished', 'Keep override', 'Library link', 'Minimum not reached', 'All met'];
+function filtered() {
+  let gs = GROUPS;
+  if (S.verdict && VLABEL[S.verdict]) gs = gs.filter(g => g.verdict === S.verdict);
+  if (S.reason) gs = gs.filter(g => g.reason === S.reason);
+  if (S.q) gs = gs.filter(g => g.name.toLowerCase().includes(S.q.toLowerCase()));
+  const key = S.sort || 'default', dir = S.dir === 'desc' ? -1 : 1;
+  const prog = g => Math.min(...g.members.filter(m => m.tracker).map(m => m.seed / (m.tracker.min * DAY)).concat([99]));
+  const order = { remove: 0, 'left-alone': 1, keep: 2 };
+  const by = { default: (a, b) => order[a.verdict] - order[b.verdict] || (a.forecast || 9e12) - (b.forecast || 9e12),
+    name: (a, b) => a.name.localeCompare(b.name), size: (a, b) => a.size - b.size, progress: (a, b) => prog(a) - prog(b),
+    forecast: (a, b) => (a.forecast || 9e12) - (b.forecast || 9e12), verdict: (a, b) => order[a.verdict] - order[b.verdict] };
+  return [...gs].sort((a, b) => by[key](a, b) * (key === 'default' ? 1 : dir));
+}
+function toolbar() {
+  const bad = S.verdict && !VLABEL[S.verdict];
+  const base = bad ? GROUPS : GROUPS.filter(g => !S.verdict || g.verdict === S.verdict);
+  const rc = r => base.filter(g => g.reason === r).length;
+  return `${bad ? `<p role="alert">Unknown verdict “${esc(S.verdict)}”: showing all groups. Use remove, left-alone or keep. ${iss(113)}</p>` : ''}
+  <div class="toolbar">
+    <div class="chips" role="group" aria-label="Verdict">
+      ${[['', 'All', GROUPS.length], ...Object.entries(VLABEL).map(([k, v]) => [k, v, counts[k]])].map(([k, v, n]) =>
+        `<button type="button" class="chip" data-verdict="${k}" aria-pressed="${(S.verdict || '') === k}" onclick="set({verdict:'${k}',reason:'',p:''})"><b>${n}</b>${v}</button>`).join('')}
+    </div>
+    <label class="f"><span>Reason ${iss(113)}</span><select onchange="set({reason:this.value,p:''})"><option value="">Any reason</option>
+      ${REASONS.map(r => `<option ${S.reason === r ? 'selected' : ''} ${rc(r) ? '' : 'disabled'} value="${r}">${r} (${rc(r)})</option>`).join('')}</select></label>
+    <label class="f"><span>Search ${iss(110)}</span><input type="search" placeholder="Name contains…" value="${esc(S.q || '')}" onchange="set({q:this.value,p:''})"></label>
+    ${S.verdict || S.reason || S.q ? `<button class="link" type="button" onclick="set({verdict:'',reason:'',q:'',p:''})">Clear filter</button>` : ''}
+  </div>
+  ${S.kept ? `<p role="status" class="done">Keep override set for ${esc(GROUPS[+S.kept].name)}. It shows in <a href="#overrides">Overrides</a>. ${iss(88)}</p>` : ''}
+  <details class="small" style="margin-bottom:1rem"><summary class="muted" style="cursor:pointer">How verdicts are decided</summary>
+  <ul class="muted" style="max-width:46rem">
+    <li><b>Remove</b>: no library link left and every tracker’s minimum met. The next run removes it.</li>
+    <li><b>Left alone</b>: something is off (unmanaged member, missing data, error). seedkeeper won’t touch it until it’s fixed.</li>
+    <li><b>Keep</b>: still library-linked, minimum not met yet, or you set a keep override.</li>
+    <li>Cross-seeds share files, so they form one group with one verdict. Size counts shared files once ${iss(103)}. Progress is the slowest member toward its tracker’s minimum ${iss(120)}.</li>
+  </ul></details>`;
+}
+function pager(total, per) { // #110
+  const p = +(S.p || 1), pages = Math.ceil(total / per);
+  return pages <= 1 ? '' : `<div class="pager">${iss(110)}<button class="quiet" type="button" ${p <= 1 ? 'disabled' : ''} onclick="set({p:${p - 1}})">← Previous</button>
+  <span>${(p - 1) * per + 1}–${Math.min(total, p * per)} of ${total}</span>
+  <button class="quiet" type="button" ${p >= pages ? 'disabled' : ''} onclick="set({p:${p + 1}})">Next →</button></div>`;
+}
+const page = (gs, per) => { const p = +(S.p || 1); return gs.slice((p - 1) * per, p * per); };
+function th(label, key, cls = '') {
+  const on = S.sort === key, dir = on && S.dir !== 'desc' ? 'desc' : 'asc';
+  return `<th class="${cls}" ${on ? `aria-sort="${S.dir === 'desc' ? 'descending' : 'ascending'}"` : ''}><button class="sort" type="button" onclick="set({sort:'${key}',dir:'${dir}'})">${label}${on ? (S.dir === 'desc' ? ' ↓' : ' ↑') : ''}</button></th>`;
+}
+
+/* Variant A — the current table, refined: one header row per group, members under it (#111) */
+function groupsA() {
+  const gs = filtered(), shown = page(gs, 50);
+  return `<h1>Groups</h1>${toolbar()}
+  <div role="region" aria-label="Groups" tabindex="0" class="ga"><table>
+  <thead><tr>${th('Name', 'name')}${th('Size ' , 'size', 'num hide-sm')}${th('Seeding', 'progress')}${th('Verdict', 'verdict', 'hide-sm')}<th class="hide-sm">Why</th>${th('Forecast', 'forecast', 'hide-sm')}<th><span class="sr">Keep override</span></th></tr></thead>
+  ${shown.map(g => `<tbody class="group" data-verdict="${g.verdict}">
+    <tr class="head"><td class="name"><b>${wbr(g.name)}</b><div class="small muted">${g.members.length} torrent${g.members.length > 1 ? 's' : ''} · ${libLinks(g)}</div><div class="show-sm"><span class="pill" data-verdict="${g.verdict}"><span class="dot" data-verdict="${g.verdict}"></span>${VLABEL[g.verdict]}</span> <span class="small muted">${esc(g.reason)}</span> ${iss(118)}</div></td>
+      <td class="num hide-sm">${size(g.size)}</td><td>${groupSeed(g)}</td>
+      <td class="hide-sm"><span class="pill" data-verdict="${g.verdict}"><span class="dot" data-verdict="${g.verdict}"></span>${VLABEL[g.verdict]}</span></td>
+      <td class="hide-sm"><div class="reason">${esc(g.reason)}${g.secondary.length ? `<small>also: ${g.secondary.join(', ')}</small>` : ''}${HINTS[g.reason] ? `<div class="hint">${HINTS[g.reason]} ${iss(112)}</div>` : ''}</div></td>
+      <td class="hide-sm">${g.forecast ? time(g.forecast) : '<span class="muted">—</span>'}</td><td>${keepForm(g)}</td></tr>
+    ${g.members.length > 1 || g.cause != null ? g.members.map((m, i) => `<tr class="member" ${g.cause === i ? 'data-cause' : ''}><td class="name">${tracker(m)}${g.cause === i ? ` <span class="pill" data-tone="warn">causes “${g.reason}”</span>${iss(112)}` : ''}${m.missing ? `<div class="small">missing ${m.missing}</div>` : ''}${m.message ? `<div class="small" style="color:var(--warn)">Tracker says: ${esc(m.message)}</div>` : ''}</td>
+      <td class="num hide-sm"></td><td>${seed(m)}</td><td class="small muted hide-sm">${m.status}</td><td class="hide-sm"></td><td class="hide-sm"></td><td></td></tr>`).join('') : ''}
+  </tbody>`).join('')}</table></div>${pager(gs.length, 50)}`;
+}
+
+/* Variant B — triage lanes: verdict first, then reason buckets; groups collapse to one line (#112 hints per bucket) */
+function groupsB() {
+  const gs = filtered();
+  const lane = v => { const lg = gs.filter(g => g.verdict === v); if (!lg.length && v !== 'remove') return '';
+    const byR = {}; lg.forEach(g => (byR[g.reason] ||= []).push(g));
+    return `<section class="lane"><header><span class="dot" data-verdict="${v}"></span><h2>${{ remove: 'Will be removed at the next run', 'left-alone': 'Needs a look', keep: 'Kept' }[v]}</h2><span class="muted">${lg.length} group${lg.length === 1 ? '' : 's'} · ${size(lg.reduce((a, g) => a + g.size, 0))}</span></header>
+    ${!lg.length ? `<p class="muted card">Nothing to remove. Next run ${time(NEXT_RUN)}.</p>` : ''}
+    ${Object.entries(byR).sort((a, b) => b[1].length - a[1].length).map(([r, list]) => `<details class="bucket" ${v !== 'keep' || S.q || S.reason ? 'open' : ''}><summary><span class="pill" data-verdict="${v}">${list.length}</span><span class="grow">${esc(r)}</span><span class="muted small hide-sm">${size(list.reduce((a, g) => a + g.size, 0))}</span></summary>
+      <div class="what">${HINTS[r] ? `<div class="hint">${HINTS[r]} ${iss(112)}</div>` : esc(EXPLAIN[r] || '')}</div>
+      ${list.slice(0, S.q || S.reason ? 999 : 12).map(g => `<div class="row"><details><summary class="name">${wbr(g.name)}</summary><div class="members">
+        ${g.members.map((m, i) => `<div ${g.cause === i ? 'data-cause' : ''}>${tracker(m)} ${seed(m)} <span class="muted">${m.status}</span>${g.cause === i ? ' ← causes it' : ''}${m.message ? ` <span style="color:var(--warn)">Tracker says: ${esc(m.message)}</span>` : ''}</div>`).join('')}
+        <div class="muted">${libLinks(g)}${g.secondary.length ? ' · also: ' + g.secondary.join(', ') : ''}</div></div></details>
+        <span class="num small muted hide-sm">${size(g.size)}</span><span class="hide-sm">${groupSeed(g)}</span><span class="small muted hide-sm">${g.forecast ? 'met ' + time(g.forecast) : ''}</span>${keepForm(g)}</div>`).join('')}
+      ${list.length > 12 && !(S.q || S.reason) ? `<div class="row"><button class="link" type="button" onclick="set({reason:'${r}'})">Show all ${list.length} ${esc(r.toLowerCase())}</button></div>` : ''}
+    </details>`).join('')}</section>`; };
+  return `<h1>Groups</h1>${toolbar()}${lane('remove')}${lane('left-alone')}${lane('keep')}`;
+}
+
+/* Variant C — list + detail: scan a narrow list, read one group fully */
+function groupsC() {
+  const gs = filtered(); const sel = GROUPS[+(S.g ?? gs[0]?.id ?? 0)];
+  const managed = sel.members.filter(m => m.tracker);
+  const slow = managed.length ? managed.reduce((a, b) => a.seed / a.tracker.min < b.seed / b.tracker.min ? a : b) : null;
+  const pct = slow ? Math.min(100, slow.seed / (slow.tracker.min * DAY) * 100) : 100;
+  return `<h1>Groups</h1>${toolbar()}
+  <div class="split">
+    <div class="list" role="listbox" aria-label="Groups">
+      <div class="small muted" style="padding:.5rem .9rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between"><span>${gs.length} groups</span>
+      <label>Sort <select onchange="set({sort:this.value,dir:''})">${['default', 'name', 'progress', 'size', 'forecast'].map(k => `<option ${S.sort === k ? 'selected' : ''}>${k}</option>`).join('')}</select> ${iss(110)}</label></div>
+      ${gs.map(g => `<button class="item" type="button" role="option" aria-current="${g === sel}" onclick="set({g:${g.id}})"><span class="dot" data-verdict="${g.verdict}"></span><span class="name small"><b>${wbr(g.name)}</b></span><span class="small muted">${size(g.size)}</span>
+        <span class="meta"><span>${VLABEL[g.verdict]} · ${esc(g.reason)}</span>${groupSeed(g)}</span></button>`).join('')}
+    </div>
+    <section class="card detail" aria-label="Group details">
+      <div style="display:flex;gap:1rem;align-items:start;justify-content:space-between"><h2 class="name" style="margin:0">${wbr(sel.name)}</h2>${keepForm(sel)}</div>
+      <p style="margin:.6rem 0"><span class="pill" data-verdict="${sel.verdict}"><span class="dot" data-verdict="${sel.verdict}"></span>${VLABEL[sel.verdict]}</span> because <b>${esc(sel.reason)}</b>${sel.secondary.length ? ` <span class="muted">(also: ${sel.secondary.join(', ')})</span>` : ''}</p>
+      ${HINTS[sel.reason] ? `<div class="hint">${HINTS[sel.reason]} ${iss(112)}</div>` : ''}
+      <div class="timeline" aria-label="Seed progress">${iss(120)}<span>added</span><div class="bar"><span style="width:${pct}%"></span></div><span>${slow ? (pct >= 100 ? 'minimum met' : 'minimum ' + time(sel.forecast)) : 'no minimum'}</span></div>
+      <dl class="kv" style="margin-bottom:1rem"><dt>Size</dt><dd>${size(sel.size)} ${iss(103)}</dd><dt>Library</dt><dd>${libLinks(sel)}</dd><dt>Forecast</dt><dd>${sel.forecast ? `minimum met ${time(sel.forecast)} (${abs(sel.forecast)})` : '—'}</dd></dl>
+      <div role="region" aria-label="Torrents in this group" tabindex="0"><table><thead><tr><th>Torrent on</th><th>Seeding</th><th>Status</th></tr></thead><tbody>
+      ${sel.members.map((m, i) => `<tr ${sel.cause === i ? 'style="background:var(--warn-surface)"' : ''}><td>${tracker(m)}${sel.cause === i ? ` <span class="pill" data-tone="warn">causes it</span>` : ''}${m.message ? `<div class="small" style="color:var(--warn)">Tracker says: ${esc(m.message)}</div>` : ''}</td><td>${seed(m)}</td><td>${m.status}${m.missing ? `<div class="small muted">missing ${m.missing}</div>` : ''}</td></tr>`).join('')}
+      </tbody></table></div>
+    </section>
+  </div>`;
+}
+P.groups = () => ({ A: groupsA, B: groupsB, C: groupsC }[S.variant || 'A'] || groupsA)();
+
+P.overrides = () => `<h1>Overrides</h1>
+  ${S.done ? `<p role="status" class="done">Keep override ${esc({ added: 'added', saved: 'saved', deleted: 'deleted' }[S.done] || '')}. ${iss(87)}</p>` : ''}
+  <p class="lead">A keep override stops a group from being removed, until an optional end date. They’re kept in <code>/data/overrides.yaml</code>.</p>
+  <div role="region" aria-label="Keep overrides" tabindex="0" style="margin-bottom:1rem"><table><thead><tr><th>Group</th><th>Note</th><th>Until</th><th></th></tr></thead><tbody>
+  ${OVERRIDES.map(o => `<tr><td class="name">${wbr(o.name)}<div class="small muted">${o.hashes} info hash${o.hashes > 1 ? 'es' : ''}</div></td><td><input value="${esc(o.note)}" aria-label="Note for ${esc(o.name)}"></td><td><input type="date" value="${o.until || ''}" aria-label="Until for ${esc(o.name)}"></td>
+    <td style="white-space:nowrap"><button class="quiet" type="button" onclick="set({done:'saved'})">Save</button> <button class="quiet" type="button" style="color:var(--danger)" onclick="confirm('Delete the keep override for ${esc(o.name)}? It can be removed at the next run.') && set({done:'deleted'})">Delete</button></td></tr>`).join('')}
+  </tbody></table></div>
+  <section class="card"><h2>Add by info hash</h2><p class="muted small" style="margin-top:0">To keep a group with all its members, use “Keep…” in <a href="#groups">Groups</a>.</p>
+  <div class="toolbar"><label class="f" style="flex:2">Info hashes<input placeholder="One or more, separated by spaces"></label><label class="f">Note<input placeholder="Why keep it?"></label><label class="f">Until (optional)<input type="date"></label><button type="button" onclick="set({done:'added'})">Add</button></div></section>`;
+
+P.activity = () => { // #89 paging, #116 explain, #117 times, #119 compact quiet runs
+  const per = 20, p = +(S.p || 1), runs = RUNS.slice((p - 1) * per, p * per);
+  const out = []; let quiet = [];
+  const flush = () => { if (!quiet.length) return;
+    out.push(quiet.length === 1 ? `<div class="run-quiet"><span class="pill" data-tone="ok">Succeeded</span>${time(quiet[0].start, 'abs')} · nothing to remove · ${quiet[0].dur} s</div>`
+      : `<div class="run-quiet"><span class="pill" data-tone="ok">${quiet.length} runs</span>${abs(quiet[quiet.length - 1].start).slice(0, 10)} → ${abs(quiet[0].start).slice(0, 10)} · all succeeded, nothing to remove ${iss(119)}</div>`); quiet = []; };
+  runs.forEach(r => {
+    if (!r.removed.length && !r.failed) { quiet.push(r); return; }
+    flush();
+    out.push(`<section class="card"><div class="run-head"><h2>${time(r.start, 'abs')}</h2><span class="muted">${rel(r.start)} · took ${r.dur} s ${iss(117)}</span>${r.manual ? '<span class="pill">Run now</span>' : ''}
+      <span class="pill" data-tone="${r.failed ? 'danger' : 'ok'}">${r.failed ? 'Failed' : 'Succeeded'}</span>
+      ${r.removed.length ? `<span>Removed <b>${r.removed.length}</b> · files deleted <b>${r.removed.reduce((a, x) => a + x.files, 0)}</b> · freed <b>${size(r.removed.reduce((a, x) => a + x.freed, 0))}</b></span>` : ''}</div>
+      ${r.failed ? `<p role="alert" style="margin:0">Transmission didn’t answer (timeout after 30 s). Nothing was removed.</p>` : ''}
+      ${r.removed.length ? `<div role="region" aria-label="Removals" tabindex="0"><table><thead><tr><th>Torrent</th><th>Tracker</th><th>Reason</th><th class="num">Files deleted</th><th class="num">Freed</th></tr></thead><tbody>
+      ${r.removed.map(x => `<tr><td class="name">${wbr(x.name)}${x.message ? `<div class="small muted">Tracker said: ${esc(x.message)}</div>` : ''}</td><td>${esc(x.tracker)}</td><td>${x.reason}</td><td class="num">${x.files}</td><td class="num">${size(x.freed)}${x.kept ? `<div class="small muted">data kept: ${x.kept} ${iss(116)}</div>` : ''}</td></tr>`).join('')}
+      </tbody></table></div>` : ''}</section>`);
+  });
+  flush();
+  return `<h1>Activity</h1><p class="lead">The runs of the last year, newest first. <b>Files deleted</b> and <b>freed</b> count only data that left the disk: a torrent whose files are still library-linked or shared with another torrent is removed from Transmission, but its data stays. ${iss(116)}</p>
+  ${out.join('')}<div class="pager">${iss(89)}<button class="quiet" type="button" ${p <= 1 ? 'disabled' : ''} onclick="set({p:${p - 1}})">← Newer</button><span>Page ${p} of ${Math.ceil(RUNS.length / per)}</span><button class="quiet" type="button" ${p * per >= RUNS.length ? 'disabled' : ''} onclick="set({p:${p + 1}})">Older →</button></div>`;
+};
+
+P.orphans = () => { // #114
+  const dirs = [['/downloads/movies-import', 512, 'links into a torrent that was removed'], ['/downloads/tv-import', 431, 'links into a torrent that was removed'], ['/downloads/cross-seed', 149, 'cross-seed links whose source is gone']];
+  const sys = S.sys === '1';
+  return `<h1>Orphans</h1><p class="lead">What’s under the downloads root that no torrent references. seedkeeper only shows it and never deletes it.</p>
+  <section class="card"><h2>Files</h2>
+  ${sys ? `<div role="region" aria-label="Orphan files" tabindex="0"><table><thead><tr><th>Path</th><th class="num">Size</th><th class="num">Age</th></tr></thead><tbody>
+    ${['/downloads/.DS_Store', '/downloads/@eaDir/.DS_Store@SynoResource', '/downloads/movies-import/@eaDir/…@SynoEAStream (3)', '/downloads/tv-import/.DS_Store'].map((p, i) => `<tr><td class="mono">${esc(p)}</td><td class="num">${['10.0 KiB', '82 B', '528 B', '6.0 KiB'][i]}</td><td class="num">${['314d', '314d', '60d', '448d'][i]}</td></tr>`).join('')}</tbody></table></div>
+    <p><button class="link" type="button" onclick="set({sys:''})">Hide system files</button></p>`
+  : `<p class="muted" style="margin:0">No orphan files. <button class="link" type="button" onclick="set({sys:'1'})">Show 8 system files</button> <span class="small">(.DS_Store, @eaDir, Thumbs.db, ._*)</span> ${iss(114)}</p>`}</section>
+  <section class="card"><h2>Dangling symlinks <span class="muted" style="font-weight:400">· 1,092 in ${dirs.length} folders</span> ${iss(114)}</h2>
+  <p class="muted small" style="margin-top:0">A symlink whose target no longer exists, usually left behind by an import or cross-seed after its torrent was removed. Safe to delete. To clean up: <code>find &lt;folder&gt; -xtype l -delete</code></p>
+  <div style="border:1px solid var(--border);border-radius:var(--radius)">
+  ${dirs.map(([d, n, why]) => `<details class="dir"><summary><span class="mono">${d}</span><span class="num">${n} links</span><span class="muted small num">${why.split(' ')[0] === 'cross-seed' ? '' : ''}</span></summary><div>
+    <div class="muted small" style="margin-bottom:.3rem">${why}</div>
+    <div class="ln muted" style="font-weight:600"><span>Link</span><span>Points to (missing)</span><span>Age</span></div>
+    ${Array.from({ length: 6 }, () => { const t = title(); return `<div class="ln"><span class="mono name">${wbr(t)}</span><span class="mono name muted">→ /downloads/complete/${wbr(t)}</span><span>${Math.floor(rnd() * 400)}d</span></div>`; }).join('')}
+    <div class="small muted" style="padding-top:.4rem">… and ${n - 6} more · <a href="#orphans">show all</a></div></div></details>`).join('')}
+  </div></section>`;
+};
+
+P.settings = () => `<h1>Settings</h1><p class="lead">The configuration seedkeeper runs with. To change it, edit <code>seedkeeper.yaml</code> or the environment and restart.</p>
+  <div class="grid">
+    <section class="card"><h2>Run</h2><dl class="kv"><dt>Schedule</dt><dd>Every day at 06:00 ${iss(109)}<div class="mono small muted">0 0 6 * * ?</div></dd><dt>Next run</dt><dd>${time(NEXT_RUN)} <span class="muted small">(${abs(NEXT_RUN)})</span></dd><dt>Time zone</dt><dd>Europe/Brussels</dd></dl></section>
+    <section class="card"><h2>Transmission</h2><dl class="kv"><dt>URL</dt><dd class="mono small" style="overflow-wrap:anywhere">http://transmission:9091/transmission/rpc</dd></dl></section>
+    <section class="card"><h2>Paths ${iss(108)}</h2><dl class="kv"><dt>Downloads root</dt><dd class="mono small">/downloads</dd><dt>Library roots</dt><dd><ul class="mono small"><li>/library/a</li><li>/library/b</li></ul></dd><dt>Data dir</dt><dd class="mono small">/data</dd></dl></section>
+  </div>
+  <section class="card" style="margin-top:1rem"><h2>Trackers</h2><dl class="kv" style="margin-bottom:.75rem"><dt>Default minimum seed time</dt><dd>30d</dd></dl>
+  <div role="region" aria-label="Trackers" tabindex="0"><table><thead><tr><th>Tracker</th><th>Hosts</th><th>Minimum seed time</th><th class="num">Groups</th></tr></thead><tbody>
+  ${TRACKERS.map(t => `<tr><td>${t.name}</td><td class="mono small">${t.hosts.join(', ')}</td><td>${t.min}d${t.min === 30 ? ' <span class="muted">(default)</span>' : ''}</td><td class="num">${GROUPS.filter(g => g.members.some(m => m.tracker === t)).length}</td></tr>`).join('')}
+  </tbody></table></div></section>`;
+
+P.system = () => `<h1>System</h1><div class="grid">
+  <section class="card"><h2>seedkeeper</h2><dl class="kv"><dt>Version</dt><dd>0.4.0</dd><dt>Up since</dt><dd>${time(NOW - 2.2 * DAY)}</dd></dl></section>
+  <section class="card"><h2>Transmission</h2><dl class="kv"><dt>Status</dt><dd><span class="pill" data-tone="ok">Reachable</span> checked ${time(NOW - 40)}</dd><dt>Version</dt><dd>4.1.3</dd><dt>Torrents</dt><dd>${GROUPS.reduce((a, g) => a + g.members.length, 0)}</dd></dl></section>
+  <section class="card"><h2>Runs</h2><dl class="kv"><dt>Last run</dt><dd><span class="pill" data-tone="ok">Succeeded</span> ${time(RUNS[0].start)} · took ${RUNS[0].dur} s ${iss(117)}</dd><dt>Next run</dt><dd>${time(NEXT_RUN)}</dd></dl>
+  <p style="margin:1rem 0 0"><button type="button" onclick="runNow()">Run now</button></p></section></div>
+  <p class="muted small">Runs, verdict counts and what’s due moved to the <a href="#overview">Overview</a>. ${iss(115)}</p>`;
+
+P.login = () => `<div class="card login"><h1 style="margin-top:0">Log in</h1>
+  ${S.loggedOut ? `<p role="status" class="info">You are logged out. ${iss(84)}</p>` : ''}
+  <form onsubmit="event.preventDefault();go('overview')"><label class="f">Username<input autocomplete="username" value="admin"></label><label class="f">Password<input type="password" autocomplete="current-password" value="prototype"></label><button>Log in</button></form>
+  <p class="muted small">After login you land on the Overview ${iss(79, 115)}</p></div>`;
+
+/* stubs: no real mutations */
+function keepDone(id) { set({ kept: id }); }
+function runNow() { if (confirm(`Run now? It removes the ${counts.remove} group(s) marked Remove.`)) alert('PROTOTYPE: no run started.'); } // #85
+
+/* ---------- render ---------- */
+const NAV = [['overview', 'Overview'], ['groups', 'Groups'], ['overrides', 'Overrides'], ['activity', 'Activity'], ['orphans', 'Orphans'], ['settings', 'Settings'], ['system', 'System']];
+function render() {
+  parse();
+  document.body.dataset.page = S.page;
+  document.querySelector('body > header').hidden = S.page === 'login';
+  document.getElementById('nav').innerHTML = NAV.map(([k, v]) => `<a href="#${k}" ${S.page === k ? 'aria-current="page"' : ''}>${v}${k === 'groups' ? `<span class="count" title="Left alone">${counts['left-alone']}</span>` : ''}</a>`).join('');
+  document.getElementById('main').innerHTML = (P[S.page] || P.overview)();
+  const vs = VARIANTS[S.page];
+  const cur = vs ? vs.find(v => v[0] === (S.variant || 'A')) || vs[0] : null;
+  document.getElementById('lbl').textContent = vs ? `${S.page}: ${cur[0]} (${cur[1]})` : `${S.page}: no variants`;
+  document.getElementById('prev').disabled = document.getElementById('next').disabled = !vs;
+}
+function cycle(d) { const vs = VARIANTS[S.page]; if (!vs) return; const i = vs.findIndex(v => v[0] === (S.variant || 'A')); set({ variant: vs[(i + d + vs.length) % vs.length][0] }); }
+document.getElementById('prev').onclick = () => cycle(-1);
+document.getElementById('next').onclick = () => cycle(1);
+document.getElementById('iss').onclick = () => document.body.classList.toggle('no-iss');
+addEventListener('keydown', e => { if (e.target.closest('input,textarea,select,[contenteditable]')) return;
+  if (e.key === 'ArrowLeft') cycle(-1); else if (e.key === 'ArrowRight') cycle(1); else if (e.key === 'i') document.body.classList.toggle('no-iss'); });
+addEventListener('hashchange', () => { render(); scrollTo(0, 0); });
+render();
+</script>
+</body>
+</html>
