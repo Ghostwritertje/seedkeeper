@@ -3,6 +3,7 @@ package io.github.ghostwritertje.seedkeeper.settings;
 import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules.ManagedTracker;
+import io.github.ghostwritertje.seedkeeper.run.ScheduledRun;
 import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.github.ghostwritertje.seedkeeper.transmission.Transmission;
 import io.quarkus.qute.CheckedTemplate;
@@ -11,11 +12,13 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jspecify.annotations.Nullable;
 
 /** The Settings view: the configuration seedkeeper runs with, read-only. */
 @Path("/settings")
@@ -27,10 +30,16 @@ class SettingsPage {
         static native TemplateInstance settings(Settings settings);
     }
 
-    /** The configuration, as text ready to show. It holds no secret value. */
+    /**
+     * The configuration, as text ready to show. It holds no secret value.
+     *
+     * @param schedule "Every day at 06:00 (0 0 6 * * ?)"; the cron expression alone when it has no plain words
+     * @param nextRun  "2026-11-21 06:00:00", in the configured time zone; null when no run is scheduled
+     */
     public record Settings(
             String schedule,
             String timeZone,
+            @Nullable String nextRun,
             String transmissionUrl,
             String downloadsRoot,
             List<String> libraryRoots,
@@ -62,13 +71,18 @@ class SettingsPage {
         }
     }
 
+    private static final DateTimeFormatter MOMENT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     private final SeedkeeperConfig config;
+    private final ScheduledRun scheduledRun;
     private final Optional<String> sessionEncryptionKey;
 
     SettingsPage(
             SeedkeeperConfig config,
+            ScheduledRun scheduledRun,
             @ConfigProperty(name = "quarkus.http.auth.session.encryption-key") Optional<String> sessionEncryptionKey) {
         this.config = config;
+        this.scheduledRun = scheduledRun;
         this.sessionEncryptionKey = sessionEncryptionKey;
     }
 
@@ -76,8 +90,12 @@ class SettingsPage {
     @Produces(MediaType.TEXT_HTML)
     public TemplateInstance settings() {
         return Templates.settings(new Settings(
-                config.schedule(),
+                ScheduleText.describe(config.schedule()),
                 config.timeZone().getId(),
+                scheduledRun
+                        .next()
+                        .map(next -> next.atZone(config.timeZone()).format(MOMENT))
+                        .orElse(null),
                 Transmission.withoutUserInfo(config.transmission().url()).toString(),
                 config.downloadsRoot().toString(),
                 config.libraryRoots().stream().map(Object::toString).toList(),
