@@ -86,7 +86,7 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
-          app-id: ${{ secrets.REVIEWER_APP_ID }}
+          client-id: ${{ secrets.REVIEWER_CLIENT_ID }}
           private-key: ${{ secrets.REVIEWER_APP_KEY }}
           # The agent's token: every permission the reviewer App has (docs/agents/github-apps.md), named here so that
           # a permission later added to the App doesn't reach the agent unseen.
@@ -289,7 +289,7 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
-          app-id: ${{ secrets.REVIEWER_APP_ID }}
+          client-id: ${{ secrets.REVIEWER_CLIENT_ID }}
           private-key: ${{ secrets.REVIEWER_APP_KEY }}
           permission-issues: write
           permission-pull-requests: write

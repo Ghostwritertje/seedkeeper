@@ -42,7 +42,7 @@ jobs:
       issue: ${{ github.event.issue.number }}
       labeller: ${{ github.event.sender.login }}
     secrets:
-      IMPLEMENTER_APP_ID: ${{ secrets.IMPLEMENTER_APP_ID }}
+      IMPLEMENTER_CLIENT_ID: ${{ secrets.IMPLEMENTER_CLIENT_ID }}
       IMPLEMENTER_APP_KEY: ${{ secrets.IMPLEMENTER_APP_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
@@ -66,7 +66,7 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
-          app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
+          client-id: ${{ secrets.IMPLEMENTER_CLIENT_ID }}
           private-key: ${{ secrets.IMPLEMENTER_APP_KEY }}
           permission-issues: read
 
@@ -107,7 +107,7 @@ jobs:
       issue: ${{ matrix.issue }}
       labeller: ${{ matrix.labeller }}
     secrets:
-      IMPLEMENTER_APP_ID: ${{ secrets.IMPLEMENTER_APP_ID }}
+      IMPLEMENTER_CLIENT_ID: ${{ secrets.IMPLEMENTER_CLIENT_ID }}
       IMPLEMENTER_APP_KEY: ${{ secrets.IMPLEMENTER_APP_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
@@ -126,6 +126,6 @@ jobs:
       pull_request: ${{ github.event.pull_request.number }}
       labeller: ${{ github.event.sender.login }}
     secrets:
-      IMPLEMENTER_APP_ID: ${{ secrets.IMPLEMENTER_APP_ID }}
+      IMPLEMENTER_CLIENT_ID: ${{ secrets.IMPLEMENTER_CLIENT_ID }}
       IMPLEMENTER_APP_KEY: ${{ secrets.IMPLEMENTER_APP_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
