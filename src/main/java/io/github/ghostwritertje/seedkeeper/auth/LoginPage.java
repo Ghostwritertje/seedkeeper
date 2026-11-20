@@ -16,13 +16,17 @@ class LoginPage {
     @CheckedTemplate
     static class Templates {
 
-        static native TemplateInstance login(boolean failed);
+        static native TemplateInstance login(boolean failed, boolean loggedOut);
     }
 
-    /** After a failed login Quarkus redirects to {@code /login?error}. */
+    /**
+     * After a failed login Quarkus redirects to {@code /login?error}; after Log out {@link Logout} redirects to
+     * {@code /login?logged-out}. When both are there, the form shows only the error.
+     */
     @GET
     @Produces(MediaType.TEXT_HTML)
     public TemplateInstance login(@Context UriInfo uri) {
-        return Templates.login(uri.getQueryParameters().containsKey("error"));
+        var query = uri.getQueryParameters();
+        return Templates.login(query.containsKey("error"), query.containsKey("logged-out"));
     }
 }
