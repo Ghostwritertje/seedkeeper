@@ -75,6 +75,8 @@ public record GroupVerdict(
      * @param tracker  the tracker the torrent belongs to; empty when it is unmanaged
      * @param seedTime time actually spent seeding
      * @param trackerError what the tracker reports to be wrong with the torrent; empty when nothing
+     * @param announceHosts the hosts of the torrent's announce URLs, once each, in announce order; never the full
+     *                      URL, which may hold a passkey
      */
     public record Member(
             String hash,
@@ -82,9 +84,25 @@ public record GroupVerdict(
             Optional<Tracker> tracker,
             Duration seedTime,
             Torrent.Status status,
-            Optional<TrackerError> trackerError) {
+            Optional<TrackerError> trackerError,
+            List<String> announceHosts) {
 
-        /** A member whose tracker reports nothing wrong. */
+        public Member {
+            announceHosts = List.copyOf(announceHosts);
+        }
+
+        /** A member with no announce hosts. */
+        public Member(
+                String hash,
+                String name,
+                Optional<Tracker> tracker,
+                Duration seedTime,
+                Torrent.Status status,
+                Optional<TrackerError> trackerError) {
+            this(hash, name, tracker, seedTime, status, trackerError, List.of());
+        }
+
+        /** A member whose tracker reports nothing wrong, with no announce hosts. */
         public Member(String hash, String name, Optional<Tracker> tracker, Duration seedTime, Torrent.Status status) {
             this(hash, name, tracker, seedTime, status, Optional.empty());
         }

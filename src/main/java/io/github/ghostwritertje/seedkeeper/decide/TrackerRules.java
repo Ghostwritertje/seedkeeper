@@ -66,6 +66,20 @@ public record TrackerRules(
         return Optional.empty();
     }
 
+    /**
+     * The announce hosts of a torrent: the host of each announce URL, lower-cased, once each, in announce order. Never
+     * the path or the query, where a private tracker puts the passkey. A URL without a readable host gives none.
+     *
+     * @param announceUrls the torrent's announce URLs
+     */
+    static List<String> announceHosts(List<String> announceUrls) {
+        return announceUrls.stream()
+                .map(TrackerRules::host)
+                .filter(host -> !host.isEmpty())
+                .distinct()
+                .toList();
+    }
+
     /** The host of an announce URL, lower-cased; empty text when the URL can't be read. */
     private static String host(String announceUrl) {
         try {

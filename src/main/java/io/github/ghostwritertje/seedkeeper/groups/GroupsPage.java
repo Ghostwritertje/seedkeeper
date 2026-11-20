@@ -155,7 +155,8 @@ class GroupsPage {
      * One torrent of a group, as text ready to show.
      *
      * @param name     its name, in the parts a line may break between
-     * @param tracker  "unmanaged" when the torrent has no tracker
+     * @param tracker  the tracker's name; "unmanaged (elsewhere.example)", with the announce hosts, or "unmanaged (no
+     *                 trackers)" when the torrent has no tracker
      * @param seedTime "40d / 30d": the seed time and the tracker's minimum; the seed time alone when unmanaged
      * @param trackerMessage "Unregistered: Unregistered torrent", "Tracker error: Passkey does not exist!", or
      *                       empty when the tracker reports nothing wrong
@@ -335,12 +336,17 @@ class GroupsPage {
         String seedTime = StatusText.duration(member.seedTime());
         return new Member(
                 breakable(member.name()),
-                member.tracker().map(Tracker::name).orElse("unmanaged"),
+                member.tracker().map(Tracker::name).orElseGet(() -> unmanaged(member.announceHosts())),
                 member.tracker()
                         .map(tracker -> seedTime + " / " + StatusText.duration(tracker.minimumSeedTime()))
                         .orElse(seedTime),
                 StatusText.label(member.status()),
                 member.trackerError().map(GroupsPage::trackerMessage).orElse(""));
+    }
+
+    /** "unmanaged (elsewhere.example, tracker-a.example)", or "unmanaged (no trackers)" when there are no hosts. */
+    private static String unmanaged(List<String> announceHosts) {
+        return "unmanaged (" + (announceHosts.isEmpty() ? "no trackers" : String.join(", ", announceHosts)) + ")";
     }
 
     private static String trackerMessage(TrackerError error) {

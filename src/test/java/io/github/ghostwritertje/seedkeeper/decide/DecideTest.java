@@ -1265,7 +1265,7 @@ class DecideTest {
     }
 
     @Test
-    void aMemberCarriesItsTrackerSeedTimeAndMinimum() {
+    void aMemberCarriesItsTrackerSeedTimeMinimumAndAnnounceHosts() {
         List<GroupVerdict> verdicts =
                 Decide.decide(torrent().announce(TRACKER_B).seeded(3 * DAY).snapshot(), RULES, NOW);
 
@@ -1275,7 +1275,9 @@ class DecideTest {
                         "Torrent 1",
                         Optional.of(new Tracker("tracker-b", Duration.ofDays(14))),
                         Duration.ofDays(3),
-                        Status.SEEDING)),
+                        Status.SEEDING,
+                        Optional.empty(),
+                        List.of("tracker-b.example"))),
                 verdicts.get(0).members());
     }
 

@@ -88,6 +88,30 @@ class TrackerRulesTest {
     }
 
     @Test
+    void announceHostsAreTheHostsOnlyLowerCasedDeduplicatedInAnnounceOrder() {
+        assertEquals(
+                List.of("tracker-b.example", "elsewhere.example", "tracker-a.example"),
+                TrackerRules.announceHosts(List.of(
+                        "https://Tracker-B.example/0123456789abcdef/announce?passkey=s3cret",
+                        "udp://elsewhere.example:1337/announce",
+                        "https://tracker-b.example/other/announce",
+                        " https://tracker-a.example/announce ")));
+    }
+
+    @Test
+    void anAnnounceUrlWithoutAReadableHostGivesNoHost() {
+        assertEquals(
+                List.of("tracker-a.example"),
+                TrackerRules.announceHosts(
+                        List.of("not a url/s3cret", "file:///s3cret/announce", "https://tracker-a.example/announce")));
+    }
+
+    @Test
+    void noAnnounceUrlsGiveNoHosts() {
+        assertEquals(List.of(), TrackerRules.announceHosts(List.of()));
+    }
+
+    @Test
     void aManagedTrackerWinsOverPublicForANonPrivateTorrent() {
         assertEquals(
                 Optional.of(new Tracker("tracker-a", Duration.ofDays(30))),

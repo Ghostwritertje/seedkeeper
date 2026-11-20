@@ -79,6 +79,8 @@ class GroupsApi {
      *                               when the tracker reports nothing wrong
      * @param trackerMessage         what the tracker says, as Transmission reports it; null when there is no
      *                               tracker error
+     * @param announceHosts          the hosts of the torrent's announce URLs, once each, in announce order; empty when
+     *                               it has none. Only the hosts: an announce URL may hold a passkey
      */
     @RegisterForReflection
     public record Member(
@@ -89,7 +91,8 @@ class GroupsApi {
             long seedTimeSeconds,
             @Nullable Long minimumSeedTimeSeconds,
             @Nullable String trackerError,
-            @Nullable String trackerMessage) {}
+            @Nullable String trackerMessage,
+            List<String> announceHosts) {}
 
     /** The body of a 503: why there are no verdicts right now. Of a 400: what is wrong with the filter. */
     @RegisterForReflection
@@ -167,6 +170,7 @@ class GroupsApi {
                         .map(tracker -> tracker.minimumSeedTime().toSeconds())
                         .orElse(null),
                 member.trackerError().map(error -> error.kind().code()).orElse(null),
-                member.trackerError().map(TrackerError::message).orElse(null));
+                member.trackerError().map(TrackerError::message).orElse(null),
+                member.announceHosts());
     }
 }
