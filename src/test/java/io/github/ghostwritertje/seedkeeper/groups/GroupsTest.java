@@ -612,12 +612,12 @@ class GroupsTest {
                         fileStats);
     }
 
-    /** The text of every cell of a row of the table, up to the form that sets a keep override. */
     /** The Tracker cell of a row of the table. */
     private static String trackerCell(int row) {
         return "html.body.main.div.table.tbody.tr[" + row + "].td[1].text()";
     }
 
+    /** The text of every cell of a row of the table, up to the form that sets a keep override. */
     private static String cells(int row) {
         return "html.body.main.div.table.tbody.tr[" + row + "].td.take(10).collect { it.text() }";
     }

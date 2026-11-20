@@ -102,8 +102,8 @@ class TrackerRulesTest {
     void anAnnounceUrlWithoutAReadableHostGivesNoHost() {
         assertEquals(
                 List.of("tracker-a.example"),
-                TrackerRules.announceHosts(List.of(
-                        "not a url/s3cret", "file:///s3cret/announce", "https://tracker-a.example/announce")));
+                TrackerRules.announceHosts(
+                        List.of("not a url/s3cret", "file:///s3cret/announce", "https://tracker-a.example/announce")));
     }
 
     @Test
