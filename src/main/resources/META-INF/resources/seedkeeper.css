@@ -571,6 +571,76 @@ dd li + li {
   white-space: nowrap;
 }
 
+/*
+ * The progress toward the minimum seed time, coloured by its data-tone: a meter and the percent below the minimum,
+ * "Met ✓" once it is met, "—" with no minimum. The text says the state; the colour only repeats it. Its <small>, the
+ * exact durations, is a tooltip that opens on hover and on focus (the cell is focusable, so a tap reaches it too);
+ * closed, it is hidden from sight only, and screen readers still read it.
+ */
+[data-page="groups"] tbody td[data-tone] {
+  position: relative;
+}
+
+[data-page="groups"] tbody td[data-tone]::before {
+  content: none;
+}
+
+[data-page="groups"] td[data-tone] meter {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 3.5rem;
+  height: 0.5rem;
+  margin-right: 0.45rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--muted-surface);
+  vertical-align: 0.05em;
+}
+
+[data-page="groups"] td[data-tone] meter::-webkit-meter-bar {
+  height: 0.5rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--muted-surface);
+}
+
+[data-page="groups"] td[data-tone] meter::-webkit-meter-optimum-value {
+  border-radius: 999px;
+  background: var(--tone);
+}
+
+[data-page="groups"] td[data-tone] meter::-moz-meter-bar {
+  border-radius: 999px;
+  background: var(--tone);
+}
+
+[data-page="groups"] tbody td[data-tone] > small {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+[data-page="groups"] tbody td[data-tone]:is(:hover, :focus) > small {
+  top: calc(100% - 0.35rem);
+  left: 0.5rem;
+  z-index: 2;
+  width: auto;
+  height: auto;
+  padding: 0.35rem 0.6rem;
+  overflow: visible;
+  clip-path: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-weight: 400;
+  background: var(--surface-raised);
+  box-shadow: var(--popover-shadow);
+}
+
 [data-page="groups"] td[rowspan] {
   background: var(--surface);
 }

@@ -30,10 +30,20 @@ final class GroupsTable {
         return GROUPS + "[" + group + "].tr[0].td[2].small.text()";
     }
 
-    /** The member rows of a group: name, its lines, then the seed time. */
+    /** The cell of the header row that shows the progress toward the minimum seed time (the first after the name). */
+    static String progressCell(int group) {
+        return GROUPS + "[" + group + "].tr[0].td[0]";
+    }
+
+    /** The exact durations behind the progress of the header row: the detail that opens on hover and focus. */
+    static String progressDetail(int group) {
+        return progressCell(group) + ".small.text()";
+    }
+
+    /** The member rows of a group: name, its lines, then the progress toward the minimum, without its detail. */
     static String member(int group, int member) {
         return GROUPS + "[" + group + "].tr.findAll { it.th.size() == 0 }[" + member + "]"
-                + ".with { row -> row.td[0].'*'.collect { it.text() } + [row.td[1].text()] }";
+                + ".with { row -> row.td[0].'*'.collect { it.text() } + [row.td[1].localText().join('').trim()] }";
     }
 
     /** The number of rows of every group. */

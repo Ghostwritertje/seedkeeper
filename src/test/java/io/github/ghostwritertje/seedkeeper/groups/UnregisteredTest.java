@@ -168,27 +168,25 @@ class UnregisteredTest {
                 .then()
                 .statusCode(200)
                 // No group here has a forecast, so there is no Forecast column.
-                .body(
-                        GroupsTable.HEADINGS,
-                        contains("Name", "Seed time / minimum", "Verdict", "Reason", "Keep override"))
+                .body(GroupsTable.HEADINGS, contains("Name", "Minimum seed time", "Verdict", "Reason", "Keep override"))
                 .body(
                         GroupsTable.heading(0),
                         contains(
                                 "Gone.Movie",
                                 "tracker-a · Seeding · 1 of 1 files linked",
                                 "Unregistered: Unregistered torrent"))
-                .body(GroupsTable.cells(0), contains("1d / 30d", "Remove", "Unregistered"))
+                .body(GroupsTable.cells(0), contains("3%", "Remove", "Unregistered"))
                 .body(GroupsTable.underReason(0), is("also: Library link, Minimum not reached"))
                 // No tracker message, no line for it.
                 .body(GroupsTable.heading(1), contains("Cross.Seed", "tracker-a · Seeding · 0 of 1 files linked"))
-                .body(GroupsTable.cells(1), contains("400d / 30d", "Remove", "All met"))
+                .body(GroupsTable.cells(1), contains("Met ✓", "Remove", "All met"))
                 .body(
                         GroupsTable.heading(2),
                         contains(
                                 "Cross.Seed.Elsewhere",
                                 "tracker-b · Seeding · 0 of 1 files linked",
                                 "Unregistered: Torrent not registered with this tracker."))
-                .body(GroupsTable.cells(2), contains("2d / 14d", "Remove", "Unregistered"))
+                .body(GroupsTable.cells(2), contains("14%", "Remove", "Unregistered"))
                 .body(GroupsTable.underReason(2), is("also: Minimum not reached"))
                 .body(
                         GroupsTable.heading(3),
@@ -196,7 +194,7 @@ class UnregisteredTest {
                                 "Passkey.Movie",
                                 "tracker-a · Seeding · 0 of 1 files linked",
                                 "Tracker error: Passkey does not exist!"))
-                .body(GroupsTable.cells(3), contains("400d / 30d", "Remove", "All met"))
+                .body(GroupsTable.cells(3), contains("Met ✓", "Remove", "All met"))
                 .body(
                         GroupsTable.heading(4),
                         contains(
@@ -209,7 +207,7 @@ class UnregisteredTest {
                                 "Checking.Gone",
                                 "tracker-a · Verifying · 0 of 1 files linked",
                                 "Unregistered: Unregistered torrent"))
-                .body(GroupsTable.cells(5), contains("400d / 30d", "Keep", "Verifying"));
+                .body(GroupsTable.cells(5), contains("Met ✓", "Keep", "Verifying"));
     }
 
     @Test
@@ -234,14 +232,10 @@ class UnregisteredTest {
                 .then()
                 .statusCode(200)
                 .body(GroupsTable.heading(0), contains("Cross.Seed", "2 torrents · 0 of 1 files linked"))
-                .body(GroupsTable.member(0, 0), contains("Cross.Seed", "tracker-a · Seeding", "400d / 30d"))
+                .body(GroupsTable.member(0, 0), contains("Cross.Seed", "tracker-a · Seeding", "Met ✓"))
                 .body(
                         GroupsTable.member(0, 1),
-                        contains(
-                                "Cross.Seed.Elsewhere",
-                                "tracker-b · Seeding",
-                                "Tracker warning: Slow down",
-                                "2d / 14d"));
+                        contains("Cross.Seed.Elsewhere", "tracker-b · Seeding", "Tracker warning: Slow down", "14%"));
     }
 
     @Test

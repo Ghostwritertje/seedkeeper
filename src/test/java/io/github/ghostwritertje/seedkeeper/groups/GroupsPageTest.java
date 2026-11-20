@@ -50,7 +50,7 @@ class GroupsPageTest {
         assertEquals(List.of("Gone.", "Movie"), group.name());
         assertEquals("Gone.Movie", group.label());
         assertEquals("tracker-a · Seeding · 1 of 2 files linked", group.summary());
-        assertEquals("1d / 30d", group.seedTime());
+        assertEquals(new GroupsPage.SeedProgress("warn", 3, "3%", "1d of 30d · 29d to go"), group.progress());
         assertEquals("Unregistered: Unregistered torrent", group.trackerMessage());
         assertEquals("Unregistered", group.reason());
         // The library links are in the summary; the reason doesn't count them again.
@@ -76,15 +76,15 @@ class GroupsPageTest {
 
         assertEquals(List.of("Cross.", "Seed"), group.name());
         assertEquals("2 torrents · 0 of 1 files linked", group.summary());
-        assertEquals("", group.seedTime());
         assertEquals("", group.trackerMessage());
         assertEquals("until 2027-03-01", group.forecast());
         assertEquals(3, group.rows());
+        GroupsPage.SeedProgress progress = new GroupsPage.SeedProgress("warn", 3, "3%", "1d of 30d · 29d to go");
         assertEquals(
                 List.of(
-                        new GroupsPage.Member(List.of("Cross.", "Seed"), "tracker-a", "1d / 30d", "Seeding", ""),
+                        new GroupsPage.Member(List.of("Cross.", "Seed"), "tracker-a", progress, "Seeding", ""),
                         new GroupsPage.Member(
-                                List.of("Cross-", "Seed.", "Elsewhere"), "tracker-a", "1d / 30d", "Seeding", "")),
+                                List.of("Cross-", "Seed.", "Elsewhere"), "tracker-a", progress, "Seeding", "")),
                 group.members());
     }
 
@@ -101,6 +101,125 @@ class GroupsPageTest {
                 1);
 
         assertEquals("Missing data (1 of 2 files)", GroupsPage.group(verdict).reason());
+    }
+
+    @Test
+    void seedProgressBelowTheMinimumIsARoundedPercentWithTheTimeToGo() {
+        assertEquals(
+                new GroupsPage.SeedProgress("warn", 0, "0%", "0m of 30d · 30d to go"),
+                progress(Optional.of(TRACKER_A), Duration.ZERO));
+        assertEquals(
+                new GroupsPage.SeedProgress("warn", 33, "33%", "9d 20h of 30d · 20d 4h to go"),
+                progress(Optional.of(TRACKER_A), Duration.ofDays(9).plusHours(20)));
+        // Just under rounds to 100%, which would read as met: it stays at 99%.
+        assertEquals(
+                new GroupsPage.SeedProgress("warn", 99, "99%", "29d 23h of 30d · 1m to go"),
+                progress(Optional.of(TRACKER_A), Duration.ofDays(30).minusMinutes(1)));
+    }
+
+    @Test
+    void seedProgressAtOrOverTheMinimumIsMetWithTheTimeSince() {
+        assertEquals(
+                new GroupsPage.SeedProgress("ok", 100, "Met ✓", "30d of 30d · met just now"),
+                progress(Optional.of(TRACKER_A), Duration.ofDays(30)));
+        assertEquals(
+                new GroupsPage.SeedProgress("ok", 100, "Met ✓", "168d 10h of 30d · met 138d 10h ago"),
+                progress(Optional.of(TRACKER_A), Duration.ofDays(168).plusHours(10)));
+    }
+
+    @Test
+    void seedProgressWithNoMinimumIsADash() {
+        assertEquals(
+                new GroupsPage.SeedProgress("muted", 0, "—", "400d · no minimum"),
+                progress(Optional.empty(), Duration.ofDays(400)));
+    }
+
+    @Test
+    void theHeaderRowOfAGroupShowsItsSlowestManagedMember() {
+        Tracker trackerB = new Tracker("tracker-b", Duration.ofDays(14));
+        GroupVerdict verdict = new GroupVerdict(
+                List.of(
+                        // 20 of 30 days, 10 to go: further along, but the slowest to meet its minimum.
+                        new GroupVerdict.Member(
+                                "1111",
+                                "Cross.Seed",
+                                Optional.of(TRACKER_A),
+                                Duration.ofDays(20),
+                                Torrent.Status.SEEDING),
+                        new GroupVerdict.Member(
+                                "2222",
+                                "Cross.Seed.Elsewhere",
+                                Optional.of(trackerB),
+                                Duration.ofDays(7),
+                                Torrent.Status.SEEDING),
+                        new GroupVerdict.Member(
+                                "3333",
+                                "Cross.Seed.Unmanaged",
+                                Optional.empty(),
+                                Duration.ofDays(1),
+                                Torrent.Status.SEEDING)),
+                Verdict.LEFT_ALONE,
+                Reason.UNMANAGED,
+                0,
+                1,
+                Optional.empty());
+
+        GroupsPage.Group group = GroupsPage.group(verdict);
+
+        assertEquals(
+                new GroupsPage.SeedProgress("warn", 67, "67%", "slowest: 20d of 30d · 10d to go"), group.progress());
+        assertEquals(
+                List.of("67%", "50%", "—"),
+                group.members().stream().map(m -> m.progress().text()).toList());
+    }
+
+    @Test
+    void theHeaderRowOfAGroupThatHasMetIsTheLastMemberToMeetIt() {
+        GroupVerdict verdict = new GroupVerdict(
+                List.of(
+                        new GroupVerdict.Member(
+                                "1111", "Old", Optional.of(TRACKER_A), Duration.ofDays(90), Torrent.Status.SEEDING),
+                        new GroupVerdict.Member(
+                                "2222", "Newer", Optional.of(TRACKER_A), Duration.ofDays(31), Torrent.Status.SEEDING)),
+                Verdict.REMOVE,
+                Reason.ALL_MET,
+                0,
+                1,
+                Optional.empty());
+
+        assertEquals(
+                new GroupsPage.SeedProgress("ok", 100, "Met ✓", "slowest: 31d of 30d · met 1d ago"),
+                GroupsPage.group(verdict).progress());
+    }
+
+    @Test
+    void theHeaderRowOfAGroupWithNoManagedMemberIsADash() {
+        GroupVerdict verdict = new GroupVerdict(
+                List.of(
+                        new GroupVerdict.Member(
+                                "1111", "One", Optional.empty(), Duration.ofDays(2), Torrent.Status.SEEDING),
+                        new GroupVerdict.Member(
+                                "2222", "Two", Optional.empty(), Duration.ofDays(3), Torrent.Status.SEEDING)),
+                Verdict.LEFT_ALONE,
+                Reason.UNMANAGED,
+                0,
+                1,
+                Optional.empty());
+
+        assertEquals(
+                new GroupsPage.SeedProgress("muted", 0, "—", "no member has a minimum"),
+                GroupsPage.group(verdict).progress());
+    }
+
+    private static GroupsPage.SeedProgress progress(Optional<Tracker> tracker, Duration seedTime) {
+        return GroupsPage.group(new GroupVerdict(
+                        List.of(new GroupVerdict.Member("1111", "One", tracker, seedTime, Torrent.Status.SEEDING)),
+                        Verdict.KEEP,
+                        Reason.MINIMUM_NOT_REACHED,
+                        0,
+                        1,
+                        Optional.empty()))
+                .progress();
     }
 
     private static GroupVerdict.Member member(String hash, String name, Optional<TrackerError> error) {
