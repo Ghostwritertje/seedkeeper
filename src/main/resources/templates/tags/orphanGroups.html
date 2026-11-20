@@ -8,11 +8,11 @@
 <div role="region" aria-label="{label} in {group.directory}" tabindex="0">
 <table>
 <thead>
-<tr><th>Path</th>{#if symlinks}<th>Target</th>{/if}<th>Size</th><th>Age</th>{#if listing.libraryLinks}<th>Library link</th>{/if}</tr>
+<tr><th>Path</th>{#if symlinks}<th>Target</th>{/if}<th class="number">Size</th><th class="number">Age</th>{#if listing.libraryLinks}<th>Library link</th>{/if}</tr>
 </thead>
 <tbody>
 {#for row in group.rows}
-<tr><td>{row.path}</td>{#if symlinks}<td>{row.target}</td>{/if}<td>{row.size}</td><td>{row.age}</td>{#if listing.libraryLinks}<td>{row.libraryLink}</td>{/if}</tr>
+<tr><td class="path">{row.path}</td>{#if symlinks}<td class="path">{row.target}</td>{/if}<td class="number">{row.size}</td><td class="number">{row.age}</td>{#if listing.libraryLinks}<td>{row.libraryLink}</td>{/if}</tr>
 {/for}
 </tbody>
 </table>

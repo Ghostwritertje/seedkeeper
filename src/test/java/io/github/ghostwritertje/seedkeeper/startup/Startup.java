@@ -14,6 +14,7 @@ final class Startup {
                 .addAsResource("templates/layout.html")
                 .addAsResource("templates/tags/moment.html")
                 .addAsResource("templates/tags/stamp.html")
+                .addAsResource("templates/tags/orphanGroups.html")
                 .addAsResource("templates/LoginPage/login.html")
                 .addAsResource("templates/SystemPage/system.html")
                 .addAsResource("templates/GroupsPage/groups.html")

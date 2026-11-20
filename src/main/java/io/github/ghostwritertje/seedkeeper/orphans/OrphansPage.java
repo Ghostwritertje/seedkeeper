@@ -3,6 +3,7 @@ package io.github.ghostwritertje.seedkeeper.orphans;
 import io.github.ghostwritertje.seedkeeper.orphans.OrphansService.OrphansUnavailable;
 import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.quarkus.qute.CheckedTemplate;
+import io.quarkus.qute.TemplateData;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.ws.rs.GET;
@@ -50,6 +51,9 @@ class OrphansPage {
      * @param totalSize    "2.0 KiB": what deleting them would free, so without the files that have a library link
      * @param libraryLinks whether an orphan has a library link, so the column is worth showing
      */
+    // The {#orphanGroups} tag's parameters aren't type-checked, so Qute only generates value resolvers for this record,
+    // Group and Row with @TemplateData; the native image has no reflection to fall back on.
+    @TemplateData
     public record Listing(List<Group> groups, String count, String totalSize, boolean libraryLinks) {}
 
     /**
@@ -59,6 +63,7 @@ class OrphansPage {
      * @param summary   "2 files, 2.0 KiB": the size without the files that have a library link
      * @param rows      in the order of the orphans: by path
      */
+    @TemplateData
     public record Group(String directory, String summary, List<Row> rows) {}
 
     /**
@@ -70,6 +75,7 @@ class OrphansPage {
      * @param age         how long ago it was last modified: "3d 2h"
      * @param libraryLink "Yes" when a hardlink of the file is under a library root; "" otherwise
      */
+    @TemplateData
     public record Row(String path, String target, String size, String age, String libraryLink) {}
 
     private final OrphansService orphans;
