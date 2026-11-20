@@ -293,134 +293,79 @@ class GroupsTest {
                 .body("html.head.title", is("Groups · seedkeeper"))
                 .body(ScrollRegions.TABLE_PARENTS, ScrollRegions.regions("Groups"))
                 .body(
-                        "html.body.main.div.table.thead.tr.th",
-                        contains(
-                                "Name",
-                                "Tracker",
-                                "Seed time / minimum",
-                                "Status",
-                                "Tracker message",
-                                "Library links",
-                                "Verdict",
-                                "Reason",
-                                "Secondary reasons",
-                                "Forecast",
-                                "Keep override"))
-                .body("html.body.main.div.table.tbody.tr.size()", is(9))
+                        GroupsTable.HEADINGS,
+                        contains("Name", "Seed time / minimum", "Verdict", "Reason", "Forecast", "Keep override"))
+                // One header row per group; member rows only under the cross-seed group of two.
+                .body(GroupsTable.ROWS, contains(1, 1, 1, 1, 1, 1, 3, 1))
+                .body(GroupsTable.heading(0), contains("Linked.Show", "tracker-a · Seeding · 1 of 2 files linked"))
+                // The library links show once: under the name, not again in the reason.
+                .body(GroupsTable.cells(0), contains("40d / 30d", "Keep", "Library link", ""))
+                .body(GroupsTable.heading(1), contains("Fresh.Movie", "tracker-b · Seeding · 0 of 1 files linked"))
                 .body(
-                        cells(0),
+                        GroupsTable.cells(1),
                         contains(
-                                "Linked.Show",
-                                "tracker-a",
-                                "40d / 30d",
-                                "Seeding",
-                                "",
-                                "1 of 2 files",
-                                "Keep",
-                                "Library link (1 of 2 files)",
-                                "",
-                                ""))
-                .body(
-                        cells(1),
-                        contains(
-                                is("Fresh.Movie"),
-                                is("tracker-b"),
                                 is("2d 12h / 14d"),
-                                is("Seeding"),
-                                is(""),
-                                is("0 of 1 files"),
                                 is("Keep"),
                                 is("Minimum not reached"),
-                                is(""),
                                 minuteIn(before, Duration.ofDays(11).plusHours(12))))
+                .body(GroupsTable.heading(2), contains("Old.Movie", "tracker-b · Stopped · 0 of 1 files linked"))
+                .body(GroupsTable.cells(2), contains("14d / 14d", "Remove", "All met", ""))
                 .body(
-                        cells(2),
-                        contains(
-                                "Old.Movie",
-                                "tracker-b",
-                                "14d / 14d",
-                                "Stopped",
-                                "",
-                                "0 of 1 files",
-                                "Remove",
-                                "All met",
-                                "",
-                                ""))
+                        GroupsTable.heading(3),
+                        contains("Unknown.Tracker", "unmanaged · Seeding · 0 of 1 files linked"))
+                .body(GroupsTable.cells(3), contains("400d", "Left alone", "Unmanaged", ""))
                 .body(
-                        cells(3),
-                        contains(
-                                "Unknown.Tracker",
-                                "unmanaged",
-                                "400d",
-                                "Seeding",
-                                "",
-                                "0 of 1 files",
-                                "Left alone",
-                                "Unmanaged",
-                                "",
-                                ""))
+                        GroupsTable.heading(4),
+                        contains("Downloading", "tracker-a · Downloading · 0 of 1 files linked"))
+                .body(GroupsTable.cells(4), contains("0m / 30d", "Keep", "Not finished", ""))
+                .body(GroupsTable.underReason(4), is("also: Minimum not reached"))
+                .body(GroupsTable.underReason(0), is(""))
+                .body(GroupsTable.heading(5), contains("ubuntu.iso", "public · Seeding · 0 of 1 files linked"))
+                .body(GroupsTable.cells(5), contains("1d / 1d", "Remove", "All met", ""))
+                // The cross-seed group: a header row for the group, whose cells span the rows of its members.
+                .body(GroupsTable.heading(6), contains("Cross.Seed", "2 torrents · 0 of 1 files linked"))
                 .body(
-                        cells(4),
-                        contains(
-                                "Downloading",
-                                "tracker-a",
-                                "0m / 30d",
-                                "Downloading",
-                                "",
-                                "0 of 1 files",
-                                "Keep",
-                                "Not finished",
-                                "Minimum not reached",
-                                ""))
+                        GroupsTable.cells(6),
+                        contains(is(""), is("Keep"), is("Minimum not reached"), minuteIn(before, Duration.ofDays(10))))
                 .body(
-                        cells(5),
-                        contains(
-                                "ubuntu.iso",
-                                "public",
-                                "1d / 1d",
-                                "Seeding",
-                                "",
-                                "0 of 1 files",
-                                "Remove",
-                                "All met",
-                                "",
-                                ""))
-                // The cross-seed group: one row per member, the group's cells span both.
+                        GroupsTable.GROUPS + "[6].tr[0].td.collect { it.@rowspan.toString() }",
+                        contains("1", "3", "3", "3", "3"))
+                .body(GroupsTable.member(6, 0), contains("Cross.Seed", "tracker-a · Seeding", "20d / 30d"))
                 .body(
-                        cells(6),
-                        contains(
-                                is("Cross.Seed"),
-                                is("tracker-a"),
-                                is("20d / 30d"),
-                                is("Seeding"),
-                                is(""),
-                                is("0 of 1 files"),
-                                is("Keep"),
-                                is("Minimum not reached"),
-                                is(""),
-                                minuteIn(before, Duration.ofDays(10))))
-                .body(
-                        "html.body.main.div.table.tbody.tr[6].td.collect { it.@rowspan.toString() }",
-                        contains("1", "1", "1", "1", "1", "2", "2", "2", "2", "2", "2"))
+                        GroupsTable.member(6, 1),
+                        contains("Cross.Seed.Elsewhere", "tracker-b · Stopped", "13d / 14d"))
                 // The keep form's controls name the group by its first member, so they can be told apart.
                 .body(
                         "**.find { it.name() == 'form' && it.@id == 'keep-7777' }.'**'.findAll { it.@'aria-label' != '' }"
                                 + ".collect { it.@'aria-label'.toString() }",
                         contains("Note for Cross.Seed", "Until for Cross.Seed", "Set a keep override for Cross.Seed"))
-                .body(cells(7), contains("Cross.Seed.Elsewhere", "tracker-b", "13d / 14d", "Stopped", ""))
+                .body(GroupsTable.heading(7), contains("Paused.Movie", "tracker-a · Stopped · 0 of 1 files linked"))
                 .body(
-                        cells(8),
-                        contains(
-                                "Paused.Movie",
-                                "tracker-a",
-                                "29d / 30d",
-                                "Stopped",
-                                "",
-                                "0 of 1 files",
-                                "Keep",
-                                "Minimum not reached",
-                                "",
-                                "clock stopped (paused)"));
+                        GroupsTable.cells(7),
+                        contains("29d / 30d", "Keep", "Minimum not reached", "clock stopped (paused)"));
+    }
+
+    @Test
+    void pageMayBreakANameOnlyAfterADotOrADash() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups")
+                .then()
+                .statusCode(200)
+                .body(GroupsTable.GROUPS + "[5].tr[0].th.strong.wbr.size()", is(1))
+                .body(GroupsTable.GROUPS + "[6].tr[0].th.strong.wbr.size()", is(1))
+                .body(GroupsTable.GROUPS + "[6].tr[2].td[0].span.wbr.size()", is(2));
+    }
+
+    @Test
+    void pageLeavesOutTheForecastWhenNoGroupHasOne() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups?verdict=remove")
+                .then()
+                .statusCode(200)
+                .body(GroupsTable.HEADINGS, contains("Name", "Seed time / minimum", "Verdict", "Reason", "Keep override"))
+                .body(GroupsTable.cells(0), contains("14d / 14d", "Remove", "All met"));
     }
 
     @Test
@@ -496,11 +441,6 @@ class GroupsTest {
                         announce,
                         fileList,
                         fileStats);
-    }
-
-    /** The text of every cell of a row of the table, up to the form that sets a keep override. */
-    private static String cells(int row) {
-        return "html.body.main.div.table.tbody.tr[" + row + "].td.take(10).collect { it.text() }";
     }
 
     /**

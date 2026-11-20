@@ -128,9 +128,10 @@ class OverridesTest {
                 .get("/groups")
                 .then()
                 .statusCode(200)
-                .body("html.body.main.div.table.tbody.tr[0].td[6]", is("Keep"))
-                .body("html.body.main.div.table.tbody.tr[0].td[7]", is("Keep override"))
-                .body("html.body.main.div.table.tbody.tr[0].td[9]", is("until 2999-12-31"));
+                // The header row of the first group: seed time, verdict, reason, forecast.
+                .body("html.body.main.div.table.tbody[0].tr[0].td[1]", is("Keep"))
+                .body("html.body.main.div.table.tbody[0].tr[0].td[2]", is("Keep override"))
+                .body("html.body.main.div.table.tbody[0].tr[0].td[3]", is("until 2999-12-31"));
     }
 
     /**
