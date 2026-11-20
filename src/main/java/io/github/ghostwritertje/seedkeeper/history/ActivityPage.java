@@ -62,12 +62,23 @@ class ActivityPage {
             String removed,
             int filesDeleted,
             String spaceFreed,
-            List<Removal> removals) {}
+            List<Removal> removals) {
+
+        /** Whether the run succeeded and removed nothing, so the view shows it on one line. */
+        public boolean quiet() {
+            return status.equals("Succeeded") && error == null && removals.isEmpty();
+        }
+
+        /** Whether a removal of the run has an error, so the view gives the errors a column. */
+        public boolean removalErrors() {
+            return removals.stream().anyMatch(removal -> !removal.error().isEmpty());
+        }
+    }
 
     /**
      * One removal of the run, as text ready to show.
      *
-     * @param members "Some.Movie (tracker-a)", with everything else worth knowing about the torrent in the brackets
+     * @param members the removed torrents, and those of the verdict group that weren't
      * @param reason  the label of the reason, "All met"
      * @param filesNote why no file was deleted, when none was and neither the error nor a refused path says why;
      *                  empty otherwise
@@ -75,13 +86,23 @@ class ActivityPage {
      * @param error     what went wrong, as a sentence; empty when nothing did
      */
     public record Removal(
-            List<String> members,
+            List<Member> members,
             String reason,
             int filesDeleted,
             String filesNote,
             String spaceFreed,
             String spaceNote,
             String error) {}
+
+    /**
+     * One torrent of a removal, as text ready to show: its name, and under it the rest.
+     *
+     * @param name    "Some.Movie"
+     * @param tracker the tracker it belongs to, "public", or "unmanaged"
+     * @param notes   "not finished, not removed", or the one of them that holds; empty when neither does
+     * @param message what the tracker said about it, "Unregistered torrent"; empty when it said nothing
+     */
+    public record Member(String name, String tracker, String notes, String message) {}
 
     /**
      * A removal that deleted no file, with no error or refused path to say why: each wanted file of the removed
@@ -202,18 +223,19 @@ class ActivityPage {
                 String.join(" ", errors));
     }
 
-    /** "Some.Movie (tracker-a, not finished, tracker said: unregistered torrent, not removed)". */
-    private static String member(RecordedMember member) {
+    private static Member member(RecordedMember member) {
         List<String> notes = new ArrayList<>();
-        notes.add(member.tracker().orElse("unmanaged"));
         if (member.unfinished()) {
             notes.add("not finished");
         }
-        member.trackerMessage().ifPresent(message -> notes.add("tracker said: " + message));
         if (!member.removed()) {
             notes.add("not removed");
         }
-        return member.name() + " (" + String.join(", ", notes) + ")";
+        return new Member(
+                member.name(),
+                member.tracker().orElse("unmanaged"),
+                String.join(", ", notes),
+                member.trackerMessage().orElse(""));
     }
 
     /** The label of a reason; the code itself when another version recorded a reason this one doesn't know. */
