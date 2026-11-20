@@ -22,6 +22,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriBuilder;
 import java.net.URI;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -45,14 +46,19 @@ class GroupsPage {
          * @param unavailable why there are no verdicts right now, or what is wrong with the filter; null when all
          *                    is well
          * @param notice      why the keep override that was just set was not; null when there is nothing to tell
+         * @param kept        true right after a keep override was set from this view
          */
         static native TemplateInstance groups(
                 List<Group> groups,
                 List<Tally> tally,
                 Filter filter,
                 @Nullable String unavailable,
-                @Nullable String notice);
+                @Nullable String notice,
+                boolean kept);
     }
+
+    /** The value of {@code done} that says a keep override was just set. */
+    private static final String KEPT = "kept";
 
     private static final DateTimeFormatter FORECAST_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -91,9 +97,18 @@ class GroupsPage {
             return reasons.stream().noneMatch(Option::selected);
         }
 
+        /** The code of the chosen verdict, to keep it in the keep form; empty when none is chosen. */
+        public String verdictCode() {
+            return selectedCode(verdicts);
+        }
+
         /** The code of the chosen reason, to keep it in the links of the tally; empty when none is chosen. */
         public String reasonCode() {
-            return reasons.stream()
+            return selectedCode(reasons);
+        }
+
+        private static String selectedCode(List<Option> options) {
+            return options.stream()
                     .filter(Option::selected)
                     .map(Option::code)
                     .findFirst()
@@ -133,42 +148,69 @@ class GroupsPage {
     @Produces(MediaType.TEXT_HTML)
     @RunOnVirtualThread
     public TemplateInstance groups(
-            @QueryParam("verdict") @Nullable String verdict, @QueryParam("reason") @Nullable String reason) {
-        return page(verdict, reason, null);
+            @QueryParam("verdict") @Nullable String verdict,
+            @QueryParam("reason") @Nullable String reason,
+            @QueryParam("done") @Nullable String done) {
+        // Only the one known value turns the status line on: the parameter itself is never shown.
+        return page(verdict, reason, null, KEPT.equals(done));
     }
 
     /**
-     * Set a keep override: adds one with the info hashes of every member of a group, then sends the browser to the
-     * Groups view. A form post, so it needs the CSRF token of the page, and a login: it is not in the API.
+     * Set a keep override: adds one with the info hashes of every member of a group, then sends the browser back to
+     * the Groups view with the filter the form was posted from. A form post, so it needs the CSRF token of the page,
+     * and a login: it is not in the API.
      *
-     * @param hash  the info hash of each member, one field per member
-     * @param until "2027-03-01", or empty for no end date
+     * @param hash    the info hash of each member, one field per member
+     * @param until   "2027-03-01", or empty for no end date
+     * @param verdict the code of the verdict of the filter the form was posted from, or empty for any verdict
+     * @param reason  the code of the reason of the filter the form was posted from, or empty for any reason
      */
     @POST
     @Path("/keep")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     @Produces(MediaType.TEXT_HTML)
     @RunOnVirtualThread
-    public Response keep(@RestForm List<String> hash, @RestForm String note, @RestForm String until) {
+    public Response keep(
+            @RestForm List<String> hash,
+            @RestForm String note,
+            @RestForm String until,
+            @RestForm @Nullable String verdict,
+            @RestForm @Nullable String reason) {
         try {
             overrides.add(hash == null ? List.of() : hash, note, OverrideChanges.date(until));
-            return Response.seeOther(URI.create("/groups")).build();
+            return Response.seeOther(afterKeep(verdict, reason)).build();
         } catch (OverridesException e) {
             // Adding never looks for an existing override, so NO_SUCH_OVERRIDE can't happen here.
             Response.Status status =
                     e.problem() == Problem.INVALID ? Response.Status.BAD_REQUEST : Response.Status.SERVICE_UNAVAILABLE;
             return Response.status(status)
-                    .entity(page(null, null, e.getMessage()))
+                    .entity(page(verdict, reason, e.getMessage(), false))
                     .build();
         }
     }
 
-    private TemplateInstance page(@Nullable String verdict, @Nullable String reason, @Nullable String notice) {
+    /**
+     * Where the browser goes once a keep override is set: the Groups view with the same filter, saying it was set.
+     * The filter is not checked here: the Groups view says so when it is unknown.
+     */
+    static URI afterKeep(@Nullable String verdict, @Nullable String reason) {
+        UriBuilder uri = UriBuilder.fromPath("/groups");
+        if (verdict != null && !verdict.isBlank()) {
+            uri.queryParam("verdict", verdict);
+        }
+        if (reason != null && !reason.isBlank()) {
+            uri.queryParam("reason", reason);
+        }
+        return uri.queryParam("done", KEPT).build();
+    }
+
+    private TemplateInstance page(
+            @Nullable String verdict, @Nullable String reason, @Nullable String notice, boolean kept) {
         GroupsFilter filter;
         try {
             filter = GroupsFilter.parse(verdict, reason);
         } catch (UnknownFilter e) {
-            return Templates.groups(List.of(), List.of(), filter(GroupsFilter.NONE), e.getMessage(), notice);
+            return Templates.groups(List.of(), List.of(), filter(GroupsFilter.NONE), e.getMessage(), notice, kept);
         }
         try {
             List<GroupVerdict> all = groups.groups();
@@ -177,9 +219,10 @@ class GroupsPage {
                     tally(all, filter),
                     filter(filter),
                     null,
-                    notice);
+                    notice,
+                    kept);
         } catch (GroupsUnavailable e) {
-            return Templates.groups(List.of(), List.of(), filter(filter), e.getMessage(), notice);
+            return Templates.groups(List.of(), List.of(), filter(filter), e.getMessage(), notice, kept);
         }
     }
 
