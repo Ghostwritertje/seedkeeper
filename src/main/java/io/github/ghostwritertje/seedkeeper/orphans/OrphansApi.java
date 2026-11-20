@@ -10,6 +10,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /** {@code GET /api/v1/orphans}: the same data as the Orphans view. */
 @Path("/api/v1/orphans")
@@ -31,9 +32,18 @@ class OrphansApi {
      * @param sizeBytes    of a symlink, the size of the link itself
      * @param lastModified ISO-8601, in UTC, to the second; of a symlink, of the link itself
      * @param libraryLink  whether a hardlink of the file is under a library root; never true of a symlink
+     * @param systemFile   whether it is metadata the OS or the NAS writes: {@code .DS_Store}, {@code ._*},
+     *                     {@code Thumbs.db} or anything in a Synology {@code @eaDir}
+     * @param target       where a dangling symlink leads, as the link has it; null for a file
      */
     @RegisterForReflection
-    public record Orphan(String path, long sizeBytes, String lastModified, boolean libraryLink) {}
+    public record Orphan(
+            String path,
+            long sizeBytes,
+            String lastModified,
+            boolean libraryLink,
+            boolean systemFile,
+            @Nullable String target) {}
 
     /** The body of a 503: why the orphans can't be listed right now. */
     @RegisterForReflection
@@ -67,10 +77,13 @@ class OrphansApi {
     }
 
     private static Orphan orphan(Orphans.Orphan orphan) {
+        java.nio.file.Path target = orphan.target();
         return new Orphan(
                 orphan.path().toString(),
                 orphan.size(),
                 orphan.lastModified().truncatedTo(ChronoUnit.SECONDS).toString(),
-                orphan.libraryLink());
+                orphan.libraryLink(),
+                orphan.systemFile(),
+                target == null ? null : target.toString());
     }
 }

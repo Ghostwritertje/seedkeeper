@@ -119,7 +119,7 @@ final class OrphanFinder {
         files.sort(Comparator.comparing(Orphan::path));
         danglingSymlinks.sort(Comparator.comparing(Orphan::path));
         unreadable.sort(Comparator.naturalOrder());
-        return new Orphans(files, danglingSymlinks, unreadable);
+        return new Orphans(downloadsRoot, files, danglingSymlinks, unreadable);
     }
 
     /**

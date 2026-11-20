@@ -8,12 +8,13 @@ import org.jspecify.annotations.Nullable;
 /**
  * What is under the downloads root that no torrent references. Shown, never deleted.
  *
+ * @param downloadsRoot    the directory they are under
  * @param files            regular files no torrent resolves to, by path
  * @param danglingSymlinks symlinks that lead nowhere and that no torrent has as a path, by path
  * @param unreadable       files and directories under the downloads root that could not be read, and were skipped,
  *                         by path
  */
-record Orphans(List<Orphan> files, List<Orphan> danglingSymlinks, List<Path> unreadable) {
+record Orphans(Path downloadsRoot, List<Orphan> files, List<Orphan> danglingSymlinks, List<Path> unreadable) {
 
     public Orphans {
         files = List.copyOf(files);

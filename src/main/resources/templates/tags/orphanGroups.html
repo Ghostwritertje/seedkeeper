@@ -1,0 +1,24 @@
+{!
+  An OrphansPage.Listing: one collapsed group per top-level directory, its summary the count and size, then the total.
+  label names the list ("Files"); symlinks adds the Target column. The Library link column shows only when a row has one.
+!}
+{#for group in listing.groups}
+<details class="orphan-group">
+<summary><code>{group.directory}</code> <span>{group.summary}</span></summary>
+<div role="region" aria-label="{label} in {group.directory}" tabindex="0">
+<table>
+<thead>
+<tr><th>Path</th>{#if symlinks}<th>Target</th>{/if}<th>Size</th><th>Age</th>{#if listing.libraryLinks}<th>Library link</th>{/if}</tr>
+</thead>
+<tbody>
+{#for row in group.rows}
+<tr><td>{row.path}</td>{#if symlinks}<td>{row.target}</td>{/if}<td>{row.size}</td><td>{row.age}</td>{#if listing.libraryLinks}<td>{row.libraryLink}</td>{/if}</tr>
+{/for}
+</tbody>
+</table>
+</div>
+</details>
+{/for}
+{#if !listing.groups.isEmpty}
+<p class="total">Total of {listing.count}, {listing.totalSize}</p>
+{/if}
