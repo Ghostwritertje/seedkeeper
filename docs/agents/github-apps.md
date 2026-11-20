@@ -27,12 +27,12 @@ Both agents use this secret.
    - **Pull requests:** Read and write
 4. Leave **Account permissions** and **Subscribe to events** empty.
 5. Under **Where can this GitHub App be installed?**, choose **Only on this account**, then **Create GitHub App**.
-6. On the App's page, note the **App ID** near the top.
+6. On the App's page, note the **Client ID** (it starts with `Iv`; not the numeric App ID).
 7. Under **Private keys**, click **Generate a private key**. GitHub downloads a `.pem` file.
 8. Click **Install App** in the sidebar, install it on your account, choose **Only select repositories** and select
    `seedkeeper` only.
 9. In the repo, add two repository secrets, as for the subscription token:
-   - `REVIEWER_APP_ID`: the App ID.
+   - `REVIEWER_CLIENT_ID`: the Client ID.
    - `REVIEWER_APP_KEY`: the whole contents of the `.pem` file, including the `BEGIN` and `END` lines.
 10. Delete the downloaded `.pem` file. To rotate the key, generate a new one, update `REVIEWER_APP_KEY` and delete the
     old key on the App's page.
@@ -56,7 +56,7 @@ Create it as for the reviewer App, steps 1 to 10, with these differences:
   `.github/workflows/`.
 - **Install** it on `seedkeeper` only, through **Only select repositories**.
 - **Secrets:**
-  - `IMPLEMENTER_APP_ID`: the App ID.
+  - `IMPLEMENTER_CLIENT_ID`: the Client ID.
   - `IMPLEMENTER_APP_KEY`: the whole contents of the `.pem` file, including the `BEGIN` and `END` lines.
 
 To check the setup, add `ready-for-agent` to a small issue that has no sub-issues and no open blockers: the
