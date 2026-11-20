@@ -267,8 +267,7 @@ class ManageOverridesTest {
                 .body(
                         "**.find { it.name() == 'form' && it.@id == 'edit-0' }.'**'.findAll { it.@'aria-label' != '' }"
                                 + ".collect { it.@'aria-label'.toString() }",
-                        contains(
-                                "Note of keep override abc", "Until of keep override abc", "Save keep override abc"))
+                        contains("Note of keep override abc", "Until of keep override abc", "Save keep override abc"))
                 .body(
                         "**.find { it.name() == 'form' && it.@id == 'edit-0' }.'**'.find { it.name() == 'button' }",
                         is("Save"))

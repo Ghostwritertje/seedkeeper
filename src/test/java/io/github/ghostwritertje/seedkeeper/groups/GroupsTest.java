@@ -404,8 +404,7 @@ class GroupsTest {
                 .body(
                         "**.find { it.name() == 'form' && it.@id == 'keep-7777' }.'**'.findAll { it.@'aria-label' != '' }"
                                 + ".collect { it.@'aria-label'.toString() }",
-                        contains(
-                                "Note for Cross.Seed", "Until for Cross.Seed", "Set a keep override for Cross.Seed"))
+                        contains("Note for Cross.Seed", "Until for Cross.Seed", "Set a keep override for Cross.Seed"))
                 .body(cells(7), contains("Cross.Seed.Elsewhere", "tracker-b", "13d / 14d", "Stopped", ""))
                 .body(
                         cells(8),
