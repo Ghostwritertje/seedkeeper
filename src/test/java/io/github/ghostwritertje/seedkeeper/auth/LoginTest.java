@@ -123,6 +123,44 @@ class LoginTest {
                 .body("html.body.main.p", is("Wrong username or password."));
     }
 
+    /** Log out lands on {@code /login?logged-out}: the form says so, as a status rather than an error. */
+    @Test
+    void loginFormAfterLogOutSaysYouAreLoggedOut() {
+        given().when()
+                .get("/login?logged-out")
+                .then()
+                .statusCode(200)
+                .body("html.body.main.p.find { it.@id == 'logged-out' }", is("You are logged out."))
+                .body("html.body.main.p.find { it.@id == 'logged-out' }.@role", is("status"))
+                .body("html.body.**.findAll { it.@role == 'alert' }.size()", is(0));
+    }
+
+    @Test
+    void loginFormWithoutLogOutSaysNothingAboutLoggingOut() {
+        given().when()
+                .get("/login")
+                .then()
+                .statusCode(200)
+                .body("html.body.**.findAll { it.@id == 'logged-out' }.size()", is(0));
+        given().when()
+                .get("/login?error")
+                .then()
+                .statusCode(200)
+                .body("html.body.**.findAll { it.@id == 'logged-out' }.size()", is(0))
+                .body("html.body.main.p", is("Wrong username or password."));
+    }
+
+    /** A failed login after a log out shows only the error. */
+    @Test
+    void failedLoginAfterLogOutShowsOnlyTheError() {
+        given().when()
+                .get("/login?logged-out&error")
+                .then()
+                .statusCode(200)
+                .body("html.body.**.findAll { it.@id == 'logged-out' }.size()", is(0))
+                .body("html.body.main.p", is("Wrong username or password."));
+    }
+
     @Test
     void wrongUsernameIsRejected() {
         post("someone-else", TestSecrets.PASSWORD).statusCode(302).header("Location", endsWith("/login?error"));

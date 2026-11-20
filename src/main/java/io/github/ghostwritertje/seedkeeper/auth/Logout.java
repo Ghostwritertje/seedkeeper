@@ -9,7 +9,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
 
-/** The Log out button of every page: drops the session cookie and shows the login form. */
+/** The Log out button of every page: drops the session cookie and shows the login form, which says the user is logged out. */
 @Path("/logout")
 class Logout {
 
@@ -23,6 +23,6 @@ class Logout {
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     public Response logout() {
         FormAuthenticationMechanism.logout(identity);
-        return Response.seeOther(URI.create("/login")).build();
+        return Response.seeOther(URI.create("/login?logged-out")).build();
     }
 }

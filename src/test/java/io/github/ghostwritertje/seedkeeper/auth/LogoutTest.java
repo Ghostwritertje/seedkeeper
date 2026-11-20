@@ -41,7 +41,7 @@ class LogoutTest {
                 .when()
                 .post("/logout");
 
-        loggedOut.then().statusCode(303).header("Location", endsWith("/login"));
+        loggedOut.then().statusCode(303).header("Location", endsWith("/login?logged-out"));
         // The browser is told to drop the session cookie.
         loggedOut.then().cookie(Authenticated.SESSION_COOKIE, is(""));
     }

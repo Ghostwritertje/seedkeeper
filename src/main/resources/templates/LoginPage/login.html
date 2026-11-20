@@ -15,6 +15,8 @@
 <h1>Log in</h1>
 {#if failed}
 <p role="alert">Wrong username or password.</p>
+{#else if loggedOut}
+<p role="status" id="logged-out">You are logged out.</p>
 {/if}
 <form method="post" action="/j_security_check">
 <label>Username <input type="text" name="j_username" autocomplete="username" required autofocus></label>
