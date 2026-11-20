@@ -391,6 +391,20 @@ class GroupsTest {
     }
 
     @Test
+    void pageShowsEachVerdictAndReasonUnderTheGroupName() {
+        // Small screens hide the verdict and reason columns: the verdict stays in sight under the name.
+        Authenticated.asUser()
+                .when()
+                .get("/groups")
+                .then()
+                .statusCode(200)
+                .body(GroupsTable.verdictUnderName(1), contains("keep", "Keep", "Minimum not reached"))
+                .body(GroupsTable.verdictUnderName(2), contains("remove", "Remove", "All met"))
+                .body(GroupsTable.verdictUnderName(3), contains("left-alone", "Left alone", "Unmanaged"))
+                .body(GroupsTable.verdictUnderName(6), contains("keep", "Keep", "Minimum not reached"));
+    }
+
+    @Test
     void pageSaysTheSizeIsTheDataNotTheSpaceARemovalFrees() {
         Authenticated.asUser()
                 .when()
