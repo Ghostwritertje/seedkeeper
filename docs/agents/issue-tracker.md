@@ -46,10 +46,9 @@ The life of an issue:
    blocked, or carry no `ready-for-agent`, are left alone. The blocker's close reason doesn't matter: "not planned"
    unblocks too.
 
-   **Not after an auto-merge.** An auto-merged pull request (`docs/agents/auto-merge.md`) doesn't close its issue
-   when it merges: the merge is made by `github-actions[bot]` with the workflow's own token. Within about 30
-   minutes `close-auto-merged-issues.yml` closes the issue, with the same token, then comments on it, linking the
-   pull request. That close starts no dependents, since it isn't made by a user with write access. Start each
+   **Not after an auto-merge.** An auto-merged pull request (`docs/agents/auto-merge.md`) closes its issue when it
+   merges, but the merge is made by the reviewer App, not a user with write access, so the close starts no
+   dependents. Start each
    unblocked dependent by hand: remove its `ready-for-agent` and add it again. Why:
    `docs/adr/0002-auto-merge-policy.md`.
 3. **Worked on.** On the branch `agent/issue-<n>-<slug>`, test-first, until `./mvnw verify` is green. Then the

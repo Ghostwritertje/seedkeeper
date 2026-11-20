@@ -21,7 +21,8 @@ Both agents use this secret.
    - **Webhook:** clear **Active**. The workflow needs no webhook.
 3. Under **Repository permissions**, set exactly these and leave every other permission at **No access**:
    - **Checks:** Read-only
-   - **Contents:** Read-only
+   - **Contents:** Read and write (only the `Auto-merge gate` job's token asks for write, to merge; the agent's
+     token asks for read)
    - **Issues:** Read and write
    - **Metadata:** Read-only (GitHub sets this)
    - **Pull requests:** Read and write
@@ -96,9 +97,10 @@ gh label create auto-merge --color 0e8a16 --description "The reviewer approved t
 
 ## Auto-merge
 
-The `Auto-merge gate` job turns on auto-merge with the workflow's own token (`docs/agents/auto-merge.md`). It needs
-**Settings → General → Pull Requests → Allow auto-merge** on, as `dependabot-auto-merge.yml` already does, and
-squash merging allowed. Neither App needs a permission for it: the reviewer App's contents stay read-only.
+The `Auto-merge gate` job turns on auto-merge with a reviewer App token (`docs/agents/auto-merge.md`), so the merge
+is made by the App and closes the pull request's `Closes #<n>` issues. It needs the reviewer App's **Contents: Read
+and write**, **Settings → General → Pull Requests → Allow auto-merge** on, as `dependabot-auto-merge.yml` already
+does, and squash merging allowed.
 
 To check the setup, have the reviewer approve a small implementer pull request that touches no human-only path: it
 adds `auto-merge`, the `Auto-merge gate` job logs that auto-merge is on, and GitHub squash-merges the pull request
