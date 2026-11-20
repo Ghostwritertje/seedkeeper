@@ -3,6 +3,7 @@ package io.github.ghostwritertje.seedkeeper.settings;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
@@ -30,8 +31,11 @@ class SettingsTest {
                 .statusCode(200)
                 .contentType(containsString("text/html"))
                 .body("html.head.title", is("Settings · seedkeeper"))
-                .body(section("run") + ".dl.dt", contains("Schedule", "Time zone"))
-                .body(section("run") + ".dl.dd", contains("0 0 6 1 1 ?", "Asia/Kolkata"))
+                .body(section("run") + ".dl.dt", contains("Schedule", "Time zone", "Next run"))
+                // 06:00 on 1 January has no plain words: the cron expression alone.
+                .body(section("run") + ".dl.dd[0]", is("0 0 6 1 1 ?"))
+                .body(section("run") + ".dl.dd[1]", is("Asia/Kolkata"))
+                .body(section("run") + ".dl.dd[2]", matchesPattern("\\d{4}-01-01 06:00:00"))
                 .body(section("transmission") + ".dl.dt", is("URL"))
                 .body(
                         section("transmission") + ".dl.dd",
