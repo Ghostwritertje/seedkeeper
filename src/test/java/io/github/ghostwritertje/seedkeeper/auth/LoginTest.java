@@ -99,6 +99,16 @@ class LoginTest {
         org.junit.jupiter.api.Assertions.assertEquals("Strict", session.getSameSite());
     }
 
+    /** A login lasts a week and survives closing the browser: the cookie is persistent, not a session cookie. */
+    @Test
+    void theSessionCookieLastsSevenDays() {
+        io.restassured.http.Cookie session = post(TestSecrets.USERNAME, TestSecrets.PASSWORD)
+                .statusCode(302)
+                .extract()
+                .detailedCookie(Authenticated.SESSION_COOKIE);
+        org.junit.jupiter.api.Assertions.assertEquals(604_800, session.getMaxAge());
+    }
+
     @Test
     void wrongPasswordIsRejected() {
         ValidatableResponse rejected = post(TestSecrets.USERNAME, "not-the-password")
