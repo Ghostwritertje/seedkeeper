@@ -27,7 +27,14 @@ final class GroupsTable {
 
     /** The line under the reason (the third cell after the name): the secondary reasons; empty when none. */
     static String underReason(int group) {
-        return GROUPS + "[" + group + "].tr[0].td[2].small.text()";
+        return GROUPS + "[" + group + "].tr[0].td[2].small.findAll { it.@'data-hint' != 'true' }"
+                + ".collect { it.text() }.join('')";
+    }
+
+    /** The hint under the reason (the third cell after the name): what to do about it; empty when it has none. */
+    static String hint(int group) {
+        return GROUPS + "[" + group + "].tr[0].td[2].small.findAll { it.@'data-hint' == 'true' }"
+                + ".collect { it.text() }.join('')";
     }
 
     /** The cell of the header row that shows the progress toward the minimum seed time (the first after the name). */

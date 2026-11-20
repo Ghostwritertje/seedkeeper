@@ -82,6 +82,9 @@ public record GroupVerdict(
      * @param announceHosts the hosts of the torrent's announce URLs, once each, in announce order; never the full
      *                      URL, which may hold a passkey
      * @param size     the bytes of the torrent's wanted files
+     * @param causes   the reasons that hold for the group because of this torrent, in the order of precedence: of
+     *                 {@link Reason#UNMANAGED}, {@link Reason#MISSING_DATA}, {@link Reason#LOCAL_ERROR} and
+     *                 {@link Reason#VERIFYING}, the ones it makes hold
      */
     public record Member(
             String hash,
@@ -91,10 +94,25 @@ public record GroupVerdict(
             Torrent.Status status,
             Optional<TrackerError> trackerError,
             List<String> announceHosts,
-            long size) {
+            long size,
+            List<Reason> causes) {
 
         public Member {
             announceHosts = List.copyOf(announceHosts);
+            causes = List.copyOf(causes);
+        }
+
+        /** A member that causes no reason. */
+        public Member(
+                String hash,
+                String name,
+                Optional<Tracker> tracker,
+                Duration seedTime,
+                Torrent.Status status,
+                Optional<TrackerError> trackerError,
+                List<String> announceHosts,
+                long size) {
+            this(hash, name, tracker, seedTime, status, trackerError, announceHosts, size, List.of());
         }
 
         /** A member with no announce hosts and a size of 0. */

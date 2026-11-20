@@ -82,9 +82,16 @@ class GroupsPageTest {
         GroupsPage.SeedProgress progress = new GroupsPage.SeedProgress("warn", 3, "3%", "1d of 30d · 29d to go");
         assertEquals(
                 List.of(
-                        new GroupsPage.Member(List.of("Cross.", "Seed"), "tracker-a", progress, "Seeding", "", "0 B"),
                         new GroupsPage.Member(
-                                List.of("Cross-", "Seed.", "Elsewhere"), "tracker-a", progress, "Seeding", "", "0 B")),
+                                List.of("Cross.", "Seed"), "tracker-a", progress, "Seeding", "", "0 B", ""),
+                        new GroupsPage.Member(
+                                List.of("Cross-", "Seed.", "Elsewhere"),
+                                "tracker-a",
+                                progress,
+                                "Seeding",
+                                "",
+                                "0 B",
+                                "")),
                 group.members());
     }
 
@@ -141,6 +148,65 @@ class GroupsPageTest {
                 1);
 
         assertEquals("Missing data (1 of 2 files)", GroupsPage.group(verdict).reason());
+    }
+
+    @Test
+    void theMembersThatCauseTheReasonAreMarked() {
+        GroupVerdict verdict = new GroupVerdict(
+                List.of(
+                        causing("1111", Reason.VERIFYING),
+                        causing("2222", Reason.MISSING_DATA),
+                        causing("3333"),
+                        causing("4444", Reason.MISSING_DATA, Reason.LOCAL_ERROR)),
+                Verdict.LEFT_ALONE,
+                Reason.MISSING_DATA,
+                0,
+                4,
+                Optional.empty(),
+                List.of(Reason.LOCAL_ERROR, Reason.VERIFYING),
+                2);
+
+        // Only the reason marks a member: a secondary reason decides nothing.
+        assertEquals(
+                List.of("", "causes \"Missing data\"", "", "causes \"Missing data\""),
+                GroupsPage.group(verdict).members().stream()
+                        .map(GroupsPage.Member::cause)
+                        .toList());
+    }
+
+    @Test
+    void eachLeftAloneReasonAndVerifyingSaysWhatToDo() {
+        assertEquals(
+                "a member is on a tracker not in the config: add it under trackers to manage it",
+                hint(Reason.UNMANAGED));
+        assertEquals("files are gone from disk: re-verify or remove in Transmission", hint(Reason.MISSING_DATA));
+        assertEquals(
+                "Transmission can't read or write the data: fix the disk or its permissions, then re-verify",
+                hint(Reason.LOCAL_ERROR));
+        assertEquals("Transmission is checking the data: the verdict follows once it is done", hint(Reason.VERIFYING));
+        assertEquals("", hint(Reason.MINIMUM_NOT_REACHED));
+        assertEquals("", hint(Reason.ALL_MET));
+    }
+
+    @Test
+    void anUnmanagedMemberIsWrittenLikeTheReason() {
+        GroupVerdict verdict = new GroupVerdict(
+                List.of(new GroupVerdict.Member(
+                        "1111",
+                        "Elsewhere",
+                        Optional.empty(),
+                        Duration.ofDays(1),
+                        Torrent.Status.SEEDING,
+                        Optional.empty(),
+                        List.of("elsewhere.example"),
+                        0)),
+                Verdict.LEFT_ALONE,
+                Reason.UNMANAGED,
+                0,
+                1,
+                Optional.empty());
+
+        assertEquals("Unmanaged (elsewhere.example) · Seeding · 0 of 1 files linked", GroupsPage.group(verdict).summary());
     }
 
     @Test
@@ -260,6 +326,25 @@ class GroupsPageTest {
                         1,
                         Optional.empty()))
                 .progress();
+    }
+
+    private static String hint(Reason reason) {
+        return GroupsPage.group(new GroupVerdict(
+                        List.of(causing("1111", reason)), reason.verdict(), reason, 0, 1, Optional.empty()))
+                .hint();
+    }
+
+    private static GroupVerdict.Member causing(String hash, Reason... causes) {
+        return new GroupVerdict.Member(
+                hash,
+                hash,
+                Optional.of(TRACKER_A),
+                Duration.ofDays(1),
+                Torrent.Status.SEEDING,
+                Optional.empty(),
+                List.of(),
+                0,
+                List.of(causes));
     }
 
     private static GroupVerdict.Member member(String hash, String name, Optional<TrackerError> error) {

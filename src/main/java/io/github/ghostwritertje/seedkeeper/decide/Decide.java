@@ -11,6 +11,7 @@ import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -230,15 +231,42 @@ public final class Decide {
 
     private static Member member(SnapshotTorrent member, TrackerRules trackers) {
         Torrent torrent = member.torrent();
+        Optional<Tracker> tracker = attribute(torrent, trackers);
         return new Member(
                 torrent.hash(),
                 torrent.name(),
-                attribute(torrent, trackers),
+                tracker,
                 Duration.ofSeconds(torrent.secondsSeeding()),
                 torrent.status(),
                 TrackerError.of(torrent.error(), torrent.errorString()),
                 TrackerRules.announceHosts(torrent.trackers()),
-                size(member.wantedFiles()));
+                size(member.wantedFiles()),
+                causes(member, tracker));
+    }
+
+    /** The reasons this member makes hold for its group, by the same rules as {@link #decide}, in their order. */
+    private static List<Reason> causes(SnapshotTorrent member, Optional<Tracker> tracker) {
+        Torrent torrent = member.torrent();
+        List<Reason> causes = new ArrayList<>();
+        if (tracker.isEmpty()) {
+            causes.add(Reason.UNMANAGED);
+        }
+        if (missing(member)) {
+            causes.add(Reason.MISSING_DATA);
+        }
+        if (torrent.error() == LOCAL_ERROR) {
+            causes.add(Reason.LOCAL_ERROR);
+        }
+        if (verifying(torrent)) {
+            causes.add(Reason.VERIFYING);
+        }
+        return causes;
+    }
+
+    /** True when the member is finished and a wanted file of it resolves to nothing on disk. */
+    private static boolean missing(SnapshotTorrent member) {
+        return member.torrent().finished()
+                && member.wantedFiles().stream().anyMatch(file -> file.id().isEmpty());
     }
 
     /**

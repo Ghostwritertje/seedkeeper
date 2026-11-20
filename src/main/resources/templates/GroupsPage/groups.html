@@ -55,7 +55,8 @@ members the group gains later are added to it. It shows in the Overrides view, w
 </thead>
 {!
   One tbody per group, so its members read as one: a header row for the group, whose cells after the seed time span
-  the rows of its members under it. A group of one is its header row alone. A long name may break after a dot or a
+  the rows of its members under it. A group of one is its header row alone. A member row that makes the group's
+  reason hold is highlighted, with a badge that names the reason; the hint under the reason says what to do about it. A long name may break after a dot or a
   dash (<wbr>), not inside a word.
   The progress toward the minimum seed time always says its state in text ("33%", "Met ✓", "—"); its detail, the exact
   durations, is in the cell for screen readers and opens on hover and on focus: the cell is focusable, so a tap or
@@ -63,7 +64,7 @@ members the group gains later are added to it. It shows in the Overrides view, w
 !}
 {#for group in groups}
 <tbody data-verdict="{group.verdictCode}">
-<tr><th scope="rowgroup"><strong>{#each group.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</strong><small>{group.summary}</small>{#if group.trackerMessage}<small data-tone="danger">{group.trackerMessage}</small>{/if}</th><td data-tone="{group.progress.tone}" tabindex="0">{#if group.progress.below}<meter min="0" max="100" value="{group.progress.percent}"></meter>{/if}{group.progress.text}<small>{group.progress.detail}</small></td><td rowspan="{group.rows}" data-verdict="{group.verdictCode}">{group.verdict}</td><td rowspan="{group.rows}">{group.reason}{#if group.secondaryReasons}<small>also: {group.secondaryReasons}</small>{/if}</td>{#if forecasts}<td rowspan="{group.rows}">{group.forecast}</td>{/if}<td rowspan="{group.rows}">{group.size}</td><td rowspan="{group.rows}"><form id="keep-{group.hashes.get(0)}" method="post" action="/groups/keep">
+<tr><th scope="rowgroup"><strong>{#each group.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</strong><small>{group.summary}</small>{#if group.trackerMessage}<small data-tone="danger">{group.trackerMessage}</small>{/if}</th><td data-tone="{group.progress.tone}" tabindex="0">{#if group.progress.below}<meter min="0" max="100" value="{group.progress.percent}"></meter>{/if}{group.progress.text}<small>{group.progress.detail}</small></td><td rowspan="{group.rows}" data-verdict="{group.verdictCode}">{group.verdict}</td><td rowspan="{group.rows}">{group.reason}{#if group.hint}<small data-hint="true">{group.hint}</small>{/if}{#if group.secondaryReasons}<small>also: {group.secondaryReasons}</small>{/if}</td>{#if forecasts}<td rowspan="{group.rows}">{group.forecast}</td>{/if}<td rowspan="{group.rows}">{group.size}</td><td rowspan="{group.rows}"><form id="keep-{group.hashes.get(0)}" method="post" action="/groups/keep">
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
 <input type="hidden" name="verdict" value="{filter.verdictCode}">
 <input type="hidden" name="reason" value="{filter.reasonCode}">
@@ -75,7 +76,7 @@ members the group gains later are added to it. It shows in the Overrides view, w
 </div></details>
 </form></td></tr>
 {#for member in group.members}
-<tr><td><span>{#each member.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</span><small>{member.tracker} · {member.status} · {member.size}</small>{#if member.trackerMessage}<small data-tone="danger">{member.trackerMessage}</small>{/if}</td><td data-tone="{member.progress.tone}" tabindex="0">{#if member.progress.below}<meter min="0" max="100" value="{member.progress.percent}"></meter>{/if}{member.progress.text}<small>{member.progress.detail}</small></td></tr>
+<tr{#if member.cause} data-cause="true"{/if}><td><span>{#each member.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</span>{#if member.cause} <mark data-tone="warn">{member.cause}</mark>{/if}<small>{member.tracker} · {member.status} · {member.size}</small>{#if member.trackerMessage}<small data-tone="danger">{member.trackerMessage}</small>{/if}</td><td data-tone="{member.progress.tone}" tabindex="0">{#if member.progress.below}<meter min="0" max="100" value="{member.progress.percent}"></meter>{/if}{member.progress.text}<small>{member.progress.detail}</small></td></tr>
 {/for}
 </tbody>
 {/for}
