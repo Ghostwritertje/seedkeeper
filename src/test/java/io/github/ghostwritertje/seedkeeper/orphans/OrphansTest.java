@@ -4,6 +4,8 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.startsWith;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
 import io.github.ghostwritertje.seedkeeper.ScrollRegions;
@@ -40,6 +42,7 @@ class OrphansTest {
         clear(downloads);
         file(downloads.resolve("Seeding/movie.mkv"), 4, Instant.now());
         file(downloads.resolve("Removed/movie.mkv"), 1536, Instant.parse("2026-03-01T10:00:00Z"));
+        file(downloads.resolve("Removed/.DS_Store"), 6, Instant.now());
         file(
                 downloads.resolve("leftover.nfo"),
                 512,
@@ -68,14 +71,21 @@ class OrphansTest {
                 .body(
                         "files.path",
                         contains(
+                                downloads.resolve("Removed/.DS_Store").toString(),
                                 downloads.resolve("Removed/movie.mkv").toString(),
                                 downloads.resolve("leftover.nfo").toString()))
-                .body("files.sizeBytes", contains(1536, 512))
-                .body("files[0].lastModified", is("2026-03-01T10:00:00Z"))
+                .body("files.sizeBytes", contains(6, 1536, 512))
+                .body("files[1].lastModified", is("2026-03-01T10:00:00Z"))
+                .body("files.systemFile", contains(true, false, false))
+                .body("files.target", contains(nullValue(), nullValue(), nullValue()))
                 .body(
                         "danglingSymlinks.path",
                         contains(downloads.resolve("cross-seed/movie.mkv").toString()))
-                .body("totalSizeBytes", is(2048));
+                .body(
+                        "danglingSymlinks.target",
+                        contains(downloads.resolve("gone/movie.mkv").toString()))
+                .body("danglingSymlinks.systemFile", contains(false))
+                .body("totalSizeBytes", is(2054));
     }
 
     /** The library root is shared with the other test classes: leave it as empty as it was found. */
@@ -99,11 +109,12 @@ class OrphansTest {
                 .body(
                         "files.path",
                         contains(
+                                downloads.resolve("Removed/.DS_Store").toString(),
                                 downloads.resolve("Removed/movie.mkv").toString(),
                                 downloads.resolve("leftover.nfo").toString()))
-                .body("files.libraryLink", contains(true, false))
+                .body("files.libraryLink", contains(false, true, false))
                 .body("danglingSymlinks.libraryLink", contains(false))
-                .body("totalSizeBytes", is(512));
+                .body("totalSizeBytes", is(518));
     }
 
     @Test
@@ -112,17 +123,17 @@ class OrphansTest {
         Files.createLink(
                 Files.createDirectory(library.resolve("movies")).resolve("movie.mkv"),
                 downloads.resolve("Removed/movie.mkv"));
-        String files = "html.body.main.section.find { it.@id == 'files' }";
+        String removed = "html.body.main.section.find { it.@id == 'files' }.details[1]";
 
         Authenticated.asUser()
                 .when()
                 .get("/orphans")
                 .then()
                 .statusCode(200)
-                .body(files + ".div.table.thead.tr.th", contains("Path", "Size", "Age", "Library link"))
-                .body(files + ".div.table.tbody.tr[0].td[3]", is("Yes"))
-                .body(files + ".div.table.tbody.tr[1].td[3]", is(""))
-                .body(files + ".div.table.tfoot.tr.td[0]", is("512 B"));
+                .body(removed + ".div.table.thead.tr.th", contains("Path", "Size", "Age", "Library link"))
+                .body(removed + ".div.table.tbody.tr.td[3]", is("Yes"))
+                .body(removed + ".summary.span", is("1 file, 0 B"))
+                .body("html.body.main.section.find { it.@id == 'files' }.p", is("Total of 2 files, 512 B"));
     }
 
     @Test
@@ -156,7 +167,7 @@ class OrphansTest {
     }
 
     @Test
-    void pageListsTheFilesAndTheDanglingSymlinksSeparatelyWithATotal() {
+    void pageListsTheFilesAndTheDanglingSymlinksByDirectoryCollapsedWithATotal() {
         String files = "html.body.main.section.find { it.@id == 'files' }";
         String symlinks = "html.body.main.section.find { it.@id == 'dangling-symlinks' }";
         Authenticated.asUser()
@@ -166,28 +177,69 @@ class OrphansTest {
                 .statusCode(200)
                 .contentType(containsString("text/html"))
                 .body("html.head.title", is("Orphans · seedkeeper"))
-                .body(ScrollRegions.TABLE_PARENTS, ScrollRegions.regions("Orphan files", "Dangling symlinks"))
+                .body(
+                        ScrollRegions.TABLE_PARENTS,
+                        ScrollRegions.regions(
+                                "Files in " + downloads,
+                                "Files in " + downloads.resolve("Removed"),
+                                "System files in " + downloads.resolve("Removed"),
+                                "Dangling symlinks in " + downloads.resolve("cross-seed")))
+                .body(
+                        "html.body.main.'**'.findAll { it.name() == 'details' && it.attributes().containsKey('open') }"
+                                + ".size()",
+                        is(0))
                 .body(files + ".h2", is("Files"))
-                .body(files + ".div.table.thead.tr.th", contains("Path", "Size", "Age", "Library link"))
-                .body(files + ".div.table.tbody.tr.size()", is(2))
                 .body(
-                        files + ".div.table.tbody.tr[0].td[0]",
-                        is(downloads.resolve("Removed/movie.mkv").toString()))
-                .body(files + ".div.table.tbody.tr[0].td[1]", is("1.5 KiB"))
-                .body(
-                        files + ".div.table.tbody.tr[1].td[0]",
-                        is(downloads.resolve("leftover.nfo").toString()))
-                .body(files + ".div.table.tbody.tr[1].td[1]", is("512 B"))
-                .body(files + ".div.table.tbody.tr[1].td[2]", is("3d 2h"))
-                .body(files + ".div.table.tbody.tr[1].td[3]", is(""))
-                .body(files + ".div.table.tfoot.tr.th", is("Total of 2 files"))
-                .body(files + ".div.table.tfoot.tr.td[0]", is("2.0 KiB"))
+                        files + ".details.summary.code",
+                        contains(
+                                downloads.toString(),
+                                downloads.resolve("Removed").toString()))
+                .body(files + ".details.summary.span", contains("1 file, 512 B", "1 file, 1.5 KiB"))
+                .body(files + ".details[0].div.table.thead.tr.th", contains("Path", "Size", "Age"))
+                .body(files + ".details[0].div.table.tbody.tr.td", contains("leftover.nfo", "512 B", "3d 2h"))
+                .body(files + ".details[1].div.table.tbody.tr.td[0]", is("movie.mkv"))
+                .body(files + ".p", is("Total of 2 files, 2.0 KiB"))
                 .body(symlinks + ".h2", is("Dangling symlinks"))
-                .body(symlinks + ".div.table.tbody.tr.size()", is(1))
+                .body(symlinks + ".p[0]", containsString("delete the link itself"))
                 .body(
-                        symlinks + ".div.table.tbody.tr[0].td[0]",
-                        is(downloads.resolve("cross-seed/movie.mkv").toString()))
-                .body(symlinks + ".div.table.tfoot.tr.th", is("Total of 1 dangling symlink"));
+                        symlinks + ".details.summary.code",
+                        is(downloads.resolve("cross-seed").toString()))
+                .body(symlinks + ".details.div.table.thead.tr.th", contains("Path", "Target", "Size", "Age"))
+                .body(symlinks + ".details.div.table.tbody.tr.td[0]", is("movie.mkv"))
+                .body(
+                        symlinks + ".details.div.table.tbody.tr.td[1]",
+                        is(downloads.resolve("gone/movie.mkv").toString()))
+                .body(symlinks + ".p[1]", startsWith("Total of 1 dangling symlink, "));
+    }
+
+    @Test
+    void pageHidesTheSystemFilesBehindAToggleWithTheirCount() {
+        String system = "html.body.main.section.find { it.@id == 'files' }.details.find { it.@id == 'system-files' }";
+        Authenticated.asUser()
+                .when()
+                .get("/orphans")
+                .then()
+                .statusCode(200)
+                .body(system + ".summary", is("Show 1 system file"))
+                .body(
+                        system + ".details.summary.code",
+                        is(downloads.resolve("Removed").toString()))
+                .body(system + ".details.div.table.tbody.tr.td[0]", is(".DS_Store"));
+    }
+
+    @Test
+    void pageWithOnlySystemFilesStillOffersThem() throws IOException {
+        Files.delete(downloads.resolve("Removed/movie.mkv"));
+        Files.delete(downloads.resolve("leftover.nfo"));
+        String files = "html.body.main.section.find { it.@id == 'files' }";
+
+        Authenticated.asUser()
+                .when()
+                .get("/orphans")
+                .then()
+                .statusCode(200)
+                .body(files + ".p", is("No file is an orphan apart from the system files."))
+                .body(files + ".details.find { it.@id == 'system-files' }.summary", is("Show 1 system file"));
     }
 
     @Test

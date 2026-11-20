@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ghostwritertje.seedkeeper.history.ActivityPage.Removal;
 import io.github.ghostwritertje.seedkeeper.history.ActivityPage.Run;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText.Moment;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
@@ -45,7 +46,15 @@ class ActivityRunTest {
     }
 
     private static Run run(String status, @Nullable String error, List<Removal> removals) {
-        return new Run("2026-11-20 06:00:00", "2026-11-20 06:00:01", status, error, "", 0, "0 B", removals);
+        return new Run(
+                new Moment("2026-11-20T06:00:00Z", "2026-11-20 06:00:00", "", "just now"),
+                "1s",
+                status,
+                error,
+                "",
+                0,
+                "0 B",
+                removals);
     }
 
     private static Removal removal(String error) {

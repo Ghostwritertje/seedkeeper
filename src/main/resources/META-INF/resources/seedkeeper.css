@@ -840,21 +840,22 @@ article[data-quiet] > p {
   color: var(--muted);
 }
 
-/* Orphans: sizes and ages line up on the right. */
+/* Orphans: a group per directory, its count in the muted text; sizes and ages line up on the right, paths in mono. */
 
-[data-page="orphans"] td:nth-child(2),
-[data-page="orphans"] td:nth-child(3),
-[data-page="orphans"] tfoot td:nth-child(2) {
+[data-page="orphans"] details.orphan-group > summary > span {
+  color: var(--muted);
+}
+
+[data-page="orphans"] details.orphan-group[open] {
+  margin-bottom: 0.75rem;
+}
+
+[data-page="orphans"] .number {
   text-align: right;
   white-space: nowrap;
 }
 
-[data-page="orphans"] th:nth-child(2),
-[data-page="orphans"] th:nth-child(3) {
-  text-align: right;
-}
-
-[data-page="orphans"] tbody td:first-child {
+[data-page="orphans"] td.path {
   font: 0.8125rem var(--mono);
   overflow-wrap: anywhere;
 }
