@@ -11,7 +11,7 @@ import java.time.Duration;
 /**
  * A {@link FakeTransmission} with a realistic set of torrents, and their files on disk, for running the app by hand:
  * the {@code run-app} skill starts it. It covers every verdict and the cases the views have to show: a cross-seed
- * group, a library link, an unregistered torrent, a tracker error, a torrent still downloading, a paused one, a public
+ * group, a library link, an unregistered torrent (one of them a cross-seed of a torrent that stays), a tracker error, a torrent still downloading, a paused one, a public
  * one, a torrent whose files are missing and orphans.
  *
  * <p>Argument: the root directory. It creates {@code downloads/}, {@code library/} and {@code data/} under it, so the
@@ -114,6 +114,18 @@ public final class DemoTransmission {
                 "https://tracker-b.example.org/announce",
                 0,
                 "",
+                "Dune.Part.Two.2024.1080p.WEB-DL/movie.mkv");
+        // An unregistered cross-seed of it: removed on its own, but its file stays, as the torrent above still uses it.
+        torrent(
+                "c1b2c3d4e5f60718293a4b5c6d7e8f9012345612",
+                "Dune.Part.Two.2024.1080p.WEB-DL.Unregistered",
+                SEEDING,
+                1,
+                3,
+                true,
+                TRACKER_A,
+                2,
+                "Unregistered torrent",
                 "Dune.Part.Two.2024.1080p.WEB-DL/movie.mkv");
 
         // Unregistered by its tracker.
