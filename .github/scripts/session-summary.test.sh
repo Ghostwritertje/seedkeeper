@@ -10,13 +10,13 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 failures=0
 
-# result <turns> <cost> <denials as a JSON array>: a session log ending in a result message.
+# result <turns> <cost> <denials as a JSON array> [final message]: a session log ending in a result message.
 result() {
-  jq -nc --argjson turns "$1" --argjson cost "$2" --argjson denials "$3" '[
+  jq -nc --argjson turns "$1" --argjson cost "$2" --argjson denials "$3" --arg final "${4:-}" '[
     {type: "system", subtype: "init"},
     {type: "assistant", message: {content: [{type: "text", text: "a secret thought"}]}},
     {type: "result", subtype: "success", is_error: false, num_turns: $turns, total_cost_usd: $cost,
-     permission_denials: $denials}]'
+     permission_denials: $denials, result: $final}]'
 }
 
 # denial <tool> <input as JSON>
@@ -72,6 +72,22 @@ check "the rest of the transcript stays out" \
   "$(result 3 1 '[]')" lacks 'a secret thought'
 check "a tool name that isn't a string still shows" \
   "$(result 3 1 '[{"tool_name":7,"tool_input":{"command":"ls"}}]')" contains $'1. **7**\n\n<pre>ls</pre>'
+check "a Bash denial with a cd prefix shows the whole chain" \
+  "$(result 3 1 "[$(bash_denial 'cd /home/runner/work/seedkeeper/seedkeeper; ./mvnw -B verify -Pquality')]")" \
+  contains '<pre>cd /home/runner/work/seedkeeper/seedkeeper; ./mvnw -B verify -Pquality</pre>'
+check "a GitHub token in a denial is redacted" \
+  "$(result 3 1 "[$(bash_denial 'git push https://x:ghs_abc123DEF@github.com/o/r')]")" contains 'x:[redacted]@github.com'
+check "a GitHub token in a denial doesn't show" \
+  "$(result 3 1 "[$(bash_denial 'git push https://x:ghs_abc123DEF@github.com/o/r')]")" lacks 'ghs_abc123DEF'
+check "the final message shows" \
+  "$(result 3 1 '[]' 'The quality build was denied, so I stopped.')" \
+  contains $'### Final message\n\n<pre>The quality build was denied, so I stopped.</pre>'
+check "an empty final message says None." \
+  "$(result 3 1 '[]')" contains $'### Final message\n\nNone.'
+check "a long final message is cut to 1000 characters" \
+  "$(result 3 1 '[]' "$(printf 'y%.0s' {1..1200})")" contains "$(printf 'y%.0s' {1..1000})…</pre>"
+check "HTML in the final message is escaped" \
+  "$(result 3 1 '[]' '</pre><script>')" contains '<pre>&lt;/pre&gt;&lt;script&gt;</pre>'
 check "a log without a result says so" \
   '[{"type":"system","subtype":"init"}]' contains 'No result message'
 check "a log as JSON lines is read too" \

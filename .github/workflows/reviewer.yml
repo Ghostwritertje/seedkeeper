@@ -187,15 +187,16 @@ jobs:
             --disallowedTools
             "Edit,Write,NotebookEdit,Bash(git push:*),Bash(git commit:*),Bash(git add:*),Bash(git merge:*),Bash(git rebase:*),Bash(git reset:*),Bash(gh pr merge:*),Bash(gh api:*)"
 
-      # The job log hides the session (show_full_output is off: the repo is public). The job summary lists its
-      # permission denials, and its turns and cost, so a missing allowlist entry shows. Also after a failed run. Only
-      # a report: continue-on-error, so a log it can't read doesn't skip the steps after it or fail the review.
+      # The job log hides the session (show_full_output is off: the repo is public). This step prints its turns,
+      # cost, permission denials and final message to the job log and the job summary, so a missing allowlist entry
+      # shows in `gh run view --log` too. Also after a failed run. Only a report: continue-on-error, so a log it can't
+      # read doesn't skip the steps after it or fail the review.
       - name: Summarize the session
         if: always()
         continue-on-error: true
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
-        run: bash "$RUNNER_TEMP/session-summary.sh" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+        run: bash "$RUNNER_TEMP/session-summary.sh" "$EXECUTION_FILE" | tee -a "$GITHUB_STEP_SUMMARY"
 
       # The agent can end its run without submitting a review and still succeed. This step fails the job then, so
       # the blocked job labels the pull request agent:blocked instead of the review passing for done. The check

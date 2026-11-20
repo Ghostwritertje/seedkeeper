@@ -126,6 +126,10 @@ jobs:
     concurrency:
       group: implementer-issue-${{ inputs.issue }}
       cancel-in-progress: false
+    # Set when the run ended in none of its outcomes, for the blocked job's comment.
+    outputs:
+      outcome: ${{ steps.outcome.outputs.outcome }}
+      reason: ${{ steps.outcome.outputs.reason }}
     steps:
       - name: Mint the implementer App token
         id: app-token
@@ -146,12 +150,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # The prompt and the session summary script come from the default branch, read before a retry switches to the
-      # agent branch, so the agent can't change what runs after its session.
+      # The prompt, the session summary and the outcome check come from the default branch, read before a retry
+      # switches to the agent branch, so the agent can't change what runs after its session.
       - name: Read the implementer prompt
         id: prompt
         run: |
-          cp .github/scripts/session-summary.sh "$RUNNER_TEMP/session-summary.sh"
+          cp .github/scripts/session-summary.sh .github/scripts/agent-outcome.sh "$RUNNER_TEMP/"
           {
             echo 'text<<IMPLEMENTER_PROMPT_EOF'
             cat .github/prompts/implementer.md
@@ -251,15 +255,16 @@ jobs:
             --disallowedTools
             "Bash(gh pr merge:*),Bash(gh pr review:*),Bash(gh pr edit *auto-merge*),Bash(gh api:*),Bash(git push --force:*),Bash(git push -f:*),Bash(git push --force-with-lease:*),Bash(git push * --force*),Bash(git push * -f*),Bash(git push *+*),Bash(git push --delete:*),Bash(git push * --delete*),Bash(git reset --hard:*),Bash(git rebase:*),Bash(./mvnw *-Dnative*),Bash(./mvnw *-Pnative*)"
 
-      # The job log hides the session (show_full_output is off: the repo is public). The job summary lists its
-      # permission denials, and its turns and cost, so a missing allowlist entry shows. Also after a failed run. Only
-      # a report: continue-on-error, so a log it can't read doesn't skip the steps after it or block the run.
+      # The job log hides the session (show_full_output is off: the repo is public). This step prints its turns,
+      # cost, permission denials and final message to the job log and the job summary, so a missing allowlist entry
+      # shows in `gh run view --log` too. Also after a failed run. Only a report: continue-on-error, so a log it can't
+      # read doesn't skip the steps after it or block the run.
       - name: Summarize the session
         if: always()
         continue-on-error: true
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
-        run: bash "$RUNNER_TEMP/session-summary.sh" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+        run: bash "$RUNNER_TEMP/session-summary.sh" "$EXECUTION_FILE" | tee -a "$GITHUB_STEP_SUMMARY"
 
       # The run-app skill's before and after screenshots, which the pull request links as SCREENSHOTS. Also after a
       # failed run: they show how far it got.
@@ -272,6 +277,26 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+      # The agent can end its run in none of its outcomes and still succeed (#88: its commands were denied, and it
+      # stopped without a word). Then this step fails the job, so the blocked job labels the issue agent:blocked and
+      # comments. The check is the default branch's, read before the session.
+      - name: Check that the run ended in an outcome
+        id: outcome
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ inputs.issue }}
+          BRANCH: ${{ needs.pick-up.outputs.branch }}
+        run: |
+          gh pr list --head "$BRANCH" --state open --json number,isDraft,body > "$RUNNER_TEMP/pulls.json"
+          result="$(gh issue view "$ISSUE" --json labels \
+            | bash "$RUNNER_TEMP/agent-outcome.sh" issue "$ISSUE" "$RUNNER_TEMP/pulls.json")"
+          echo "$result" | tee -a "$GITHUB_OUTPUT"
+          if [ "$(sed -n 's/^outcome=//p' <<<"$result")" = none ]; then
+            echo "::error::The implementer agent finished without an outcome: $(sed -n 's/^reason=//p' <<<"$result")"
+            exit 1
+          fi
+
       # The issue's work is in its pull request, or the agent labelled it agent:blocked or needs-decision.
       - name: Clear agent:in-progress
         env:
@@ -280,7 +305,8 @@ jobs:
           ISSUE: ${{ inputs.issue }}
         run: gh issue edit "$ISSUE" --remove-label agent:in-progress
 
-  # A crash, a timeout or an exhausted quota fails the job. Nothing retries on its own.
+  # A crash, a timeout, an exhausted quota or a run that ends in none of its outcomes fails the job. Nothing retries
+  # on its own.
   blocked:
     name: Report a failed run
     needs: [pick-up, implement]
@@ -301,8 +327,15 @@ jobs:
           GH_REPO: ${{ github.repository }}
           ISSUE: ${{ inputs.issue }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          OUTCOME: ${{ needs.implement.outputs.outcome }}
+          REASON: ${{ needs.implement.outputs.reason }}
         run: |
           gh issue edit "$ISSUE" --remove-label agent:in-progress --add-label agent:blocked
-          gh issue comment "$ISSUE" --body "The implementer agent failed: it crashed, timed out or ran out of quota. Nothing retries on its own. See the run: $RUN_URL
+          if [ "$OUTCOME" = none ]; then
+            failure="The implementer agent finished without recording an outcome: no ready pull request, no \`needs-decision\` and no \`agent:blocked\`. $REASON The run's job log and summary list the commands it was denied and its last message."
+          else
+            failure="The implementer agent failed: it crashed, timed out or ran out of quota."
+          fi
+          gh issue comment "$ISSUE" --body "$failure Nothing retries on its own. See the run: $RUN_URL
 
           To retry, remove \`agent:blocked\` and add \`ready-for-agent\`."
