@@ -16,6 +16,7 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
@@ -40,13 +41,42 @@ class OverridesPage {
          * @param unavailable   why the overrides file can't be read right now; null when it can
          * @param groupsUnknown why the groups the overrides match can't be known right now; null when they can
          * @param notice        why the form that was just posted changed nothing; null when there is nothing to tell
+         * @param done          what the form that was just posted changed, "Keep override added."; null when nothing
          */
         static native TemplateInstance overrides(
                 List<Row> overrides,
                 String file,
                 @Nullable String unavailable,
                 @Nullable String groupsUnknown,
-                @Nullable String notice);
+                @Nullable String notice,
+                @Nullable String done);
+    }
+
+    /**
+     * A change the forms of the view make, as the value of {@code done} in the address the browser is sent to after it.
+     */
+    enum Done {
+        ADDED("added", "Keep override added."),
+        SAVED("saved", "Keep override saved."),
+        DELETED("deleted", "Keep override deleted.");
+
+        private final String value;
+        private final String text;
+
+        Done(String value, String text) {
+            this.value = value;
+            this.text = text;
+        }
+
+        /** The text to show for this value of {@code done}; null for no value or one that is not a change. */
+        static @Nullable String text(@Nullable String value) {
+            for (Done done : values()) {
+                if (done.value.equals(value)) {
+                    return done.text;
+                }
+            }
+            return null;
+        }
     }
 
     private static final DateTimeFormatter CREATED = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -86,8 +116,8 @@ class OverridesPage {
     @GET
     @Produces(MediaType.TEXT_HTML)
     @RunOnVirtualThread
-    public TemplateInstance overrides() {
-        return page(null);
+    public TemplateInstance overrides(@QueryParam("done") @Nullable String done) {
+        return page(null, Done.text(done));
     }
 
     /**
@@ -101,10 +131,12 @@ class OverridesPage {
     @Produces(MediaType.TEXT_HTML)
     @RunOnVirtualThread
     public Response add(@RestForm String hashes, @RestForm String note, @RestForm String until) {
-        return change(() -> changes.add(
-                hashes == null ? List.of() : Arrays.asList(hashes.split("[\\s,]+")),
-                note,
-                OverrideChanges.date(until)));
+        return change(
+                () -> changes.add(
+                        hashes == null ? List.of() : Arrays.asList(hashes.split("[\\s,]+")),
+                        note,
+                        OverrideChanges.date(until)),
+                Done.ADDED);
     }
 
     /** Changes the note and the end date of the override with this id, then sends the browser to the view. */
@@ -114,7 +146,7 @@ class OverridesPage {
     @Produces(MediaType.TEXT_HTML)
     @RunOnVirtualThread
     public Response edit(@RestForm String id, @RestForm String note, @RestForm String until) {
-        return change(() -> changes.edit(id, note, OverrideChanges.date(until)));
+        return change(() -> changes.edit(id, note, OverrideChanges.date(until)), Done.SAVED);
     }
 
     /** Deletes the override with this id, then sends the browser to the Overrides view. */
@@ -124,37 +156,41 @@ class OverridesPage {
     @Produces(MediaType.TEXT_HTML)
     @RunOnVirtualThread
     public Response delete(@RestForm String id) {
-        return change(() -> changes.delete(id));
+        return change(() -> changes.delete(id), Done.DELETED);
     }
 
-    /** Makes the change and sends the browser to the Overrides view; or shows it with why nothing changed. */
-    private Response change(Runnable change) {
+    /**
+     * Makes the change and sends the browser to the Overrides view, which then says it is done; or shows the view with
+     * why nothing changed.
+     */
+    private Response change(Runnable change, Done done) {
         try {
             change.run();
-            return Response.seeOther(URI.create("/overrides")).build();
+            return Response.seeOther(URI.create("/overrides?done=" + done.value))
+                    .build();
         } catch (OverridesException e) {
             Response.Status status = switch (e.problem()) {
                 case INVALID -> Response.Status.BAD_REQUEST;
                 case NO_SUCH_OVERRIDE -> Response.Status.NOT_FOUND;
                 case FILE -> Response.Status.SERVICE_UNAVAILABLE;
             };
-            return Response.status(status).entity(page(e.getMessage())).build();
+            return Response.status(status).entity(page(e.getMessage(), null)).build();
         }
     }
 
-    private TemplateInstance page(@Nullable String notice) {
+    private TemplateInstance page(@Nullable String notice, @Nullable String done) {
         String file = config.dataDir().resolve(OverrideStore.FILE_NAME).toString();
         List<Listed> listed;
         try {
             listed = overrides.overrides();
         } catch (OverridesUnavailable e) {
-            return Templates.overrides(List.of(), file, e.getMessage(), null, notice);
+            return Templates.overrides(List.of(), file, e.getMessage(), null, notice, done);
         }
         String groupsUnknown = listed.stream()
                 .flatMap(override -> override.groupsUnknown().stream())
                 .findFirst()
                 .orElse(null);
-        return Templates.overrides(listed.stream().map(this::row).toList(), file, null, groupsUnknown, notice);
+        return Templates.overrides(listed.stream().map(this::row).toList(), file, null, groupsUnknown, notice, done);
     }
 
     private Row row(Listed listed) {

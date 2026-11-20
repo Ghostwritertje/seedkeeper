@@ -44,6 +44,8 @@ class ManageOverridesTest {
     private static final long DAY = 86_400;
     private static final String CSRF_COOKIE = "csrf-token";
     private static final String ROWS = "html.body.main.table.tbody.tr";
+    private static final String DONE = "html.body.main.p.find { it.@id == 'done' }";
+    private static final String DONE_COUNT = "html.body.main.p.findAll { it.@id == 'done' }.size()";
     private static final String SELECTED_VERDICT = "html.body.main.form.'**'.find { it.name() == 'select'"
             + " && it.@name == 'verdict' }.option.find { it.@selected == 'selected' }.@value";
 
@@ -95,7 +97,12 @@ class ManageOverridesTest {
                 .post("/overrides")
                 .then()
                 .statusCode(303)
-                .header("Location", endsWith("/overrides"));
+                .header("Location", endsWith("/overrides?done=added"));
+        user.page("/overrides?done=added")
+                .then()
+                .statusCode(200)
+                .body(DONE + ".text()", is("Keep override added."))
+                .body(DONE + ".@role", is("status"));
 
         Authenticated.withApiKey()
                 .when()
@@ -223,6 +230,18 @@ class ManageOverridesTest {
     }
 
     @Test
+    void theOverridesViewSaysNothingIsDoneWithoutAKnownChange() {
+        Session user = Session.login();
+
+        for (String path :
+                List.of("/overrides", "/overrides?done=", "/overrides?done=kept", "/overrides?done=%3Cscript%3E")) {
+            Response page = user.page(path);
+            page.then().statusCode(200).body(DONE_COUNT, is(0));
+            assertFalse(page.asString().contains("<script>"), path);
+        }
+    }
+
+    @Test
     void editingChangesTheNoteAndTheEndDateAndKeepsTheRest() throws IOException {
         Files.writeString(file, """
                 overrides:
@@ -242,7 +261,12 @@ class ManageOverridesTest {
                 .post("/overrides/edit")
                 .then()
                 .statusCode(303)
-                .header("Location", endsWith("/overrides"));
+                .header("Location", endsWith("/overrides?done=saved"));
+        user.page("/overrides?done=saved")
+                .then()
+                .statusCode(200)
+                .body(DONE + ".text()", is("Keep override saved."))
+                .body(DONE + ".@role", is("status"));
 
         Authenticated.withApiKey()
                 .when()
@@ -299,7 +323,12 @@ class ManageOverridesTest {
                 .post("/overrides/delete")
                 .then()
                 .statusCode(303)
-                .header("Location", endsWith("/overrides"));
+                .header("Location", endsWith("/overrides?done=deleted"));
+        user.page("/overrides?done=deleted")
+                .then()
+                .statusCode(200)
+                .body(DONE + ".text()", is("Keep override deleted."))
+                .body(DONE + ".@role", is("status"));
 
         Authenticated.withApiKey().when().get("/api/v1/overrides").then().body("id", contains("first"));
         Authenticated.withApiKey()
@@ -366,7 +395,8 @@ class ManageOverridesTest {
                 .statusCode(400)
                 .body(
                         "html.body.main.p.find { it.@id == 'notice' }",
-                        is("A keep override needs at least one info hash."));
+                        is("A keep override needs at least one info hash."))
+                .body(DONE_COUNT, is(0));
         user.form(page, "add")
                 .formParam("hashes", "3c3c17")
                 .formParam("note", "x")
