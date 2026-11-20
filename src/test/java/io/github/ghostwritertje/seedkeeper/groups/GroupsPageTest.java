@@ -33,8 +33,10 @@ class GroupsPageTest {
     @Test
     void aGroupOfOneIsItsHeaderRowAlone() {
         GroupVerdict verdict = new GroupVerdict(
-                List.of(member("1111", "Gone.Movie", Optional.of(new TrackerError(
-                        TrackerError.Kind.UNREGISTERED, "Unregistered torrent")))),
+                List.of(member(
+                        "1111",
+                        "Gone.Movie",
+                        Optional.of(new TrackerError(TrackerError.Kind.UNREGISTERED, "Unregistered torrent")))),
                 Verdict.REMOVE,
                 Reason.UNREGISTERED,
                 1,

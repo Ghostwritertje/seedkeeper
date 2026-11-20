@@ -46,6 +46,7 @@ class ManageOverridesTest {
     private static final String ROWS = "html.body.main.div.table.tbody.tr";
     /** The header row of every group in the Groups view: the name in its th, then seed time, verdict, reason. */
     private static final String GROUP_ROWS = "html.body.main.div.table.tbody.collect { it.tr[0] }";
+
     private static final String DONE = "html.body.main.p.find { it.@id == 'done' }";
     private static final String DONE_COUNT = "html.body.main.p.findAll { it.@id == 'done' }.size()";
     private static final String SELECTED_VERDICT = "html.body.main.form.'**'.find { it.name() == 'select'"

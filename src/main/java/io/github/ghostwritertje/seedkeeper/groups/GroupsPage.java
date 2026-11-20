@@ -299,8 +299,7 @@ class GroupsPage {
                         .map(endDate -> "until " + endDate)
                         .orElseGet(() -> f.date().map(FORECAST_DATE::format).orElse("clock stopped (paused)")))
                 .orElse("");
-        List<Member> members =
-                group.members().stream().map(GroupsPage::member).toList();
+        List<Member> members = group.members().stream().map(GroupsPage::member).toList();
         Member first = members.getFirst();
         boolean one = members.size() == 1;
         return new Group(

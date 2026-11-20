@@ -310,13 +310,9 @@ class GroupsTest {
                                 minuteIn(before, Duration.ofDays(11).plusHours(12))))
                 .body(GroupsTable.heading(2), contains("Old.Movie", "tracker-b · Stopped · 0 of 1 files linked"))
                 .body(GroupsTable.cells(2), contains("14d / 14d", "Remove", "All met", ""))
-                .body(
-                        GroupsTable.heading(3),
-                        contains("Unknown.Tracker", "unmanaged · Seeding · 0 of 1 files linked"))
+                .body(GroupsTable.heading(3), contains("Unknown.Tracker", "unmanaged · Seeding · 0 of 1 files linked"))
                 .body(GroupsTable.cells(3), contains("400d", "Left alone", "Unmanaged", ""))
-                .body(
-                        GroupsTable.heading(4),
-                        contains("Downloading", "tracker-a · Downloading · 0 of 1 files linked"))
+                .body(GroupsTable.heading(4), contains("Downloading", "tracker-a · Downloading · 0 of 1 files linked"))
                 .body(GroupsTable.cells(4), contains("0m / 30d", "Keep", "Not finished", ""))
                 .body(GroupsTable.underReason(4), is("also: Minimum not reached"))
                 .body(GroupsTable.underReason(0), is(""))
@@ -331,9 +327,7 @@ class GroupsTest {
                         GroupsTable.GROUPS + "[6].tr[0].td.collect { it.@rowspan.toString() }",
                         contains("1", "3", "3", "3", "3"))
                 .body(GroupsTable.member(6, 0), contains("Cross.Seed", "tracker-a · Seeding", "20d / 30d"))
-                .body(
-                        GroupsTable.member(6, 1),
-                        contains("Cross.Seed.Elsewhere", "tracker-b · Stopped", "13d / 14d"))
+                .body(GroupsTable.member(6, 1), contains("Cross.Seed.Elsewhere", "tracker-b · Stopped", "13d / 14d"))
                 // The keep form's controls name the group by its first member, so they can be told apart.
                 .body(
                         "**.find { it.name() == 'form' && it.@id == 'keep-7777' }.'**'.findAll { it.@'aria-label' != '' }"
@@ -364,7 +358,9 @@ class GroupsTest {
                 .get("/groups?verdict=remove")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.HEADINGS, contains("Name", "Seed time / minimum", "Verdict", "Reason", "Keep override"))
+                .body(
+                        GroupsTable.HEADINGS,
+                        contains("Name", "Seed time / minimum", "Verdict", "Reason", "Keep override"))
                 .body(GroupsTable.cells(0), contains("14d / 14d", "Remove", "All met"));
     }
 

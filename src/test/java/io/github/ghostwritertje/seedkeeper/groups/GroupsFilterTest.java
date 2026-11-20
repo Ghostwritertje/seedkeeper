@@ -185,15 +185,15 @@ class GroupsFilterTest {
                 .get("/groups")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.HEADINGS, contains("Name", "Seed time / minimum", "Verdict", "Reason", "Keep override"))
+                .body(
+                        GroupsTable.HEADINGS,
+                        contains("Name", "Seed time / minimum", "Verdict", "Reason", "Keep override"))
                 .body(GroupsTable.heading(0), contains("Half.Gone", "tracker-a · Seeding · 0 of 2 files linked"))
                 .body(GroupsTable.cells(0), contains("400d / 30d", "Left alone", "Missing data (1 of 2 files)"))
                 .body(GroupsTable.underReason(0), is(""))
                 .body(GroupsTable.cells(1), contains("1d / 30d", "Left alone", "Local error"))
                 .body(GroupsTable.underReason(1), is("also: Minimum not reached"))
-                .body(
-                        GroupsTable.heading(2),
-                        contains("Checking.Movie", "tracker-a · Verifying · 0 of 1 files linked"))
+                .body(GroupsTable.heading(2), contains("Checking.Movie", "tracker-a · Verifying · 0 of 1 files linked"))
                 .body(GroupsTable.cells(2), contains("400d / 30d", "Keep", "Verifying"))
                 .body(GroupsTable.cells(5), contains("0m / 30d", "Keep", "Not finished"))
                 .body(GroupsTable.underReason(5), is("also: Minimum not reached"));
@@ -211,9 +211,7 @@ class GroupsFilterTest {
                 .then()
                 .body(GroupsTable.heading(0), contains("Kept.Movie", "tracker-a · Verifying · 1 of 1 files linked"))
                 .body(GroupsTable.cells(0), contains("0m / 30d", "Left alone", "Local error"))
-                .body(
-                        GroupsTable.underReason(0),
-                        is("also: Verifying, Library link, Minimum not reached"));
+                .body(GroupsTable.underReason(0), is("also: Verifying, Library link, Minimum not reached"));
     }
 
     @Test
