@@ -1,6 +1,13 @@
-{#include layout.html}
+{#include layout.html current='groups'}
 {#title}Groups{/title}
 <h1>Groups</h1>
+{#if !tally.isEmpty}
+<nav aria-label="Groups by verdict">
+{#for t in tally}
+<a href="/groups?verdict={t.code}{#if filter.reasonCode}&amp;reason={filter.reasonCode}{/if}"{#if t.selected} aria-current="page"{/if}>{#if t.code}<mark data-verdict="{t.code}">{t.count}</mark>{#else}<mark>{t.count}</mark>{/if} {t.label}</a>
+{/for}
+</nav>
+{/if}
 <form method="get" action="/groups">
 <label>Verdict <select name="verdict">
 <option value=""{#if filter.anyVerdict} selected="selected"{/if}>Any verdict</option>
@@ -15,6 +22,7 @@
 {/for}
 </select></label>
 <button type="submit">Filter</button>
+{#if filter.active}<a href="/groups">Clear filter</a>{/if}
 </form>
 {#if notice}
 <p role="alert" id="notice">{notice}</p>
@@ -26,29 +34,35 @@
 {#else if groups.isEmpty}
 <p>Transmission has no torrents.</p>
 {#else}
+<details>
+<summary>How verdicts are decided</summary>
 <p>What the next run would do, decided right now: it removes the groups marked Remove. Torrents that share files (cross-seeds) are one
 group, with one verdict. A torrent of a managed tracker that its tracker has deleted (unregistered) leaves its group and is removed on its own;
 any other tracker message is only shown. The reason is the first rule that holds; the secondary reasons are the others that hold too.
-The forecast is when a group kept for its minimum seed time is expected to have met it, if it keeps seeding.
-Set a keep override to stop a group from being removed (it never causes a removal): it gets the info hash of every member, and the
+The forecast is when a group kept for its minimum seed time is expected to have met it, if it keeps seeding.</p>
+<p>Set a keep override to stop a group from being removed (it never causes a removal): it gets the info hash of every member, and the
 members the group gains later are added to it. It shows in the Overrides view, where it can be edited or deleted.</p>
+</details>
 <table>
 <thead>
 <tr><th>Name</th><th>Tracker</th><th>Seed time / minimum</th><th>Status</th><th>Tracker message</th><th>Library links</th><th>Verdict</th><th>Reason</th><th>Secondary reasons</th><th>Forecast</th><th>Keep override</th></tr>
 </thead>
-<tbody>
+{! One tbody per group, so its members read as one. !}
 {#for group in groups}
+<tbody data-verdict="{group.verdictCode}">
 {#for member in group.members}
-<tr><td>{member.name}</td><td>{member.tracker}</td><td>{member.seedTime}</td><td>{member.status}</td><td>{member.trackerMessage}</td>{#if member_isFirst}<td rowspan="{group.members.size}">{group.libraryLinks}</td><td rowspan="{group.members.size}">{group.verdict}</td><td rowspan="{group.members.size}">{group.reason}</td><td rowspan="{group.members.size}">{group.secondaryReasons}</td><td rowspan="{group.members.size}">{group.forecast}</td><td rowspan="{group.members.size}"><form id="keep-{group.hashes.get(0)}" method="post" action="/groups/keep">
+<tr><td>{member.name}</td><td>{member.tracker}</td><td>{member.seedTime}</td><td>{member.status}</td><td>{member.trackerMessage}</td>{#if member_isFirst}<td rowspan="{group.members.size}">{group.libraryLinks}</td><td rowspan="{group.members.size}" data-verdict="{group.verdictCode}">{group.verdict}</td><td rowspan="{group.members.size}">{group.reason}</td><td rowspan="{group.members.size}">{group.secondaryReasons}</td><td rowspan="{group.members.size}">{group.forecast}</td><td rowspan="{group.members.size}"><form id="keep-{group.hashes.get(0)}" method="post" action="/groups/keep">
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
 {#for hash in group.hashes}<input type="hidden" name="hash" value="{hash}">
-{/for}<label>Note <input type="text" name="note"></label>
-<label>Until <input type="date" name="until"></label>
+{/for}<details><summary>Keep…</summary><div>
+<label>Note <input type="text" name="note" placeholder="Why keep it?"></label>
+<label>Until (optional) <input type="date" name="until"></label>
 <button type="submit">Set a keep override</button>
+</div></details>
 </form></td>{/if}</tr>
 {/for}
-{/for}
 </tbody>
+{/for}
 </table>
 {/if}
 {/include}

@@ -128,8 +128,10 @@ class LastRunAfterRestartTest {
                 .get("/system")
                 .then()
                 .statusCode(200)
-                .body("html.body.main.section[1].dl.dd[1]", is("Failed"))
-                .body("html.body.main.section[1].p.find { it.@role == 'alert' }", is("Transmission does not answer"));
+                .body("html.body.main.section.find { it.@id == 'runs' }.dl.dd[1]", is("Failed"))
+                .body(
+                        "html.body.main.section.find { it.@id == 'runs' }.p.find { it.@role == 'alert' }",
+                        is("Transmission does not answer"));
     }
 
     @Test

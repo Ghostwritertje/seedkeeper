@@ -176,7 +176,8 @@ class SystemTest {
                 .when()
                 .get("/system")
                 .then()
-                .body("html.head.link.@href", is("/seedkeeper.css"))
+                .body("html.head.link.find { it.@rel == 'stylesheet' }.@href", is("/seedkeeper.css"))
+                .body("html.head.link.find { it.@rel == 'icon' }.@href", is("/favicon.svg"))
                 .body("html.head.script.@src", is("/htmx.min.js"));
 
         given().when().get("/seedkeeper.css").then().statusCode(200).contentType(containsString("text/css"));

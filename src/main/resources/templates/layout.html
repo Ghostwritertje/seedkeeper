@@ -1,30 +1,32 @@
+{! Every page passes `current`: the code of its view, for the link to it in the header and the layout of <main>. !}
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{#insert title}{/} · seedkeeper</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/seedkeeper.css">
 <script src="/htmx.min.js" defer></script>
 </head>
 <body>
 <header>
-<strong>seedkeeper</strong>
+<a href="/system">seedkeeper</a>
 <nav>
-<a href="/groups">Groups</a>
-<a href="/overrides">Overrides</a>
-<a href="/activity">Activity</a>
-<a href="/orphans">Orphans</a>
-<a href="/settings">Settings</a>
-<a href="/system">System</a>
+<a href="/groups"{#if current == 'groups'} aria-current="page"{/if}>Groups</a>
+<a href="/overrides"{#if current == 'overrides'} aria-current="page"{/if}>Overrides</a>
+<a href="/activity"{#if current == 'activity'} aria-current="page"{/if}>Activity</a>
+<a href="/orphans"{#if current == 'orphans'} aria-current="page"{/if}>Orphans</a>
+<a href="/settings"{#if current == 'settings'} aria-current="page"{/if}>Settings</a>
+<a href="/system"{#if current == 'system'} aria-current="page"{/if}>System</a>
 </nav>
 {! Every form needs this hidden field: a POST without the CSRF token is rejected. !}
 <form method="post" action="/logout">
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
-<button type="submit">Log out</button>
+<button type="submit" data-tone="quiet">Log out</button>
 </form>
 </header>
-<main>
+<main data-page="{current}">
 {#insert}{/}
 </main>
 </body>

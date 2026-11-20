@@ -25,6 +25,7 @@ import jakarta.ws.rs.core.Response;
 import java.net.URI;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.jboss.resteasy.reactive.RestForm;
@@ -39,12 +40,18 @@ class GroupsPage {
 
         /**
          * @param groups      the groups that match the filter
+         * @param tally       how many groups have each verdict, among those with the reason of the filter; empty when
+         *                    there are no verdicts
          * @param unavailable why there are no verdicts right now, or what is wrong with the filter; null when all
          *                    is well
          * @param notice      why the keep override that was just set was not; null when there is nothing to tell
          */
         static native TemplateInstance groups(
-                List<Group> groups, Filter filter, @Nullable String unavailable, @Nullable String notice);
+                List<Group> groups,
+                List<Tally> tally,
+                Filter filter,
+                @Nullable String unavailable,
+                @Nullable String notice);
     }
 
     private static final DateTimeFormatter FORECAST_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -52,6 +59,7 @@ class GroupsPage {
     /**
      * One group, as text ready to show.
      *
+     * @param verdictCode      the kebab-case code of the verdict, "left-alone"
      * @param reason           "Library link (1 of 2 files)", "Missing data (1 of 2 files)", or the label alone
      * @param secondaryReasons every other reason that holds, written like the reason and separated by commas
      * @param forecast         "2026-11-25 10:00" in the configured time zone, "clock stopped (paused)", "until 2027-03-01" (the
@@ -60,6 +68,7 @@ class GroupsPage {
      */
     public record Group(
             String verdict,
+            String verdictCode,
             String reason,
             String secondaryReasons,
             String libraryLinks,
@@ -81,7 +90,23 @@ class GroupsPage {
         public boolean anyReason() {
             return reasons.stream().noneMatch(Option::selected);
         }
+
+        /** The code of the chosen reason, to keep it in the links of the tally; empty when none is chosen. */
+        public String reasonCode() {
+            return reasons.stream()
+                    .filter(Option::selected)
+                    .map(Option::code)
+                    .findFirst()
+                    .orElse("");
+        }
     }
+
+    /**
+     * How many groups have one verdict, or any verdict when the code is empty.
+     *
+     * @param selected true when this is the verdict the filter shows
+     */
+    public record Tally(String code, String label, long count, boolean selected) {}
 
     /** One choice of a filter: the code that goes in the URL and the label to show. */
     public record Option(String code, String label, boolean selected) {}
@@ -143,20 +168,38 @@ class GroupsPage {
         try {
             filter = GroupsFilter.parse(verdict, reason);
         } catch (UnknownFilter e) {
-            return Templates.groups(List.of(), filter(GroupsFilter.NONE), e.getMessage(), notice);
+            return Templates.groups(List.of(), List.of(), filter(GroupsFilter.NONE), e.getMessage(), notice);
         }
         try {
+            List<GroupVerdict> all = groups.groups();
             return Templates.groups(
-                    groups.groups().stream()
-                            .filter(filter::matches)
-                            .map(GroupsPage::group)
-                            .toList(),
+                    all.stream().filter(filter::matches).map(GroupsPage::group).toList(),
+                    tally(all, filter),
                     filter(filter),
                     null,
                     notice);
         } catch (GroupsUnavailable e) {
-            return Templates.groups(List.of(), filter(filter), e.getMessage(), notice);
+            return Templates.groups(List.of(), List.of(), filter(filter), e.getMessage(), notice);
         }
+    }
+
+    /** The count of every verdict among the groups with the reason of the filter, after the count of them all. */
+    private static List<Tally> tally(List<GroupVerdict> all, GroupsFilter filter) {
+        List<GroupVerdict> withReason = all.stream()
+                .filter(new GroupsFilter(Optional.empty(), filter.reason())::matches)
+                .toList();
+        return Stream.concat(
+                        Stream.of(new Tally(
+                                "", "All", withReason.size(), filter.verdict().isEmpty())),
+                        Stream.of(Verdict.values())
+                                .map(v -> new Tally(
+                                        v.code(),
+                                        v.label(),
+                                        withReason.stream()
+                                                .filter(g -> g.verdict() == v)
+                                                .count(),
+                                        filter.verdict().filter(v::equals).isPresent())))
+                .toList();
     }
 
     private static Filter filter(GroupsFilter filter) {
@@ -185,6 +228,7 @@ class GroupsPage {
                 .orElse("");
         return new Group(
                 group.verdict().label(),
+                group.verdict().code(),
                 reason(group.reason(), group),
                 group.secondaryReasons().stream().map(r -> reason(r, group)).collect(Collectors.joining(", ")),
                 libraryLinks,

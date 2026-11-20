@@ -440,6 +440,16 @@ class GroupsTest {
                 .body("html.body.header.nav.a.find { it.@href == '/groups' }", is("Groups"));
     }
 
+    @Test
+    void theNavigationMarksTheViewThatIsShown() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups")
+                .then()
+                .body("html.body.header.nav.a.findAll { it.@'aria-current' == 'page' }.@href", is("/groups"))
+                .body("html.body.main.@data-page", is("groups"));
+    }
+
     /** One torrent in Transmission's field names. Each file is {@code name:wanted}. */
     private static String torrent(
             String hash,

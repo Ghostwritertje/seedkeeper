@@ -1,16 +1,36 @@
 /*
- * seedkeeper's stylesheet. Classless: it styles plain HTML elements only, so the templates carry no class names.
+ * seedkeeper's stylesheet. It styles plain HTML elements; the templates carry no class names. State that the look
+ * depends on travels in data attributes instead:
+ *   data-page     on <main>: which page this is, for the few page-specific layouts
+ *   data-verdict  remove, left-alone or keep: the verdict of a group, coloured like a tone
+ *   data-tone     ok, warn, danger or muted: the colour of a status (a <mark>, <dd> or <td>);
+ *                 danger or quiet: the look of a <button>
  */
 :root {
   color-scheme: light dark;
-  --text: light-dark(#1c1e21, #e4e6eb);
-  --muted: light-dark(#5c6370, #9aa1ac);
-  --background: light-dark(#ffffff, #16181c);
-  --surface: light-dark(#f4f5f7, #22252b);
-  --border: light-dark(#d9dce1, #383c44);
-  --accent: light-dark(#1f6f43, #6fcf97);
-  --alert: light-dark(#a4262c, #ff8a8a);
-  --alert-surface: light-dark(#fdeceb, #3a1f21);
+  --text: light-dark(#1b1f24, #e6e8eb);
+  --muted: light-dark(#5d6672, #9aa3ae);
+  --background: light-dark(#f6f7f9, #111316);
+  --surface: light-dark(#ffffff, #1a1d21);
+  --surface-raised: light-dark(#ffffff, #22262b);
+  --hover: light-dark(#f1f3f5, #23272c);
+  --border: light-dark(#e2e5e9, #2e333a);
+  --border-strong: light-dark(#c9ced5, #434a53);
+  --accent: light-dark(#1f7a4a, #5fd394);
+  --accent-strong: light-dark(#17633b, #7fe0aa);
+  --accent-surface: light-dark(#e6f4ec, #16301f);
+  --on-accent: light-dark(#ffffff, #0d1a12);
+  --ok: light-dark(#1f7a4a, #6fd39b);
+  --ok-surface: light-dark(#e3f4ea, #173322);
+  --warn: light-dark(#8a5a00, #f2c264);
+  --warn-surface: light-dark(#fdf3dc, #3a2d12);
+  --danger: light-dark(#b42318, #ff8f86);
+  --danger-surface: light-dark(#fdeceb, #3c1d1b);
+  --muted-surface: light-dark(#eef0f3, #262a30);
+  --radius: 0.5rem;
+  --shadow: 0 1px 2px light-dark(rgb(16 24 40 / 6%), rgb(0 0 0 / 40%));
+  --popover-shadow: 0 8px 24px light-dark(rgb(16 24 40 / 16%), rgb(0 0 0 / 55%));
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 *,
@@ -20,54 +40,141 @@
 }
 
 body {
-  margin: 0 auto;
-  max-width: 64rem;
-  padding: 0 1rem 3rem;
-  font: 1rem/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  margin: 0;
+  font: 0.9375rem/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--text);
   background: var(--background);
+  -webkit-font-smoothing: antialiased;
 }
+
+/* The header: brand, the views, log out. */
 
 body > header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
-  align-items: baseline;
-  gap: 1.5rem;
-  padding: 1rem 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 2rem;
+  padding: 0.6rem max(1rem, calc((100% - 90rem) / 2 + 1.5rem));
   border-bottom: 1px solid var(--border);
+  background: var(--surface);
 }
 
-nav {
+body > header > strong,
+body > header > a {
   display: flex;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-decoration: none;
 }
+
+body > header > a::before,
+body > header > strong::before {
+  content: "";
+  width: 1.4rem;
+  height: 1.4rem;
+  background: url("/favicon.svg") center / contain no-repeat;
+}
+
+body > header > nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-right: auto;
+}
+
+body > header > nav a {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+body > header > nav a:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+body > header > nav a[aria-current="page"] {
+  color: var(--accent-strong);
+  background: var(--accent-surface);
+}
+
+main {
+  max-width: 90rem;
+  margin: 0 auto;
+  padding: 0.5rem 1.5rem 4rem;
+}
+
+/* Text. */
 
 a {
   color: var(--accent);
+  text-underline-offset: 0.15em;
 }
 
 h1 {
-  margin: 1.5rem 0 1rem;
+  margin: 1.75rem 0 0.75rem;
   font-size: 1.6rem;
+  letter-spacing: -0.02em;
 }
 
 h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
 }
 
-section {
+main > p {
+  max-width: 75ch;
+  color: var(--muted);
+}
+
+code {
+  font: 0.85em var(--mono);
+  padding: 0.1em 0.35em;
+  border-radius: 0.25rem;
+  background: var(--muted-surface);
+  overflow-wrap: anywhere;
+}
+
+ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+/* Cards: sections and the runs of the Activity view. */
+
+section,
+article {
   margin: 1rem 0;
-  padding: 1rem;
+  padding: 1.25rem;
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+section > :last-child,
+article > :last-child {
+  margin-bottom: 0;
+}
+
+section > p {
+  color: var(--muted);
 }
 
 dl {
   display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 0.25rem 1.5rem;
-  margin: 0;
+  grid-template-columns: minmax(min-content, max-content) minmax(5rem, 1fr);
+  gap: 0.4rem 1.5rem;
+  margin: 0 0 1rem;
 }
 
 dt {
@@ -76,32 +183,579 @@ dt {
 
 dd {
   margin: 0;
+  overflow-wrap: anywhere;
 }
+
+/*
+ * Status. A <mark>, or a <dd> of a grid, is a pill; a table cell gets a dot in front of its coloured text. The cells
+ * keep their text as it is, without an element around it.
+ */
+
+mark,
+dd[data-tone] {
+  display: inline-block;
+  justify-self: start;
+  padding: 0.05rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  color: var(--muted);
+  background: var(--muted-surface);
+}
+
+td[data-tone],
+td[data-verdict] {
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+td[data-tone]::before,
+td[data-verdict]::before {
+  content: "";
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: 0.05em;
+}
+
+[data-tone="ok"],
+[data-verdict="keep"] {
+  --tone: var(--ok);
+  --tone-surface: var(--ok-surface);
+}
+
+[data-tone="warn"],
+[data-verdict="left-alone"] {
+  --tone: var(--warn);
+  --tone-surface: var(--warn-surface);
+}
+
+[data-tone="danger"],
+[data-verdict="remove"] {
+  --tone: var(--danger);
+  --tone-surface: var(--danger-surface);
+}
+
+mark:is([data-tone], [data-verdict]),
+dd[data-tone]:not([data-tone="muted"]) {
+  color: var(--tone);
+  background: var(--tone-surface);
+}
+
+td:is([data-tone], [data-verdict]):not([data-tone="muted"]) {
+  color: var(--tone);
+}
+
+/* A quiet button: no fill and no border, as log out in the header. */
+
+button[data-tone="quiet"] {
+  border-color: transparent;
+  color: var(--muted);
+  background: transparent;
+}
+
+button[data-tone="quiet"]:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+/* Messages. */
 
 [role="alert"] {
-  margin: 0.75rem 0 0;
-  padding: 0.5rem 0.75rem;
-  border-left: 0.25rem solid var(--alert);
-  border-radius: 0.25rem;
-  color: var(--alert);
-  background: var(--alert-surface);
+  max-width: none;
+  margin: 0.75rem 0;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+  border-left: 0.25rem solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  background: var(--danger-surface);
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
+/* Disclosures: the explanations, and the forms that would otherwise crowd a row. */
+
+details > summary {
+  cursor: pointer;
+  width: fit-content;
+  color: var(--accent);
+  font-weight: 500;
 }
 
-th,
-td {
-  padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
+main > details {
+  max-width: 75ch;
+  margin: 0.75rem 0 1rem;
 }
 
-button,
+main > details > p {
+  color: var(--muted);
+}
+
+td details {
+  position: relative;
+}
+
+td details > summary {
+  list-style: none;
+  padding: 0.3rem 0.75rem;
+  line-height: 1.5;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.375rem;
+  background: var(--surface-raised);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+td details > summary::-webkit-details-marker {
+  display: none;
+}
+
+td details > summary::after {
+  content: " ▾";
+  font-size: 0.75em;
+}
+
+td details[open] > summary {
+  border-color: var(--accent);
+}
+
+/* The fields of an open disclosure float over the table instead of stretching the row. */
+td details[open] > :not(summary) {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 5;
+  display: grid;
+  gap: 0.6rem;
+  width: 17rem;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: var(--popover-shadow);
+}
+
+td details label {
+  display: grid;
+  gap: 0.2rem;
+}
+
+/* Forms. */
+
+label {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
 input,
 select,
 textarea {
   font: inherit;
+  font-size: 0.9375rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.375rem;
+  color: var(--text);
+  background: var(--surface-raised);
+}
+
+textarea {
+  min-height: 5rem;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  resize: vertical;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button {
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.375rem;
+  color: var(--text);
+  background: var(--surface-raised);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button:hover {
+  background: var(--hover);
+}
+
+button[type="submit"]:not([data-tone]) {
+  border-color: var(--accent);
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+button[type="submit"]:not([data-tone]):hover {
+  background: var(--accent-strong);
+}
+
+button[data-tone="danger"] {
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+  color: var(--danger);
+  background: transparent;
+}
+
+button[data-tone="danger"]:hover {
+  background: var(--danger-surface);
+}
+
+/* The filter of the Groups view, the add form of the Overrides view and the log in form: fields side by side. */
+main > form,
+section > form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+main > form > label,
+section > form > label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+/* Tables. */
+
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-variant-numeric: tabular-nums;
+}
+
+section table {
+  box-shadow: none;
+}
+
+th,
+td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: baseline;
+}
+
+thead th {
+  position: sticky;
+  top: 3.4rem;
+  z-index: 1;
+  padding-block: 0.5rem;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+thead tr:first-child th:first-child {
+  border-top-left-radius: var(--radius);
+}
+
+thead tr:first-child th:last-child {
+  border-top-right-radius: var(--radius);
+}
+
+tbody tr:hover > td {
+  background: var(--hover);
+}
+
+tbody:last-child tr:last-child > td,
+tbody:last-child tr:last-child > th,
+tfoot tr:last-child > * {
+  border-bottom-color: transparent;
+}
+
+tfoot th,
+tfoot td {
+  font-weight: 600;
+  border-top: 1px solid var(--border-strong);
+}
+
+td ul {
+  padding: 0;
+  list-style: none;
+}
+
+/* Groups: one tbody per group, so the members of a cross-seed group read as one and a removal stands out. */
+
+[data-page="groups"] tbody > tr:not(:last-child) > td {
+  border-bottom-style: dashed;
+}
+
+[data-page="groups"] tbody > tr:last-child > td,
+[data-page="groups"] tbody > tr > td[rowspan] {
+  border-bottom-style: solid;
+}
+
+[data-page="groups"] tbody[data-verdict="remove"] > tr > td:first-child {
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+
+/* Eleven columns: tighter than the other tables, and the headings may wrap. */
+[data-page="groups"] table {
+  font-size: 0.875rem;
+}
+
+[data-page="groups"] th,
+[data-page="groups"] td {
+  padding-inline: 0.55rem;
+}
+
+[data-page="groups"] thead th {
+  white-space: normal;
+}
+
+/* Release names have no spaces: they may break anywhere, but get the room to rarely need to. */
+[data-page="groups"] td:first-child {
+  min-width: 16rem;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+[data-page="groups"] td:nth-child(3) {
+  white-space: nowrap;
+}
+
+/* The tracker message: there only when the tracker reports something wrong. */
+[data-page="groups"] tr > td:nth-child(5):not(:empty) {
+  color: var(--danger);
+  font-size: 0.875rem;
+}
+
+[data-page="groups"] td[rowspan] {
+  background: var(--surface);
+}
+
+/* The count of groups by verdict, which doubles as a filter. */
+main > nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+main > nav a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+main > nav a:hover {
+  border-color: var(--border-strong);
+}
+
+main > nav a[aria-current="page"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+main > nav a mark {
+  min-width: 2rem;
+  text-align: center;
+}
+
+/* Overrides. */
+
+[data-page="overrides"] td:nth-child(6),
+[data-page="overrides"] td:nth-child(7) {
+  max-width: 14rem;
+  color: var(--muted);
+  font: 0.8125rem var(--mono);
+  overflow-wrap: anywhere;
+}
+
+[data-page="overrides"] td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+[data-page="overrides"] td:last-child > form {
+  display: inline-block;
+  margin-left: 0.4rem;
+  text-align: left;
+  white-space: normal;
+}
+
+[data-page="overrides"] td:last-child button[data-tone] {
+  padding: 0.3rem 0.75rem;
+  line-height: 1.5;
+}
+
+[data-page="overrides"] td:nth-child(3),
+[data-page="overrides"] td:nth-child(4) {
+  white-space: nowrap;
+}
+
+[data-page="overrides"] #add-override textarea {
+  width: min(28rem, 80vw);
+}
+
+/* Activity: the numbers of a run side by side. */
+
+article > h2 {
+  font-variant-numeric: tabular-nums;
+}
+
+article > dl {
+  grid-template-columns: none;
+  grid-template-rows: auto auto;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(7rem, max-content);
+  gap: 0.1rem 2.5rem;
+  margin-bottom: 1.25rem;
+}
+
+article > dl > dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+article > dl > dd {
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+article table {
+  box-shadow: none;
+}
+
+/* Orphans: sizes and ages line up on the right. */
+
+[data-page="orphans"] td:nth-child(2),
+[data-page="orphans"] td:nth-child(3),
+[data-page="orphans"] tfoot td:nth-child(2) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+[data-page="orphans"] th:nth-child(2),
+[data-page="orphans"] th:nth-child(3) {
+  text-align: right;
+}
+
+[data-page="orphans"] tbody td:first-child {
+  font: 0.8125rem var(--mono);
+  overflow-wrap: anywhere;
+}
+
+/* Settings and System: the cards in columns. */
+
+[data-page="settings"],
+[data-page="system"] {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
+  align-items: start;
+  column-gap: 1rem;
+}
+
+[data-page="settings"] > :not(section),
+[data-page="system"] > :not(section),
+[data-page="settings"] > #trackers,
+[data-page="settings"] > #secrets,
+[data-page="system"] > #runs {
+  grid-column: 1 / -1;
+}
+
+[data-page="settings"] #secrets dt {
+  font: 0.8125rem var(--mono);
+}
+
+[data-page="settings"] > section,
+[data-page="system"] > section {
+  margin: 0.5rem 0;
+}
+
+[data-page="system"] #runs > form {
+  align-items: center;
+  margin-bottom: 0;
+}
+
+/* Log in: one card in the middle. */
+
+[data-page="login"] {
+  max-width: 24rem;
+  margin: 8vh auto 0;
+  padding: 2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+[data-page="login"] h1 {
+  margin-top: 0;
+}
+
+[data-page="login"] > form {
+  display: grid;
+  align-items: stretch;
+}
+
+[data-page="login"] > form > button {
+  padding-block: 0.55rem;
+}
+
+/* Small screens: a wide table scrolls sideways on its own instead of the whole page. */
+
+@media (max-width: 60rem) {
+  main {
+    padding-inline: 1rem;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+  }
+
+  thead th {
+    position: static;
+  }
+
+  body > header {
+    position: static;
+  }
+
+  article > dl {
+    grid-template-columns: max-content 1fr;
+    grid-template-rows: none;
+    grid-auto-flow: row;
+  }
 }
