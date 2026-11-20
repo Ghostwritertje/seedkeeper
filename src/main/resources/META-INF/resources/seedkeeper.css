@@ -574,6 +574,11 @@ dd li + li {
   white-space: normal;
 }
 
+/* The torrents of one removal, each a name with its tracker and the tracker's message under it. */
+[data-page="activity"] tbody li + li {
+  margin-top: 0.4rem;
+}
+
 [data-page="groups"] tbody small[data-tone="danger"] {
   color: var(--danger);
 }
