@@ -12,3 +12,9 @@ Run it: `open prototype/ui-all-issues/index.html` (one static file, no build, in
 - Try `#groups?verdict=leave` (#113), `Keep…` → Set (#88), Overrides Save/Delete (#87), and hovering or tabbing to a seeding % (#120).
 
 Once a Groups variant wins, record the verdict on the issues and fold it into the real templates. This branch stays as the source.
+
+## Verdict (2026-11-20)
+
+**Groups: variant A (refined table) won.** Joran liked its look best. B (triage lanes) and C (list + detail) were rejected.
+Recorded on #111 (structure) with pointers on #110, #112, #113, #118 and #120. The other views had one design each and
+need no decision.
