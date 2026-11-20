@@ -2,6 +2,7 @@ package io.github.ghostwritertje.seedkeeper.history;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import io.github.ghostwritertje.seedkeeper.history.ActivityPage.Member;
 import io.github.ghostwritertje.seedkeeper.history.ActivityPage.Removal;
 import io.github.ghostwritertje.seedkeeper.history.History.RecordedMember;
 import io.github.ghostwritertje.seedkeeper.history.History.RecordedRemoval;
@@ -89,8 +90,8 @@ class ActivityRemovalTest {
         assertEquals("Unregistered", removal.reason());
         assertEquals(
                 List.of(
-                        "Some.Movie (tracker-a)",
-                        "Some.Movie.Cross (unmanaged, not finished, tracker said: Unregistered torrent, not removed)"),
+                        new Member("Some.Movie", "tracker-a", "", ""),
+                        new Member("Some.Movie.Cross", "unmanaged", "not finished, not removed", "Unregistered torrent")),
                 removal.members());
     }
 

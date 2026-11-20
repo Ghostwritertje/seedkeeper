@@ -263,16 +263,19 @@ class ActivityTest {
                                 + " \\d\\d:\\d\\d:\\d\\d"))
                 .body(
                         NEWEST_RUN + ".div.table.thead.tr.th.collect { it.text() }",
-                        contains("Removed", "Reason", "Files deleted", "Space freed", "Error"))
+                        contains("Removed", "Reason", "Files deleted", "Space freed"))
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td.size()", is(4))
                 .body(
-                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.collect { it.text() }",
-                        contains("Activity.Due (tracker-a)", "Activity.Due.cross-seed (tracker-a)"))
+                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.span.collect { it.text() }",
+                        contains("Activity.Due", "Activity.Due.cross-seed"))
+                .body(
+                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.small.collect { it.text() }",
+                        contains("tracker-a", "tracker-a"))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[1]", is("All met"))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[2].span", is("2"))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[2].small.size()", is(0))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3].span", is("4 B"))
-                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3].small.size()", is(0))
-                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[4]", is(""));
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3].small.size()", is(0));
     }
 
     @Test
@@ -287,8 +290,14 @@ class ActivityTest {
                 .statusCode(200)
                 .body(NEWEST_RUN + ".dl.dd[2]", is("1 torrent in 0 groups"))
                 .body(
-                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.collect { it.text() }",
-                        contains("Activity.Due (tracker-a)", "Activity.Due.cross-seed (tracker-a, not removed)"))
+                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.span.collect { it.text() }",
+                        contains("Activity.Due", "Activity.Due.cross-seed"))
+                .body(
+                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.small.collect { it.text() }",
+                        contains("tracker-a", "tracker-a · not removed"))
+                .body(
+                        NEWEST_RUN + ".div.table.thead.tr.th.collect { it.text() }",
+                        contains("Removed", "Reason", "Files deleted", "Space freed", "Error"))
                 .body(
                         NEWEST_RUN + ".div.table.tbody.tr[0].td[4]",
                         matchesPattern("Transmission at .+ refused torrent_remove: torrent is busy\\. No files were"
@@ -337,9 +346,10 @@ class ActivityTest {
                                 containsString("Removed counts"),
                                 containsString("Files deleted counts"),
                                 containsString("Space freed counts")))
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.span", is("Activity.Fresh.unregistered"))
                 .body(
-                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li",
-                        is("Activity.Fresh.unregistered (tracker-a, tracker said: Unregistered torrent)"))
+                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.small.collect { it.text() }",
+                        contains("tracker-a", "Tracker said: Unregistered torrent"))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[2].span", is("0"))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3].span", is("0 B"))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3].small.size()", is(0))
@@ -347,7 +357,7 @@ class ActivityTest {
                         NEWEST_RUN + ".div.table.tbody.tr[0].td[2].small",
                         is("Data kept: every file is still used by a torrent that stays (a cross-seed), or was no"
                                 + " longer on disk."))
-                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[4]", is(""));
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td.size()", is(4));
     }
 
     @Test

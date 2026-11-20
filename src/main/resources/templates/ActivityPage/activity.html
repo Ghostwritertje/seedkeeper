@@ -38,16 +38,16 @@ to their data, so a file still linked in the library, or a symlink, frees nothin
 <div role="region" aria-label="Removals of the run of {run.started}" tabindex="0">
 <table>
 <thead>
-<tr><th>Removed</th><th>Reason</th><th>Files deleted</th><th>Space freed</th><th>Error</th></tr>
+<tr><th>Removed</th><th>Reason</th><th>Files deleted</th><th>Space freed</th>{#if run.removalErrors}<th>Error</th>{/if}</tr>
 </thead>
 <tbody>
 {#for removal in run.removals}
 <tr>
-<td><ul>{#for member in removal.members}<li>{member}</li>{/for}</ul></td>
+<td><ul>{#for member in removal.members}<li><span>{member.name}</span><small>{member.tracker}{#if member.notes} · {member.notes}{/if}</small>{#if member.message}<small>Tracker said: {member.message}</small>{/if}</li>{/for}</ul></td>
 <td>{removal.reason}</td>
 <td><span>{removal.filesDeleted}</span>{#if removal.filesNote}<small>{removal.filesNote}</small>{/if}</td>
 <td><span>{removal.spaceFreed}</span>{#if removal.spaceNote}<small>{removal.spaceNote}</small>{/if}</td>
-<td>{removal.error}</td>
+{#if run.removalErrors}<td>{removal.error}</td>{/if}
 </tr>
 {/for}
 </tbody>
