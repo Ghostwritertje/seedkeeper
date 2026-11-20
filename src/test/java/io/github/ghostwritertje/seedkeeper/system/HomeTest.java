@@ -28,12 +28,6 @@ class HomeTest {
 
     @Test
     void bareUrlWithoutLoginRedirectsToTheLoginForm() {
-        given().redirects()
-                .follow(false)
-                .when()
-                .get("/")
-                .then()
-                .statusCode(302)
-                .header("Location", endsWith("/login"));
+        given().redirects().follow(false).when().get("/").then().statusCode(302).header("Location", endsWith("/login"));
     }
 }
