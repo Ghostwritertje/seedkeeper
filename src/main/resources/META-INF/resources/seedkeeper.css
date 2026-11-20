@@ -577,6 +577,15 @@ dd li + li {
   color: var(--danger);
 }
 
+/* A member that makes its group's reason hold: the row is highlighted, its badge names the reason. */
+[data-page="groups"] tbody > tr[data-cause] > td {
+  background: var(--warn-surface);
+}
+
+[data-page="groups"] tbody > tr[data-cause] mark {
+  margin-left: 0.35rem;
+}
+
 [data-page="groups"] tbody > tr > :nth-child(2) {
   white-space: nowrap;
 }

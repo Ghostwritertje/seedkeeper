@@ -348,8 +348,12 @@ class GroupsTest {
                 .body(GroupsTable.progressCell(2) + ".meter.size()", is(0))
                 .body(
                         GroupsTable.heading(3),
-                        contains("Unknown.Tracker", "unmanaged (elsewhere.example) · Seeding · 0 of 1 files linked"))
+                        contains("Unknown.Tracker", "Unmanaged (elsewhere.example) · Seeding · 0 of 1 files linked"))
                 .body(GroupsTable.cells(3), contains("—", "Left alone", "Unmanaged", "", "4 B"))
+                // What to do about it, under the reason.
+                .body(
+                        GroupsTable.hint(3),
+                        is("a member is on a tracker not in the config: add it under trackers to manage it"))
                 .body(GroupsTable.progressDetail(3), is("400d · no minimum"))
                 .body(GroupsTable.heading(4), contains("Downloading", "tracker-a · Downloading · 0 of 1 files linked"))
                 .body(GroupsTable.cells(4), contains("0%", "Keep", "Not finished", "", "4 B"))
@@ -502,10 +506,10 @@ class GroupsTest {
                             GroupsTable.heading(0),
                             contains(
                                     "Two.Hosts",
-                                    "unmanaged (elsewhere.example, tracker-a.example) · Seeding · 0 of 1 files linked"))
+                                    "Unmanaged (elsewhere.example, tracker-a.example) · Seeding · 0 of 1 files linked"))
                     .body(
                             GroupsTable.heading(1),
-                            contains("No.Trackers", "unmanaged (no trackers) · Seeding · 0 of 1 files linked"))
+                            contains("No.Trackers", "Unmanaged (no trackers) · Seeding · 0 of 1 files linked"))
                     .extract()
                     .asString();
             String api = Authenticated.withApiKey()
@@ -526,6 +530,53 @@ class GroupsTest {
         } finally {
             root.removeHandler(handler);
         }
+    }
+
+    @Test
+    void pageMarksTheMemberThatCausesTheReason() {
+        // The cross-seed group of the fixture, its second member on a tracker that isn't in the config.
+        FakeTransmissionResource.fake()
+                .torrents("["
+                        + String.join(
+                                ",",
+                                torrent(
+                                        "7777",
+                                        "Cross.Seed",
+                                        6,
+                                        1,
+                                        40 * DAY,
+                                        true,
+                                        "https://tracker-a.example/key/announce",
+                                        "Cross.Seed/movie.mkv:true"),
+                                torrent(
+                                        "8888",
+                                        "Cross.Seed.Elsewhere",
+                                        6,
+                                        1,
+                                        40 * DAY,
+                                        true,
+                                        "https://elsewhere.example/announce",
+                                        "Cross.Seed.Elsewhere/movie.mkv:true"))
+                        + "]");
+
+        Authenticated.asUser()
+                .when()
+                .get("/groups")
+                .then()
+                .statusCode(200)
+                .body(GroupsTable.cells(0), contains("Met ✓", "Left alone", "Unmanaged", "4 B"))
+                .body(
+                        GroupsTable.hint(0),
+                        is("a member is on a tracker not in the config: add it under trackers to manage it"))
+                .body(GroupsTable.member(0, 0), contains("Cross.Seed", "tracker-a · Seeding · 4 B", "Met ✓"))
+                .body(
+                        GroupsTable.member(0, 1),
+                        contains(
+                                "Cross.Seed.Elsewhere",
+                                "causes \"Unmanaged\"",
+                                "Unmanaged (elsewhere.example) · Seeding · 4 B",
+                                "—"))
+                .body(GroupsTable.GROUPS + "[0].tr[2].@data-cause", is("true"));
     }
 
     @Test

@@ -958,6 +958,45 @@ class DecideTest {
                 verdicts.get(0).members().stream().map(Member::trackerError).toList());
     }
 
+    @Test
+    void aMemberCarriesTheReasonsItCauses() {
+        List<GroupVerdict> verdicts = Decide.decide(
+                snapshot(List.of(
+                        a().seeded(400 * DAY),
+                        torrent().hash("b").announce(UNKNOWN).wanted(SHARED).seeded(400 * DAY),
+                        torrent().hash("c").wanted(SHARED).seeded(400 * DAY).missing(1),
+                        torrent().hash("d").wanted(SHARED).seeded(400 * DAY).error(3),
+                        torrent().hash("e").wanted(SHARED).status(Status.CHECKING),
+                        torrent().hash("f").wanted(SHARED).status(Status.CHECK_WAIT),
+                        // Not finished: its files may not exist yet, so it is never missing data.
+                        torrent()
+                                .hash("g")
+                                .wanted(SHARED)
+                                .percentDone(0.5, Status.DOWNLOADING)
+                                .missing(1),
+                        torrent()
+                                .hash("h")
+                                .announce(UNKNOWN)
+                                .wanted(SHARED)
+                                .seeded(400 * DAY)
+                                .missing(1)
+                                .error(3))),
+                RULES,
+                NOW);
+
+        assertEquals(
+                List.of(
+                        List.of(),
+                        List.of(Reason.UNMANAGED),
+                        List.of(Reason.MISSING_DATA),
+                        List.of(Reason.LOCAL_ERROR),
+                        List.of(Reason.VERIFYING),
+                        List.of(Reason.VERIFYING),
+                        List.of(),
+                        List.of(Reason.UNMANAGED, Reason.MISSING_DATA, Reason.LOCAL_ERROR)),
+                verdicts.get(0).members().stream().map(Member::causes).toList());
+    }
+
     private static final Optional<Forecast> CLOCK_STOPPED = Optional.of(new Forecast(Optional.empty()));
     private static final Optional<Forecast> NO_FORECAST = Optional.empty();
 

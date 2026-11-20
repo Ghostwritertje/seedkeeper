@@ -11,6 +11,7 @@ import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -149,7 +150,7 @@ public final class Decide {
 
         // An unfinished member is never missing data: its files may not exist yet.
         int missingFiles = (int) group.stream()
-                .filter(member -> member.torrent().finished())
+                .filter(Decide::missing)
                 .flatMap(member -> member.wantedFiles().stream())
                 .filter(file -> file.id().isEmpty())
                 .count();
@@ -161,18 +162,8 @@ public final class Decide {
         if (unregistered || group.stream().anyMatch(member -> unregistered(member.torrent()))) {
             holding.add(Reason.UNREGISTERED);
         }
-        if (members.stream().anyMatch(member -> member.tracker().isEmpty())) {
-            holding.add(Reason.UNMANAGED);
-        }
-        if (missingFiles > 0) {
-            holding.add(Reason.MISSING_DATA);
-        }
-        if (group.stream().anyMatch(member -> member.torrent().error() == LOCAL_ERROR)) {
-            holding.add(Reason.LOCAL_ERROR);
-        }
-        if (group.stream().anyMatch(member -> verifying(member.torrent()))) {
-            holding.add(Reason.VERIFYING);
-        }
+        // Unmanaged, missing data, a local error and verifying hold when a member causes them.
+        members.forEach(member -> holding.addAll(member.causes()));
         if (group.stream().anyMatch(member -> !member.torrent().finished())) {
             holding.add(Reason.NOT_FINISHED);
         }
@@ -230,15 +221,45 @@ public final class Decide {
 
     private static Member member(SnapshotTorrent member, TrackerRules trackers) {
         Torrent torrent = member.torrent();
+        Optional<Tracker> tracker = attribute(torrent, trackers);
         return new Member(
                 torrent.hash(),
                 torrent.name(),
-                attribute(torrent, trackers),
+                tracker,
                 Duration.ofSeconds(torrent.secondsSeeding()),
                 torrent.status(),
                 TrackerError.of(torrent.error(), torrent.errorString()),
                 TrackerRules.announceHosts(torrent.trackers()),
-                size(member.wantedFiles()));
+                size(member.wantedFiles()),
+                causes(member, tracker));
+    }
+
+    /**
+     * The reasons this member makes hold for its group, in their order: the only rules for unmanaged, missing data, a
+     * local error and verifying, which {@link #decide} builds the group's reasons from.
+     */
+    private static List<Reason> causes(SnapshotTorrent member, Optional<Tracker> tracker) {
+        Torrent torrent = member.torrent();
+        List<Reason> causes = new ArrayList<>();
+        if (tracker.isEmpty()) {
+            causes.add(Reason.UNMANAGED);
+        }
+        if (missing(member)) {
+            causes.add(Reason.MISSING_DATA);
+        }
+        if (torrent.error() == LOCAL_ERROR) {
+            causes.add(Reason.LOCAL_ERROR);
+        }
+        if (verifying(torrent)) {
+            causes.add(Reason.VERIFYING);
+        }
+        return causes;
+    }
+
+    /** True when the member is finished and a wanted file of it resolves to nothing on disk. */
+    private static boolean missing(SnapshotTorrent member) {
+        return member.torrent().finished()
+                && member.wantedFiles().stream().anyMatch(file -> file.id().isEmpty());
     }
 
     /**

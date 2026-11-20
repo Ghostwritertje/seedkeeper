@@ -83,6 +83,8 @@ class GroupsPage {
      *                         one; else empty
      * @param verdictCode      the kebab-case code of the verdict, "left-alone"
      * @param reason           "Missing data (1 of 2 files)", or the label alone: the library links are in the summary
+     * @param hint             what to do about the reason, for the reasons that need a person to look: "files are gone
+     *                         from disk: re-verify or remove in Transmission"; empty for the others
      * @param secondaryReasons every other reason that holds, written like the reason and separated by commas
      * @param forecast         "2026-11-25 10:00" in the configured time zone, "clock stopped (paused)", "until 2027-03-01" (the
      *                         end date of a keep override), or empty
@@ -100,6 +102,7 @@ class GroupsPage {
             String verdict,
             String verdictCode,
             String reason,
+            String hint,
             String secondaryReasons,
             String forecast,
             String size,
@@ -160,12 +163,13 @@ class GroupsPage {
      * One torrent of a group, as text ready to show.
      *
      * @param name     its name, in the parts a line may break between
-     * @param tracker  the tracker's name; "unmanaged (elsewhere.example)", with the announce hosts, or "unmanaged (no
+     * @param tracker  the tracker's name; "Unmanaged (elsewhere.example)", with the announce hosts, or "Unmanaged (no
      *                 trackers)" when the torrent has no tracker
      * @param progress its seed time toward its minimum seed time
      * @param trackerMessage "Unregistered: Unregistered torrent", "Tracker error: Passkey does not exist!", or
      *                       empty when the tracker reports nothing wrong
      * @param size     "3.2 GiB": the data of its own wanted files
+     * @param cause    {@code causes "Missing data"} when this torrent makes the group's reason hold; else empty
      */
     public record Member(
             List<String> name,
@@ -173,7 +177,8 @@ class GroupsPage {
             SeedProgress progress,
             String status,
             String trackerMessage,
-            String size) {}
+            String size,
+            String cause) {}
 
     /**
      * How far a seed time is toward its minimum seed time, as text ready to show. The minimum is met at the same moment
@@ -360,7 +365,9 @@ class GroupsPage {
                         .map(endDate -> "until " + endDate)
                         .orElseGet(() -> f.date().map(FORECAST_DATE::format).orElse("clock stopped (paused)")))
                 .orElse("");
-        List<Member> members = group.members().stream().map(GroupsPage::member).toList();
+        List<Member> members = group.members().stream()
+                .map(member -> member(member, group.reason()))
+                .toList();
         Member first = members.getFirst();
         boolean one = members.size() == 1;
         return new Group(
@@ -374,6 +381,7 @@ class GroupsPage {
                 group.verdict().label(),
                 group.verdict().code(),
                 reason(group.reason(), group),
+                hint(group.reason()),
                 group.secondaryReasons().stream().map(r -> reason(r, group)).collect(Collectors.joining(", ")),
                 forecast,
                 StatusText.size(group.size()),
@@ -386,6 +394,18 @@ class GroupsPage {
         return reason == Reason.MISSING_DATA
                 ? reason.label() + " (" + group.missingFiles() + " of " + group.files() + " files)"
                 : reason.label();
+    }
+
+    /** What to do about a reason that needs a person to look, in one line; empty for the others. */
+    private static String hint(Reason reason) {
+        return switch (reason) {
+            case UNMANAGED -> "a member is on a tracker not in the config: add it under trackers to manage it";
+            case MISSING_DATA -> "files are gone from disk: re-verify or remove in Transmission";
+            case LOCAL_ERROR ->
+                "Transmission can't read or write the data: fix the disk or its permissions, then re-verify";
+            case VERIFYING -> "Transmission is checking the data: the verdict follows once it is done";
+            default -> "";
+        };
     }
 
     /** A release name in the parts a line may break between: after each dot and each dash. */
@@ -406,19 +426,24 @@ class GroupsPage {
                 .orElse(SeedProgress.NO_MINIMUM);
     }
 
-    private static Member member(GroupVerdict.Member member) {
+    private static Member member(GroupVerdict.Member member, Reason reason) {
         return new Member(
                 breakable(member.name()),
                 member.tracker().map(Tracker::name).orElseGet(() -> unmanaged(member.announceHosts())),
                 SeedProgress.of(member),
                 StatusText.label(member.status()),
                 member.trackerError().map(GroupsPage::trackerMessage).orElse(""),
-                StatusText.size(member.size()));
+                StatusText.size(member.size()),
+                member.causes().contains(reason) ? "causes \"" + reason.label() + "\"" : "");
     }
 
-    /** "unmanaged (elsewhere.example, tracker-a.example)", or "unmanaged (no trackers)" when there are no hosts. */
+    /**
+     * "Unmanaged (elsewhere.example, tracker-a.example)", or "Unmanaged (no trackers)" when there are no hosts: written
+     * like the reason.
+     */
     private static String unmanaged(List<String> announceHosts) {
-        return "unmanaged (" + (announceHosts.isEmpty() ? "no trackers" : String.join(", ", announceHosts)) + ")";
+        return Reason.UNMANAGED.label() + " ("
+                + (announceHosts.isEmpty() ? "no trackers" : String.join(", ", announceHosts)) + ")";
     }
 
     private static String trackerMessage(TrackerError error) {
