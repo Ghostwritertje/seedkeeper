@@ -206,7 +206,9 @@ class GroupsPageTest {
                 1,
                 Optional.empty());
 
-        assertEquals("Unmanaged (elsewhere.example) · Seeding · 0 of 1 files linked", GroupsPage.group(verdict).summary());
+        assertEquals(
+                "Unmanaged (elsewhere.example) · Seeding · 0 of 1 files linked",
+                GroupsPage.group(verdict).summary());
     }
 
     @Test

@@ -969,8 +969,13 @@ class DecideTest {
                         torrent().hash("e").wanted(SHARED).status(Status.CHECKING),
                         torrent().hash("f").wanted(SHARED).status(Status.CHECK_WAIT),
                         // Not finished: its files may not exist yet, so it is never missing data.
-                        torrent().hash("g").wanted(SHARED).percentDone(0.5, Status.DOWNLOADING).missing(1),
-                        torrent().hash("h")
+                        torrent()
+                                .hash("g")
+                                .wanted(SHARED)
+                                .percentDone(0.5, Status.DOWNLOADING)
+                                .missing(1),
+                        torrent()
+                                .hash("h")
                                 .announce(UNKNOWN)
                                 .wanted(SHARED)
                                 .seeded(400 * DAY)
@@ -992,7 +997,7 @@ class DecideTest {
                 verdicts.get(0).members().stream().map(Member::causes).toList());
     }
 
-    private static final Optional<Forecast> CLOCK_STOPPED =Optional.of(new Forecast(Optional.empty()));
+    private static final Optional<Forecast> CLOCK_STOPPED = Optional.of(new Forecast(Optional.empty()));
     private static final Optional<Forecast> NO_FORECAST = Optional.empty();
 
     private static Optional<Forecast> on(String date) {

@@ -181,6 +181,18 @@ public final class DemoTransmission {
                 0,
                 "",
                 "Some.Indie.Album.FLAC/01.flac");
+        // A managed cross-seed of it: their group is left alone, and the unmanaged member is the one that causes it.
+        torrent(
+                "0bb2c3d4e5f60718293a4b5c6d7e8f9012345613",
+                "Some.Indie.Album.FLAC.WEB",
+                SEEDING,
+                1,
+                45,
+                true,
+                TRACKER_A,
+                0,
+                "",
+                "Some.Indie.Album.FLAC/01.flac");
 
         // Paused.
         file("Paused.Documentary.2019.1080p/movie.mkv");

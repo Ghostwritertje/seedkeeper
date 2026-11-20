@@ -442,7 +442,8 @@ class GroupsPage {
      * like the reason.
      */
     private static String unmanaged(List<String> announceHosts) {
-        return Reason.UNMANAGED.label() + " (" +(announceHosts.isEmpty() ? "no trackers" : String.join(", ", announceHosts)) + ")";
+        return Reason.UNMANAGED.label() + " ("
+                + (announceHosts.isEmpty() ? "no trackers" : String.join(", ", announceHosts)) + ")";
     }
 
     private static String trackerMessage(TrackerError error) {
