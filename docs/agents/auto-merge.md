@@ -77,5 +77,10 @@ resolved.
 - **To change the criteria or the human-only paths:** change this doc, the gate script and its tests, in a pull
   request you merge yourself. The gate script and its tests are on a human-only path. This doc isn't: the gate
   doesn't cover `docs/agents/`, so a change to it is held back by the reviewer's **Agent setup** criterion.
-- **After an auto-merge:** the issues the merged one was blocking aren't started on their own. See
+- **After an auto-merge:** the merge doesn't close the pull request's `Closes #<n>` issues, since it is made with the
+  workflow's own token. `.github/workflows/close-auto-merged-issues.yml` closes them instead: every 30 minutes, or
+  at once with Run workflow, it comments on each open issue of an implementer pull request `github-actions` merged
+  in the last week, linking the pull request, and closes it as completed. It never closes an issue again once it has
+  commented on it for that pull request, so an issue you reopen stays open. It closes with the workflow's own token
+  too, so the close starts no workflow: the issues the merged one was blocking aren't started on their own. See
   `docs/agents/issue-tracker.md`, **Unblocked**.

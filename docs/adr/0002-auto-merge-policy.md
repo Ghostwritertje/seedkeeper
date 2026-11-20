@@ -48,6 +48,11 @@ green, and every review thread resolved. The criteria and the paths are in `docs
   token that starts workflows, would let a chain of tickets implement and merge itself with no human step between
   them, which is harder to take back than to add later. After an auto-merge the maintainer starts each unblocked
   dependent by removing and re-adding its `ready-for-agent`.
+
+  _2026-11-20 (#47):_ the auto-merge doesn't close the issue either: a merge made with the workflow's own token
+  doesn't act on `Closes #<n>`, and starts no workflow, not even a `pull_request: closed` one. So
+  `close-auto-merged-issues.yml` closes those issues on a schedule, with the workflow's own token, and that close
+  starts no workflow. An issue closed by an auto-merged pull request still starts no dependents.
 - **A quality tool bump that brings new findings doesn't merge itself.** `Verify (quality)` and `Lint (non-Java)` are
   required checks (ADR 0003), so a Dependabot pull request that bumps a quality tool and makes it report something new
   fails a required check. `dependabot-auto-merge.yml` turns auto-merge on, but GitHub doesn't merge until a fix makes
