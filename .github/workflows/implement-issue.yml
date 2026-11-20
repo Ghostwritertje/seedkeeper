@@ -204,9 +204,10 @@ jobs:
           cache: maven
 
       # The browser of the run-app skill (.claude/skills/run-app): a headless Chrome the agent drives to look at the
-      # views it changed. A pinned release binary checked against its SHA-256, as in the Run the app job in ci.yml:
-      # Dependabot doesn't track it, so bump the three together, by hand.
-      - name: Install agent-browser
+      # views it changed, installed here so the agent finds it ready. The agent reaches it only through browser.sh,
+      # which limits it to the app's hosts. A pinned release binary checked against its SHA-256, as in the Run the
+      # app job in ci.yml: Dependabot doesn't track it, so bump the three together, by hand.
+      - name: Install agent-browser and Chrome
         run: |
           bin="$RUNNER_TEMP/agent-browser-bin"
           mkdir -p "$bin"
@@ -243,7 +244,7 @@ jobs:
             --max-turns 150
             --permission-mode default
             --allowedTools
-            "Read,Glob,Grep,Edit,MultiEdit,Write,Agent,Skill,TodoWrite,Bash(./mvnw:*),Bash(.claude/skills/run-app/run-app.sh:*),Bash(agent-browser:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git branch --show-current),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git commit:*),Bash(git restore:*),Bash(git push origin ${{ needs.pick-up.outputs.branch }}),Bash(git push -u origin ${{ needs.pick-up.outputs.branch }}),Bash(gh issue view:*),Bash(gh issue comment ${{ inputs.issue }}:*),Bash(gh issue edit ${{ inputs.issue }}:*),Bash(gh pr create --base ${{ github.event.repository.default_branch }} --head ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr view:*),Bash(gh pr comment ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr edit ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr ready ${{ needs.pick-up.outputs.branch }})"
+            "Read,Glob,Grep,Edit,MultiEdit,Write,Agent,Skill,TodoWrite,Bash(./mvnw:*),Bash(.claude/skills/run-app/run-app.sh:*),Bash(.claude/skills/run-app/browser.sh:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git branch --show-current),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git commit:*),Bash(git restore:*),Bash(git push origin ${{ needs.pick-up.outputs.branch }}),Bash(git push -u origin ${{ needs.pick-up.outputs.branch }}),Bash(gh issue view:*),Bash(gh issue comment ${{ inputs.issue }}:*),Bash(gh issue edit ${{ inputs.issue }}:*),Bash(gh pr create --base ${{ github.event.repository.default_branch }} --head ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr view:*),Bash(gh pr comment ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr edit ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr ready ${{ needs.pick-up.outputs.branch }})"
             --disallowedTools
             "Bash(gh pr merge:*),Bash(gh pr review:*),Bash(gh pr edit *auto-merge*),Bash(gh api:*),Bash(git push --force:*),Bash(git push -f:*),Bash(git push --force-with-lease:*),Bash(git push * --force*),Bash(git push * -f*),Bash(git push *+*),Bash(git push --delete:*),Bash(git push * --delete*),Bash(git reset --hard:*),Bash(git rebase:*),Bash(./mvnw *-Dnative*),Bash(./mvnw *-Pnative*)"
 

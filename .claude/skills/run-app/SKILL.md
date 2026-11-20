@@ -1,6 +1,6 @@
 ---
 name: run-app
-description: Run seedkeeper locally against a fake Transmission with realistic torrents, and look at it in a browser with agent-browser. Use when a change shows in the UI (a template, the CSS, what a view lists), when asked to check, screenshot or click through the app, or to reproduce a UI bug.
+description: Run seedkeeper locally against a fake Transmission with realistic torrents, and look at it in a browser. Use when a change shows in the UI (a template, the CSS, what a view lists), when asked to check, screenshot or click through the app, or to reproduce a UI bug.
 ---
 
 # Run the app
@@ -25,27 +25,27 @@ once in the browser.
 
 ## The browser
 
-`agent-browser` drives a headless Chrome; `agent-browser skills get core` is its guide. Point it only at the app's
-URL, and give each command its own Bash call: in CI the allowlist matches the start of a command. A session that
-logs in and saves a screenshot:
+`.claude/skills/run-app/browser.sh` drives a headless Chrome: it takes agent-browser's commands and flags
+(`browser.sh skills get core` is the guide) and keeps the browser on `localhost` and `127.0.0.1`. Give each command
+its own Bash call: in CI the allowlist matches the start of a command. A session that logs in and saves a screenshot:
 
 ```sh
-agent-browser open http://localhost:8187/login
-agent-browser find label "Username" fill admin
-agent-browser find label "Password" fill ui-password
-agent-browser find role button click --name "Log in"
-agent-browser wait --load networkidle
-agent-browser open http://localhost:8187/groups
-agent-browser screenshot --full /tmp/screenshots/groups-after.png
+.claude/skills/run-app/browser.sh open http://localhost:8187/login
+.claude/skills/run-app/browser.sh find label "Username" fill admin
+.claude/skills/run-app/browser.sh find label "Password" fill ui-password
+.claude/skills/run-app/browser.sh find role button click --name "Log in"
+.claude/skills/run-app/browser.sh wait --load networkidle
+.claude/skills/run-app/browser.sh open http://localhost:8187/groups
+.claude/skills/run-app/browser.sh screenshot --full /tmp/screenshots/groups-after.png
 ```
 
 - After logging in, wait for the login to land (`wait --load networkidle`), then open the view you want by its URL:
   opening it earlier aborts one of the two navigations.
-- `agent-browser snapshot` gives the page's accessibility tree with refs to click; read a screenshot back with the
-  Read tool to see it.
-- Check the phone layout with `agent-browser set viewport 390 844` and dark mode with `agent-browser set media dark`.
-- `Run now` and `Delete` ask for confirmation: `agent-browser dialog status` shows the dialog, `dialog accept` or
-  `dialog dismiss` answers it.
+- `snapshot` gives the page's accessibility tree with refs to click; read a screenshot back with the Read tool to see
+  it.
+- Check the phone layout with `set viewport 390 844` and dark mode with `set media dark`.
+- `Run now` and `Delete` ask for confirmation: `dialog status` shows the dialog, `dialog accept` or `dialog dismiss`
+  answers it.
 
 ## Screenshots
 

@@ -79,7 +79,8 @@ jobs:
       - run: for test in .github/scripts/*.test.sh; do "$test"; done
 
   # What the implementer agents do with the run-app skill (.claude/skills/run-app): start the app against the demo
-  # Transmission, log in with agent-browser and look at a view. Keeps the skill and the agents' browser working.
+  # Transmission, log in through browser.sh, look at a view, and check the browser reaches no other host. Keeps the
+  # skill and the agents' browser working.
   run-app:
     name: Run the app (run-app skill)
     runs-on: ubuntu-latest
@@ -94,7 +95,7 @@ jobs:
           java-version: 25
           cache: maven
       # The same pin as in implement-issue.yml and address-review.yml: bump the three together, by hand.
-      - name: Install agent-browser
+      - name: Install agent-browser and Chrome
         run: |
           bin="$RUNNER_TEMP/agent-browser-bin"
           mkdir -p "$bin"
@@ -109,19 +110,27 @@ jobs:
       - name: Log in and look at the Groups view
         shell: bash
         run: |
-          mkdir -p /tmp/screenshots
-          agent-browser open http://localhost:8187/login
-          agent-browser find label "Username" fill admin
-          agent-browser find label "Password" fill ui-password
-          agent-browser find role button click --name "Log in"
-          agent-browser wait --load networkidle
-          agent-browser open http://localhost:8187/groups
-          agent-browser screenshot --full /tmp/screenshots/groups.png
-          agent-browser get text main | grep -F "The.Expanse.S01.1080p.BluRay.x264"
+          b=.claude/skills/run-app/browser.sh
+          $b open http://localhost:8187/login
+          $b find label "Username" fill admin
+          $b find label "Password" fill ui-password
+          $b find role button click --name "Log in"
+          $b wait --load networkidle
+          $b open http://localhost:8187/groups
+          $b screenshot --full /tmp/screenshots/groups.png
+          $b get text main | grep -F "The.Expanse.S01.1080p.BluRay.x264"
+      - name: Check the browser reaches only the app
+        shell: bash
+        run: |
+          b=.claude/skills/run-app/browser.sh
+          if $b open https://example.com; then echo "::error::browser.sh opened example.com"; exit 1; fi
+          if $b --allowed-domains example.com open https://example.com; then
+            echo "::error::browser.sh accepted --allowed-domains"; exit 1
+          fi
       - name: Stop the app
         if: always()
         run: |
-          agent-browser close || true
+          .claude/skills/run-app/browser.sh close || true
           .claude/skills/run-app/run-app.sh stop
       - name: Show the logs
         if: failure()
