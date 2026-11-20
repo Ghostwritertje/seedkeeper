@@ -228,7 +228,8 @@ public final class Decide {
                 attribute(torrent, trackers),
                 Duration.ofSeconds(torrent.secondsSeeding()),
                 torrent.status(),
-                TrackerError.of(torrent.error(), torrent.errorString()));
+                TrackerError.of(torrent.error(), torrent.errorString()),
+                TrackerRules.announceHosts(torrent.trackers()));
     }
 
     /**
