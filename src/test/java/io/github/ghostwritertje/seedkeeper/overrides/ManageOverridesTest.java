@@ -488,8 +488,8 @@ class ManageOverridesTest {
 
     /** The value of the hidden input with this name in the form with this id. */
     private static String hidden(String form, String name) {
-        return "**.find { it.name() == 'form' && it.@id == '" + form + "' }.input.find { it.@type == 'hidden' && it.@name == '"
-                + name + "' }.@value";
+        return "**.find { it.name() == 'form' && it.@id == '" + form
+                + "' }.input.find { it.@type == 'hidden' && it.@name == '" + name + "' }.@value";
     }
 
     /** Waits until the Overrides view shows the overrides with these ids: the file watcher may take a few seconds. */
