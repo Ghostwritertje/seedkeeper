@@ -187,9 +187,11 @@ jobs:
             "Edit,Write,NotebookEdit,Bash(git push:*),Bash(git commit:*),Bash(git add:*),Bash(git merge:*),Bash(git rebase:*),Bash(git reset:*),Bash(gh pr merge:*),Bash(gh api:*)"
 
       # The job log hides the session (show_full_output is off: the repo is public). The job summary lists its
-      # permission denials, and its turns and cost, so a missing allowlist entry shows. Also after a failed run.
+      # permission denials, and its turns and cost, so a missing allowlist entry shows. Also after a failed run. Only
+      # a report: continue-on-error, so a log it can't read doesn't skip the steps after it or fail the review.
       - name: Summarize the session
         if: always()
+        continue-on-error: true
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
         run: bash "$RUNNER_TEMP/session-summary.sh" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"

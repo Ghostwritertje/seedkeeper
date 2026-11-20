@@ -48,6 +48,6 @@ jq -rn '
         if ($denials | length) == 0 then "None."
         else
           $denials | to_entries[]
-          | "\(.key + 1). **\(.value.tool_name // "?" | html)**\n\n<pre>\(.value | input_text | cut | html)</pre>\n"
+          | "\(.key + 1). **\(.value.tool_name // "?" | tostring | html)**\n\n<pre>\(.value | input_text | cut | html)</pre>\n"
         end
     end' "$file"

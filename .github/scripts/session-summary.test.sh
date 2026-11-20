@@ -70,6 +70,8 @@ check "HTML in a command is escaped" \
   "$(result 3 1 "[$(bash_denial 'cat <<EOF > a && echo </pre>')]")" contains '<pre>cat &lt;&lt;EOF &gt; a &amp;&amp; echo &lt;/pre&gt;</pre>'
 check "the rest of the transcript stays out" \
   "$(result 3 1 '[]')" lacks 'a secret thought'
+check "a tool name that isn't a string still shows" \
+  "$(result 3 1 '[{"tool_name":7,"tool_input":{"command":"ls"}}]')" contains $'1. **7**\n\n<pre>ls</pre>'
 check "a log without a result says so" \
   '[{"type":"system","subtype":"init"}]' contains 'No result message'
 check "a log as JSON lines is read too" \
