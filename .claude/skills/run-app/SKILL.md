@@ -34,11 +34,13 @@ agent-browser open http://localhost:8187/login
 agent-browser find label "Username" fill admin
 agent-browser find label "Password" fill ui-password
 agent-browser find role button click --name "Log in"
+agent-browser wait --load networkidle
 agent-browser open http://localhost:8187/groups
 agent-browser screenshot --full /tmp/screenshots/groups-after.png
 ```
 
-- After logging in, open the view you want by its URL.
+- After logging in, wait for the login to land (`wait --load networkidle`), then open the view you want by its URL:
+  opening it earlier aborts one of the two navigations.
 - `agent-browser snapshot` gives the page's accessibility tree with refs to click; read a screenshot back with the
   Read tool to see it.
 - Check the phone layout with `agent-browser set viewport 390 844` and dark mode with `agent-browser set media dark`.

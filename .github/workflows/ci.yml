@@ -114,6 +114,7 @@ jobs:
           agent-browser find label "Username" fill admin
           agent-browser find label "Password" fill ui-password
           agent-browser find role button click --name "Log in"
+          agent-browser wait --load networkidle
           agent-browser open http://localhost:8187/groups
           agent-browser screenshot --full /tmp/screenshots/groups.png
           agent-browser get text main | grep -F "The.Expanse.S01.1080p.BluRay.x264"
