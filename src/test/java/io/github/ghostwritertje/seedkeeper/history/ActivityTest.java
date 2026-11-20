@@ -10,6 +10,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
@@ -19,6 +20,7 @@ import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmissionResource
 import io.quarkus.test.common.WithTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.Cookie;
+import io.restassured.path.xml.XmlPath;
 import io.restassured.response.Response;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -349,6 +351,19 @@ class ActivityTest {
                         is("Data kept: every file is still used by a torrent that stays (a cross-seed), or was no"
                                 + " longer on disk."))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[4]", is(""));
+    }
+
+    @Test
+    void theActivityAndSystemViewsAgreeOnWhenTheLastRunStartedAndHowLongItTook() {
+        runNow();
+
+        String system = "html.body.main.section.find { it.@id == 'runs' }.dl";
+        XmlPath systemPage = Authenticated.asUser().when().get("/system").htmlPath();
+        XmlPath activityPage = Authenticated.asUser().when().get("/activity").htmlPath();
+        assertEquals(
+                systemPage.getString(system + ".dd[2].time.@datetime"),
+                activityPage.getString(NEWEST_RUN + ".h2.time.@datetime"));
+        assertEquals(systemPage.getString(system + ".dd[3]"), activityPage.getString(NEWEST_RUN + ".dl.dd[1]"));
     }
 
     @Test

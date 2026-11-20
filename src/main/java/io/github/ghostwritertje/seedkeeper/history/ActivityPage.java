@@ -20,6 +20,7 @@ import java.math.BigInteger;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -167,7 +168,10 @@ class ActivityPage {
     private Run run(RecordedRun run, Instant now) {
         return new Run(
                 StatusText.moment(run.started(), timeZone, now),
-                StatusText.elapsed(Duration.between(run.started(), run.ended())),
+                // Between the seconds shown, as the System view, which has only those, counts it too.
+                StatusText.elapsed(Duration.between(
+                        run.started().truncatedTo(ChronoUnit.SECONDS),
+                        run.ended().truncatedTo(ChronoUnit.SECONDS))),
                 run.status().equals("succeeded") ? "Succeeded" : "Failed",
                 run.error().orElse(null),
                 count(run.torrentsRemoved(), "torrent") + " in " + count(run.groupsRemoved(), "group"),
