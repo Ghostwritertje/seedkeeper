@@ -4,8 +4,8 @@ name: Close auto-merged issues
 # reviewer.yml turns on auto-merge with the workflow's own token, so GitHub merges as `github-actions[bot]`, and that
 # merge doesn't close the pull request's `Closes #<n>` issues. It doesn't start any workflow either: not CI on `main`,
 # not a `pull_request: closed` workflow. So this one runs on a schedule instead, and on Run workflow. It looks at the
-# implementer pull requests merged in the last week, and for each one `github-actions` merged, comments on each open
-# issue in its closingIssuesReferences, linking the pull request, and closes it as completed. Pull requests the
+# implementer pull requests merged in the last week, and for each one `github-actions` merged, closes each open issue
+# in its closingIssuesReferences as completed, then comments on it, linking the pull request. Pull requests the
 # maintainer merged are left alone: their merge closed the issues already.
 #
 # The comment has a marker, and an issue with the marker for that pull request is never closed again: an issue the
