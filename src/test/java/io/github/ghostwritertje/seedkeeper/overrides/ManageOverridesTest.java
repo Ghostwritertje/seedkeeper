@@ -43,7 +43,7 @@ class ManageOverridesTest {
 
     private static final long DAY = 86_400;
     private static final String CSRF_COOKIE = "csrf-token";
-    private static final String ROWS = "html.body.main.table.tbody.tr";
+    private static final String ROWS = "html.body.main.div.table.tbody.tr";
     private static final String DONE = "html.body.main.p.find { it.@id == 'done' }";
     private static final String DONE_COUNT = "html.body.main.p.findAll { it.@id == 'done' }.size()";
     private static final String SELECTED_VERDICT = "html.body.main.form.'**'.find { it.name() == 'select'"
@@ -131,7 +131,7 @@ class ManageOverridesTest {
         Response page = user.page("/groups");
         page.then()
                 .statusCode(200)
-                .body("html.body.main.table.thead.tr.th[10]", is("Keep override"))
+                .body("html.body.main.div.table.thead.tr.th[10]", is("Keep override"))
                 .body("**.find { it.name() == 'form' && it.@id == 'keep-1a1a17' }.@action", is("/groups/keep"))
                 .body(
                         "**.find { it.name() == 'form' && it.@id == 'keep-1a1a17' }.'**'.find { it.name() == 'button' }",

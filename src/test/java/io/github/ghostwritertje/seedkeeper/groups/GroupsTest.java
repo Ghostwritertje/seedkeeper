@@ -8,6 +8,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
+import io.github.ghostwritertje.seedkeeper.ScrollRegions;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmission.Behaviour;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmissionResource;
 import io.quarkus.test.common.WithTestResource;
@@ -290,8 +291,9 @@ class GroupsTest {
                 .statusCode(200)
                 .contentType(containsString("text/html"))
                 .body("html.head.title", is("Groups · seedkeeper"))
+                .body(ScrollRegions.TABLE_PARENTS, ScrollRegions.regions("Groups"))
                 .body(
-                        "html.body.main.table.thead.tr.th",
+                        "html.body.main.div.table.thead.tr.th",
                         contains(
                                 "Name",
                                 "Tracker",
@@ -304,7 +306,7 @@ class GroupsTest {
                                 "Secondary reasons",
                                 "Forecast",
                                 "Keep override"))
-                .body("html.body.main.table.tbody.tr.size()", is(9))
+                .body("html.body.main.div.table.tbody.tr.size()", is(9))
                 .body(
                         cells(0),
                         contains(
@@ -398,7 +400,7 @@ class GroupsTest {
                                 is(""),
                                 minuteIn(before, Duration.ofDays(10))))
                 .body(
-                        "html.body.main.table.tbody.tr[6].td.collect { it.@rowspan.toString() }",
+                        "html.body.main.div.table.tbody.tr[6].td.collect { it.@rowspan.toString() }",
                         contains("1", "1", "1", "1", "1", "2", "2", "2", "2", "2", "2"))
                 // The keep form's controls name the group by its first member, so they can be told apart.
                 .body(
@@ -433,7 +435,7 @@ class GroupsTest {
                 .body(
                         "html.body.main.p.find { it.@role == 'alert' }",
                         containsString("refused session_get: Method not found"))
-                .body("html.body.main.table.size()", is(0));
+                .body("html.body.main.'**'.findAll { it.name() == 'table' }.size()", is(0));
     }
 
     @Test
@@ -498,7 +500,7 @@ class GroupsTest {
 
     /** The text of every cell of a row of the table, up to the form that sets a keep override. */
     private static String cells(int row) {
-        return "html.body.main.table.tbody.tr[" + row + "].td.take(10).collect { it.text() }";
+        return "html.body.main.div.table.tbody.tr[" + row + "].td.take(10).collect { it.text() }";
     }
 
     /**

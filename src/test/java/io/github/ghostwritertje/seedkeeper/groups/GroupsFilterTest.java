@@ -186,7 +186,7 @@ class GroupsFilterTest {
                 .then()
                 .statusCode(200)
                 .body(
-                        "html.body.main.table.thead.tr.th",
+                        "html.body.main.div.table.thead.tr.th",
                         contains(
                                 "Name",
                                 "Tracker",
@@ -286,7 +286,7 @@ class GroupsFilterTest {
                 .then()
                 .statusCode(200)
                 .body(
-                        "html.body.main.table.tbody.tr.collect { it.td[0].text() }",
+                        "html.body.main.div.table.tbody.tr.collect { it.td[0].text() }",
                         contains("Checking.Movie", "Kept.Movie", "Not.Yet"))
                 .body(selected("verdict"), is("keep"))
                 .body(selected("reason"), is(""));
@@ -294,8 +294,8 @@ class GroupsFilterTest {
                 .when()
                 .get("/groups?verdict=left-alone&reason=missing-data")
                 .then()
-                .body("html.body.main.table.tbody.tr.size()", is(1))
-                .body("html.body.main.table.tbody.tr[0].td[0]", is("Half.Gone"))
+                .body("html.body.main.div.table.tbody.tr.size()", is(1))
+                .body("html.body.main.div.table.tbody.tr[0].td[0]", is("Half.Gone"))
                 .body(selected("verdict"), is("left-alone"))
                 .body(selected("reason"), is("missing-data"));
     }
@@ -317,9 +317,9 @@ class GroupsFilterTest {
                                 "/groups?verdict=keep"))
                 .body(TALLY + ".a.findAll { it.@'aria-current' == 'page' }.@href", is("/groups?verdict=keep"))
                 .body(TALLY + ".a.mark.@data-verdict", contains("remove", "left-alone", "keep"))
-                .body("html.body.main.table.tbody.@data-verdict", contains("keep", "keep", "keep"))
+                .body("html.body.main.div.table.tbody.@data-verdict", contains("keep", "keep", "keep"))
                 .body(
-                        "html.body.main.table.tbody.tr.collect { it.td[6].@data-verdict.text() }",
+                        "html.body.main.div.table.tbody.tr.collect { it.td[6].@data-verdict.text() }",
                         contains("keep", "keep", "keep"));
     }
 
@@ -386,7 +386,7 @@ class GroupsFilterTest {
                 .get("/groups?verdict=remove&reason=library-link")
                 .then()
                 .statusCode(200)
-                .body("html.body.main.table.size()", is(0))
+                .body("html.body.main.'**'.findAll { it.name() == 'table' }.size()", is(0))
                 .body("html.body.main.p.size()", is(1))
                 .body("html.body.main.p", is("No group has this verdict and reason."))
                 .body(selected("reason"), is("library-link"));
@@ -402,13 +402,13 @@ class GroupsFilterTest {
                 .body(
                         "html.body.main.p.find { it.@role == 'alert' }",
                         is("Unknown verdict 'delete': use remove, left-alone or keep"))
-                .body("html.body.main.table.size()", is(0))
+                .body("html.body.main.'**'.findAll { it.name() == 'table' }.size()", is(0))
                 .body(selected("verdict"), is(""));
     }
 
     /** The text of every cell of a row of the table, up to the form that sets a keep override. */
     private static String cells(int row) {
-        return "html.body.main.table.tbody.tr[" + row + "].td.take(10).collect { it.text() }";
+        return "html.body.main.div.table.tbody.tr[" + row + "].td.take(10).collect { it.text() }";
     }
 
     /** The value of the selected option of a filter. */
