@@ -254,8 +254,8 @@ class UnregisteredTest {
                 .body("html.body.main.div.table.tbody.tr.size()", is(2))
                 .body(
                         "html.body.main.form.'**'.find { it.name() == 'select' && it.@name == 'reason' }"
-                                + ".option.find { it.@selected == 'selected' }.text()",
-                        is("Unregistered"));
+                                + ".option.find { it.@selected == 'selected' }.@value",
+                        is("unregistered"));
     }
 
     /** One private, finished torrent with one wanted file, {@code <name>/movie.mkv}, in Transmission's field names. */

@@ -31,6 +31,13 @@ class GroupsPageTest {
     }
 
     @Test
+    void aReasonThatDecidedNoGroupIsDisabledUnlessItIsTheChosenOne() {
+        assertEquals(true, new GroupsPage.Option("all-met", "All met", 0, false).disabled());
+        assertEquals(false, new GroupsPage.Option("all-met", "All met", 0, true).disabled());
+        assertEquals(false, new GroupsPage.Option("all-met", "All met", 1, false).disabled());
+    }
+
+    @Test
     void aGroupOfOneIsItsHeaderRowAlone() {
         GroupVerdict verdict = new GroupVerdict(
                 List.of(member(

@@ -1,29 +1,29 @@
 {#include layout.html current='groups'}
 {#title}Groups{/title}
 <h1>Groups</h1>
+{#if unknownFilter}
+<p role="alert">{unknownFilter}</p>
+{/if}
 {#if !tally.isEmpty}
+{! The verdict is chosen here alone: the form keeps it when the reason changes. !}
 <nav aria-label="Groups by verdict">
 {#for t in tally}
 <a href="/groups?verdict={t.code}{#if filter.reasonCode}&amp;reason={filter.reasonCode}{/if}"{#if t.selected} aria-current="page"{/if}>{#if t.code}<mark data-verdict="{t.code}">{t.count}</mark>{#else}<mark>{t.count}</mark>{/if} {t.label}</a>
 {/for}
 </nav>
-{/if}
-<form method="get" action="/groups">
-<label>Verdict <select name="verdict">
-<option value=""{#if filter.anyVerdict} selected="selected"{/if}>Any verdict</option>
-{#for option in filter.verdicts}
-<option value="{option.code}"{#if option.selected} selected="selected"{/if}>{option.label}</option>
-{/for}
-</select></label>
-<label>Reason <select name="reason">
-<option value=""{#if filter.anyReason} selected="selected"{/if}>Any reason</option>
+{! A change of reason applies at once (htmx swaps in the new view and its URL); without scripts, the button does it. !}
+<form method="get" action="/groups" hx-get="/groups" hx-trigger="change" hx-select="main" hx-target="main" hx-swap="outerHTML" hx-push-url="true">
+<input type="hidden" name="verdict" value="{filter.verdictCode}">
+<label>Reason <select name="reason" id="reason">
+<option value=""{#if filter.anyReason} selected="selected"{/if}>Any reason ({filter.any})</option>
 {#for option in filter.reasons}
-<option value="{option.code}"{#if option.selected} selected="selected"{/if}>{option.label}</option>
+<option value="{option.code}"{#if option.selected} selected="selected"{/if}{#if option.disabled} disabled="disabled"{/if}>{option.label} ({option.count})</option>
 {/for}
 </select></label>
-<button type="submit">Filter</button>
+<noscript><button type="submit">Filter</button></noscript>
 {#if filter.active}<a href="/groups">Clear filter</a>{/if}
 </form>
+{/if}
 {#if kept}
 <p role="status" id="done">Keep override set. It shows in the <a href="/overrides">Overrides view</a>.</p>
 {/if}
