@@ -323,49 +323,62 @@ class GroupsTest {
                 .body(
                         GroupsTable.HEADINGS,
                         contains("Name", "Minimum seed time", "Verdict", "Reason", "Forecast", "Size", "Keep override"))
-                // One header row per group; member rows only under the cross-seed group of two.
-                .body(GroupsTable.ROWS, contains(1, 1, 1, 1, 1, 1, 3, 1))
-                .body(GroupsTable.heading(0), contains("Linked.Show", "tracker-a · Seeding · 1 of 2 files linked"))
-                // The library links show once: under the name, not again in the reason. Every file is 4 bytes.
-                .body(GroupsTable.cells(0), contains("Met ✓", "Keep", "Library link", "", "8 B"))
-                .body(GroupsTable.progressDetail(0), is("40d of 30d · met 10d ago"))
-                .body(GroupsTable.heading(1), contains("Fresh.Movie", "tracker-b · Seeding · 0 of 1 files linked"))
+                // Remove first, then Left alone, then Keep, each by soonest forecast: a stopped clock after every
+                // date, no forecast last.
                 .body(
-                        GroupsTable.cells(1),
+                        GroupsTable.NAMES,
+                        contains(
+                                "Old.Movie",
+                                "ubuntu.iso",
+                                "Unknown.Tracker",
+                                "Cross.Seed",
+                                "Fresh.Movie",
+                                "Paused.Movie",
+                                "Linked.Show",
+                                "Downloading"))
+                // One header row per group; member rows only under the cross-seed group of two.
+                .body(GroupsTable.ROWS, contains(1, 1, 1, 3, 1, 1, 1, 1))
+                .body(GroupsTable.heading(6), contains("Linked.Show", "tracker-a · Seeding · 1 of 2 files linked"))
+                // The library links show once: under the name, not again in the reason. Every file is 4 bytes.
+                .body(GroupsTable.cells(6), contains("Met ✓", "Keep", "Library link", "", "8 B"))
+                .body(GroupsTable.progressDetail(6), is("40d of 30d · met 10d ago"))
+                .body(GroupsTable.heading(4), contains("Fresh.Movie", "tracker-b · Seeding · 0 of 1 files linked"))
+                .body(
+                        GroupsTable.cells(4),
                         contains(
                                 is("18%"),
                                 is("Keep"),
                                 is("Minimum not reached"),
                                 minuteIn(before, Duration.ofDays(11).plusHours(12)),
                                 is("4 B")))
-                .body(GroupsTable.heading(2), contains("Old.Movie", "tracker-b · Stopped · 0 of 1 files linked"))
+                .body(GroupsTable.heading(0), contains("Old.Movie", "tracker-b · Stopped · 0 of 1 files linked"))
                 // Below the minimum: a meter for screen readers, the time to go as detail.
-                .body(GroupsTable.progressCell(1) + ".meter.@value", is("18"))
-                .body(GroupsTable.progressDetail(1), is("2d 12h of 14d · 11d 12h to go"))
+                .body(GroupsTable.progressCell(4) + ".meter.@value", is("18"))
+                .body(GroupsTable.progressDetail(4), is("2d 12h of 14d · 11d 12h to go"))
                 // Its sample is not wanted: it counts nowhere.
-                .body(GroupsTable.cells(2), contains("Met ✓", "Remove", "All met", "", "4 B"))
-                .body(GroupsTable.progressDetail(2), is("14d of 14d · met just now"))
-                .body(GroupsTable.progressCell(2) + ".meter.size()", is(0))
+                .body(GroupsTable.cells(0), contains("Met ✓", "Remove", "All met", "", "4 B"))
+                .body(GroupsTable.progressDetail(0), is("14d of 14d · met just now"))
+                .body(GroupsTable.progressCell(0) + ".meter.size()", is(0))
                 .body(
-                        GroupsTable.heading(3),
+                        GroupsTable.heading(2),
                         contains("Unknown.Tracker", "Unmanaged (elsewhere.example) · Seeding · 0 of 1 files linked"))
-                .body(GroupsTable.cells(3), contains("—", "Left alone", "Unmanaged", "", "4 B"))
+                .body(GroupsTable.cells(2), contains("—", "Left alone", "Unmanaged", "", "4 B"))
                 // What to do about it, under the reason.
                 .body(
-                        GroupsTable.hint(3),
+                        GroupsTable.hint(2),
                         is("a member is on a tracker not in the config: add it under trackers to manage it"))
-                .body(GroupsTable.progressDetail(3), is("400d · no minimum"))
-                .body(GroupsTable.heading(4), contains("Downloading", "tracker-a · Downloading · 0 of 1 files linked"))
-                .body(GroupsTable.cells(4), contains("0%", "Keep", "Not finished", "", "4 B"))
-                .body(GroupsTable.underReason(4), is("also: Minimum not reached"))
-                .body(GroupsTable.underReason(0), is(""))
-                .body(GroupsTable.heading(5), contains("ubuntu.iso", "public · Seeding · 0 of 1 files linked"))
-                .body(GroupsTable.cells(5), contains("Met ✓", "Remove", "All met", "", "4 B"))
+                .body(GroupsTable.progressDetail(2), is("400d · no minimum"))
+                .body(GroupsTable.heading(7), contains("Downloading", "tracker-a · Downloading · 0 of 1 files linked"))
+                .body(GroupsTable.cells(7), contains("0%", "Keep", "Not finished", "", "4 B"))
+                .body(GroupsTable.underReason(7), is("also: Minimum not reached"))
+                .body(GroupsTable.underReason(6), is(""))
+                .body(GroupsTable.heading(1), contains("ubuntu.iso", "public · Seeding · 0 of 1 files linked"))
+                .body(GroupsTable.cells(1), contains("Met ✓", "Remove", "All met", "", "4 B"))
                 // The cross-seed group: a header row for the group, whose cells span the rows of its members.
-                .body(GroupsTable.heading(6), contains("Cross.Seed", "2 torrents · 0 of 1 files linked"))
+                .body(GroupsTable.heading(3), contains("Cross.Seed", "2 torrents · 0 of 1 files linked"))
                 // Its header shows its slowest member, the one that sets the forecast: 10 days to go.
                 .body(
-                        GroupsTable.cells(6),
+                        GroupsTable.cells(3),
                         contains(
                                 is("67%"),
                                 is("Keep"),
@@ -373,20 +386,20 @@ class GroupsTest {
                                 minuteIn(before, Duration.ofDays(10)),
                                 // Its members share their one file: the group counts it once.
                                 is("4 B")))
-                .body(GroupsTable.progressDetail(6), is("slowest: 20d of 30d · 10d to go"))
+                .body(GroupsTable.progressDetail(3), is("slowest: 20d of 30d · 10d to go"))
                 .body(
-                        GroupsTable.GROUPS + "[6].tr[0].td.collect { it.@rowspan.toString() }",
+                        GroupsTable.GROUPS + "[3].tr[0].td.collect { it.@rowspan.toString() }",
                         contains("1", "3", "3", "3", "3", "3"))
-                .body(GroupsTable.member(6, 0), contains("Cross.Seed", "tracker-a · Seeding · 4 B", "67%"))
-                .body(GroupsTable.member(6, 1), contains("Cross.Seed.Elsewhere", "tracker-b · Stopped · 4 B", "93%"))
+                .body(GroupsTable.member(3, 0), contains("Cross.Seed", "tracker-a · Seeding · 4 B", "67%"))
+                .body(GroupsTable.member(3, 1), contains("Cross.Seed.Elsewhere", "tracker-b · Stopped · 4 B", "93%"))
                 // The keep form's controls name the group by its first member, so they can be told apart.
                 .body(
                         "**.find { it.name() == 'form' && it.@id == 'keep-7777' }.'**'.findAll { it.@'aria-label' != '' }"
                                 + ".collect { it.@'aria-label'.toString() }",
                         contains("Note for Cross.Seed", "Until for Cross.Seed", "Set a keep override for Cross.Seed"))
-                .body(GroupsTable.heading(7), contains("Paused.Movie", "tracker-a · Stopped · 0 of 1 files linked"))
+                .body(GroupsTable.heading(5), contains("Paused.Movie", "tracker-a · Stopped · 0 of 1 files linked"))
                 .body(
-                        GroupsTable.cells(7),
+                        GroupsTable.cells(5),
                         contains("97%", "Keep", "Minimum not reached", "clock stopped (paused)", "4 B"));
     }
 
@@ -411,18 +424,18 @@ class GroupsTest {
                 .then()
                 .statusCode(200)
                 // Focusable, so the detail opens on focus and tap as well as on hover.
-                .body(GroupsTable.progressCell(1) + ".@tabindex", is("0"))
+                .body(GroupsTable.progressCell(4) + ".@tabindex", is("0"))
                 // The text says the state; the colour only repeats it.
-                .body(GroupsTable.progressCell(1) + ".@data-tone", is("warn"))
+                .body(GroupsTable.progressCell(4) + ".@data-tone", is("warn"))
                 .body(
-                        GroupsTable.progressCell(1) + ".meter.collect { [it.@min, it.@max] }.flatten()",
+                        GroupsTable.progressCell(4) + ".meter.collect { [it.@min, it.@max] }.flatten()",
                         contains("0", "100"))
-                .body(GroupsTable.progressCell(2) + ".@data-tone", is("ok"))
-                .body(GroupsTable.progressCell(3) + ".@data-tone", is("muted"))
+                .body(GroupsTable.progressCell(0) + ".@data-tone", is("ok"))
+                .body(GroupsTable.progressCell(2) + ".@data-tone", is("muted"))
                 // The whole cell, as a screen reader reads it: the state, then the exact durations.
-                .body(GroupsTable.progressCell(1) + ".text()", is("18%2d 12h of 14d · 11d 12h to go"))
+                .body(GroupsTable.progressCell(4) + ".text()", is("18%2d 12h of 14d · 11d 12h to go"))
                 .body(
-                        GroupsTable.GROUPS + "[6].tr[2].td[1].with { [it.@tabindex.toString(), it.small.text()] }",
+                        GroupsTable.GROUPS + "[3].tr[2].td[1].with { [it.@tabindex.toString(), it.small.text()] }",
                         contains("0", "13d of 14d · 1d to go"));
     }
 
@@ -433,9 +446,9 @@ class GroupsTest {
                 .get("/groups")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.GROUPS + "[5].tr[0].th.strong.wbr.size()", is(1))
-                .body(GroupsTable.GROUPS + "[6].tr[0].th.strong.wbr.size()", is(1))
-                .body(GroupsTable.GROUPS + "[6].tr[2].td[0].span.wbr.size()", is(2));
+                .body(GroupsTable.GROUPS + "[1].tr[0].th.strong.wbr.size()", is(1))
+                .body(GroupsTable.GROUPS + "[3].tr[0].th.strong.wbr.size()", is(1))
+                .body(GroupsTable.GROUPS + "[3].tr[2].td[0].span.wbr.size()", is(2));
     }
 
     @Test

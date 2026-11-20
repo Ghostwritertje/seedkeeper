@@ -476,6 +476,32 @@ thead th {
   white-space: nowrap;
 }
 
+/*
+ * A header that sorts the table: a link in the header's own colours. The column the table is sorted by is in the text
+ * colour, with an arrow for the way; the arrow is only decoration (empty alt text), as aria-sort says it.
+ */
+thead th a {
+  color: inherit;
+  text-decoration: none;
+}
+
+thead th a:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+thead th[aria-sort] {
+  color: var(--text);
+}
+
+thead th[aria-sort="ascending"] a::after {
+  content: " ▲" / "";
+}
+
+thead th[aria-sort="descending"] a::after {
+  content: " ▼" / "";
+}
+
 thead tr:first-child th:first-child {
   border-top-left-radius: var(--radius);
 }

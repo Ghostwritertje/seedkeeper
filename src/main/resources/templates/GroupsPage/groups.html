@@ -4,7 +4,7 @@
 {#if !tally.isEmpty}
 <nav aria-label="Groups by verdict">
 {#for t in tally}
-<a href="/groups?verdict={t.code}{#if filter.reasonCode}&amp;reason={filter.reasonCode}{/if}"{#if t.selected} aria-current="page"{/if}>{#if t.code}<mark data-verdict="{t.code}">{t.count}</mark>{#else}<mark>{t.count}</mark>{/if} {t.label}</a>
+<a href="{t.href}"{#if t.selected} aria-current="page"{/if}>{#if t.code}<mark data-verdict="{t.code}">{t.count}</mark>{#else}<mark>{t.count}</mark>{/if} {t.label}</a>
 {/for}
 </nav>
 {/if}
@@ -21,8 +21,11 @@
 <option value="{option.code}"{#if option.selected} selected="selected"{/if}>{option.label}</option>
 {/for}
 </select></label>
-<button type="submit">Filter</button>
-{#if filter.active}<a href="/groups">Clear filter</a>{/if}
+<label>Name <input type="search" name="q" value="{filter.name}" placeholder="Name contains…"></label>
+{#if filter.sort}<input type="hidden" name="sort" value="{filter.sort}">
+<input type="hidden" name="dir" value="{filter.dir}">
+{/if}<button type="submit">Filter</button>
+{#if filter.active}<a href="{filter.clear}">Clear filter</a>{/if}
 </form>
 {#if kept}
 <p role="status" id="done">Keep override set. It shows in the <a href="/overrides">Overrides view</a>.</p>
@@ -32,6 +35,8 @@
 {/if}
 {#if unavailable}
 <p role="alert">{unavailable}</p>
+{#else if groups.isEmpty && filter.name}
+<p>No group matches the filter.</p>
 {#else if groups.isEmpty && filter.active}
 <p>No group has this verdict and reason.</p>
 {#else if groups.isEmpty}
@@ -45,13 +50,19 @@ any other tracker message is only shown. The reason is the first rule that holds
 The forecast is when a group kept for its minimum seed time is expected to have met it, if it keeps seeding.
 The size is the data on disk of the group's wanted files, a file its members share counted once. It is not the space a removal frees:
 a file with a library link stays on disk.</p>
+<p>The groups are in the order of their verdict: Remove first, then Left alone, then Keep, each by soonest forecast. Click the header
+of a column to sort by it instead, and again to turn the order round.</p>
 <p>Set a keep override to stop a group from being removed (it never causes a removal): it gets the info hash of every member, and the
 members the group gains later are added to it. It shows in the Overrides view, where it can be edited or deleted.</p>
 </details>
 <div role="region" aria-label="Groups" tabindex="0">
 <table>
 <thead>
-<tr><th>Name</th><th>Minimum seed time</th><th>Verdict</th><th>Reason</th>{#if forecasts}<th>Forecast</th>{/if}<th>Size</th><th>Keep override</th></tr>
+{!
+  A sortable column's header is a link to the view sorted by it, or turned round when it already is; the one the view
+  is sorted by says so with aria-sort, which the CSS shows as an arrow.
+!}
+<tr><th{#if columns.name.sort} aria-sort="{columns.name.sort}"{/if}><a href="{columns.name.href}">Name</a></th><th{#if columns.seeding.sort} aria-sort="{columns.seeding.sort}"{/if}><a href="{columns.seeding.href}">Minimum seed time</a></th><th{#if columns.verdict.sort} aria-sort="{columns.verdict.sort}"{/if}><a href="{columns.verdict.href}">Verdict</a></th><th>Reason</th>{#if forecasts}<th{#if columns.forecast.sort} aria-sort="{columns.forecast.sort}"{/if}><a href="{columns.forecast.href}">Forecast</a></th>{/if}<th{#if columns.size.sort} aria-sort="{columns.size.sort}"{/if}><a href="{columns.size.href}">Size</a></th><th>Keep override</th></tr>
 </thead>
 {!
   One tbody per group, so its members read as one: a header row for the group, whose cells after the seed time span
@@ -68,6 +79,10 @@ members the group gains later are added to it. It shows in the Overrides view, w
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
 <input type="hidden" name="verdict" value="{filter.verdictCode}">
 <input type="hidden" name="reason" value="{filter.reasonCode}">
+<input type="hidden" name="q" value="{filter.name}">
+<input type="hidden" name="sort" value="{filter.sort}">
+<input type="hidden" name="dir" value="{filter.dir}">
+<input type="hidden" name="page" value="{filter.page}">
 {#for hash in group.hashes}<input type="hidden" name="hash" value="{hash}">
 {/for}<details><summary>Keep…</summary><div>
 <label>Note <input type="text" name="note" placeholder="Why keep it?" aria-label="Note for {group.label}"></label>
@@ -82,5 +97,12 @@ members the group gains later are added to it. It shows in the Overrides view, w
 {/for}
 </table>
 </div>
+{#if pages.several}
+<nav aria-label="Pages">
+{#if pages.previous}<a href="{pages.previous}">Previous</a>{/if}
+<p>Page {pages.page} of {pages.count} · {pages.groups} groups</p>
+{#if pages.next}<a href="{pages.next}">Next</a>{/if}
+</nav>
+{/if}
 {/if}
 {/include}
