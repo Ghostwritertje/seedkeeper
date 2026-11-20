@@ -27,6 +27,7 @@ import java.net.URI;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.jboss.resteasy.reactive.RestForm;
@@ -41,6 +42,7 @@ class GroupsPage {
 
         /**
          * @param groups      the groups that match the filter
+         * @param forecasts   true when one of the groups has a forecast: else the Forecast column would be empty
          * @param tally       how many groups have each verdict, among those with the reason of the filter; empty when
          *                    there are no verdicts
          * @param unavailable why there are no verdicts right now, or what is wrong with the filter; null when all
@@ -50,6 +52,7 @@ class GroupsPage {
          */
         static native TemplateInstance groups(
                 List<Group> groups,
+                boolean forecasts,
                 List<Tally> tally,
                 Filter filter,
                 @Nullable String unavailable,
@@ -62,25 +65,47 @@ class GroupsPage {
 
     private static final DateTimeFormatter FORECAST_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
+    /** Where a long release name may break: after a dot or a dash that something follows. */
+    private static final Pattern NAME_BREAKS = Pattern.compile("(?<=[.-])(?=.)");
+
     /**
-     * One group, as text ready to show.
+     * One group, as text ready to show: a header row, then its members when it has more than one.
      *
+     * @param name             the name of its first member, in the parts a line may break between
+     * @param label            the name of its first member, whole, to name the group's controls
+     * @param summary          "tracker-a · Seeding · 1 of 2 files linked" for a group of one, "3 torrents · 13 of 19
+     *                         files linked" for more
+     * @param seedTime         the seed time of its member, as {@link Member#seedTime()}, for a group of one; else empty
+     * @param trackerMessage   the tracker message of its member, as {@link Member#trackerMessage()}, for a group of
+     *                         one; else empty
      * @param verdictCode      the kebab-case code of the verdict, "left-alone"
-     * @param reason           "Library link (1 of 2 files)", "Missing data (1 of 2 files)", or the label alone
+     * @param reason           "Missing data (1 of 2 files)", or the label alone: the library links are in the summary
      * @param secondaryReasons every other reason that holds, written like the reason and separated by commas
      * @param forecast         "2026-11-25 10:00" in the configured time zone, "clock stopped (paused)", "until 2027-03-01" (the
      *                         end date of a keep override), or empty
+     * @param members          its members, each on a row of its own; empty for a group of one, which its header row
+     *                         shows whole
      * @param hashes           the info hashes of the members, for the form that sets a keep override
      */
     public record Group(
+            List<String> name,
+            String label,
+            String summary,
+            String seedTime,
+            String trackerMessage,
             String verdict,
             String verdictCode,
             String reason,
             String secondaryReasons,
-            String libraryLinks,
             String forecast,
             List<Member> members,
-            List<String> hashes) {}
+            List<String> hashes) {
+
+        /** The rows of the group, which its cells after the seed time span: the header row and the member rows. */
+        public int rows() {
+            return 1 + members.size();
+        }
+    }
 
     /**
      * The filter form: every verdict and every reason, with the chosen ones selected.
@@ -129,13 +154,14 @@ class GroupsPage {
     /**
      * One torrent of a group, as text ready to show.
      *
+     * @param name     its name, in the parts a line may break between
      * @param tracker  the tracker's name; "unmanaged (elsewhere.example)", with the announce hosts, or "unmanaged (no
      *                 trackers)" when the torrent has no tracker
      * @param seedTime "40d / 30d": the seed time and the tracker's minimum; the seed time alone when unmanaged
      * @param trackerMessage "Unregistered: Unregistered torrent", "Tracker error: Passkey does not exist!", or
      *                       empty when the tracker reports nothing wrong
      */
-    public record Member(String name, String tracker, String seedTime, String status, String trackerMessage) {}
+    public record Member(List<String> name, String tracker, String seedTime, String status, String trackerMessage) {}
 
     private final GroupsService groups;
     private final OverrideChanges overrides;
@@ -211,19 +237,23 @@ class GroupsPage {
         try {
             filter = GroupsFilter.parse(verdict, reason);
         } catch (UnknownFilter e) {
-            return Templates.groups(List.of(), List.of(), filter(GroupsFilter.NONE), e.getMessage(), notice, kept);
+            return Templates.groups(
+                    List.of(), false, List.of(), filter(GroupsFilter.NONE), e.getMessage(), notice, kept);
         }
         try {
             List<GroupVerdict> all = groups.groups();
+            List<Group> shown =
+                    all.stream().filter(filter::matches).map(GroupsPage::group).toList();
             return Templates.groups(
-                    all.stream().filter(filter::matches).map(GroupsPage::group).toList(),
+                    shown,
+                    shown.stream().anyMatch(g -> !g.forecast().isEmpty()),
                     tally(all, filter),
                     filter(filter),
                     null,
                     notice,
                     kept);
         } catch (GroupsUnavailable e) {
-            return Templates.groups(List.of(), List.of(), filter(filter), e.getMessage(), notice, kept);
+            return Templates.groups(List.of(), false, List.of(), filter(filter), e.getMessage(), notice, kept);
         }
     }
 
@@ -263,37 +293,49 @@ class GroupsPage {
                 filter.active());
     }
 
-    private static Group group(GroupVerdict group) {
-        String libraryLinks = group.libraryLinks() + " of " + group.files() + " files";
+    static Group group(GroupVerdict group) {
+        String libraryLinks = group.libraryLinks() + " of " + group.files() + " files linked";
         String forecast = group.forecast()
                 .map(f -> f.until()
                         .map(endDate -> "until " + endDate)
                         .orElseGet(() -> f.date().map(FORECAST_DATE::format).orElse("clock stopped (paused)")))
                 .orElse("");
+        List<Member> members = group.members().stream().map(GroupsPage::member).toList();
+        Member first = members.getFirst();
+        boolean one = members.size() == 1;
         return new Group(
+                first.name(),
+                group.members().getFirst().name(),
+                one
+                        ? first.tracker() + " · " + first.status() + " · " + libraryLinks
+                        : members.size() + " torrents · " + libraryLinks,
+                one ? first.seedTime() : "",
+                one ? first.trackerMessage() : "",
                 group.verdict().label(),
                 group.verdict().code(),
                 reason(group.reason(), group),
                 group.secondaryReasons().stream().map(r -> reason(r, group)).collect(Collectors.joining(", ")),
-                libraryLinks,
                 forecast,
-                group.members().stream().map(GroupsPage::member).toList(),
+                one ? List.of() : members,
                 group.members().stream().map(GroupVerdict.Member::hash).toList());
     }
 
-    /** The label of a reason, with its count of the group's files when it has one. */
+    /** The label of a reason, with its count of the group's missing files when it has one. */
     private static String reason(Reason reason, GroupVerdict group) {
-        return switch (reason) {
-            case LIBRARY_LINK -> reason.label() + " (" + group.libraryLinks() + " of " + group.files() + " files)";
-            case MISSING_DATA -> reason.label() + " (" + group.missingFiles() + " of " + group.files() + " files)";
-            default -> reason.label();
-        };
+        return reason == Reason.MISSING_DATA
+                ? reason.label() + " (" + group.missingFiles() + " of " + group.files() + " files)"
+                : reason.label();
+    }
+
+    /** A release name in the parts a line may break between: after each dot and each dash. */
+    static List<String> breakable(String name) {
+        return List.of(NAME_BREAKS.split(name));
     }
 
     private static Member member(GroupVerdict.Member member) {
         String seedTime = StatusText.duration(member.seedTime());
         return new Member(
-                member.name(),
+                breakable(member.name()),
                 member.tracker().map(Tracker::name).orElseGet(() -> unmanaged(member.announceHosts())),
                 member.tracker()
                         .map(tracker -> seedTime + " / " + StatusText.duration(tracker.minimumSeedTime()))

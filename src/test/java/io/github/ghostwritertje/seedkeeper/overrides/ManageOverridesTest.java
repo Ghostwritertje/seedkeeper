@@ -44,6 +44,9 @@ class ManageOverridesTest {
     private static final long DAY = 86_400;
     private static final String CSRF_COOKIE = "csrf-token";
     private static final String ROWS = "html.body.main.div.table.tbody.tr";
+    /** The header row of every group in the Groups view: the name in its th, then seed time, verdict, reason. */
+    private static final String GROUP_ROWS = "html.body.main.div.table.tbody.collect { it.tr[0] }";
+
     private static final String DONE = "html.body.main.p.find { it.@id == 'done' }";
     private static final String DONE_COUNT = "html.body.main.p.findAll { it.@id == 'done' }.size()";
     private static final String SELECTED_VERDICT = "html.body.main.form.'**'.find { it.name() == 'select'"
@@ -131,7 +134,7 @@ class ManageOverridesTest {
         Response page = user.page("/groups");
         page.then()
                 .statusCode(200)
-                .body("html.body.main.div.table.thead.tr.th[10]", is("Keep override"))
+                .body("html.body.main.div.table.thead.tr.th.list().last()", is("Keep override"))
                 .body("**.find { it.name() == 'form' && it.@id == 'keep-1a1a17' }.@action", is("/groups/keep"))
                 .body(
                         "**.find { it.name() == 'form' && it.@id == 'keep-1a1a17' }.'**'.find { it.name() == 'button' }",
@@ -156,8 +159,8 @@ class ManageOverridesTest {
                 .body("[0].created", matchesPattern("\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\+05:30"));
         user.page("/groups")
                 .then()
-                .body(ROWS + ".find { it.td[0] == 'Manage.Movie' }.td[7]", is("Keep override"))
-                .body(ROWS + ".find { it.td[0] == 'Manage.Show' }.td[7]", is("All met"));
+                .body(GROUP_ROWS + ".find { it.th.strong == 'Manage.Movie' }.td[2]", is("Keep override"))
+                .body(GROUP_ROWS + ".find { it.th.strong == 'Manage.Show' }.td[2]", is("All met"));
     }
 
     @Test
@@ -198,8 +201,8 @@ class ManageOverridesTest {
                 .body("html.body.main.p.find { it.@id == 'done' }.a.@href", is("/overrides"))
                 .body("html.body.main.p.find { it.@id == 'done' }.a", is("Overrides view"))
                 // Kept now, so no longer due: only the other group is left under Remove.
-                .body(ROWS + ".size()", is(1))
-                .body(ROWS + "[0].td[0]", is("Manage.Show"));
+                .body("html.body.main.div.table.tbody.size()", is(1))
+                .body("html.body.main.div.table.tbody[0].tr[0].th.strong.text()", is("Manage.Show"));
         user.page("/groups?done=other")
                 .then()
                 .statusCode(200)

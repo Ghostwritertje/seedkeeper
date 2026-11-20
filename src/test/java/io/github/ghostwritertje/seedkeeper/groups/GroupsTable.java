@@ -1,0 +1,44 @@
+package io.github.ghostwritertje.seedkeeper.groups;
+
+/**
+ * Paths into the table of the Groups view, for RestAssured's HTML body. Each group is a {@code <tbody>}: a header row
+ * whose {@code <th>} holds the group's name and its muted lines, then one row per member when it has more than one.
+ */
+final class GroupsTable {
+
+    static final String HEADINGS = "html.body.main.div.table.thead.tr.th";
+    static final String GROUPS = "html.body.main.div.table.tbody";
+
+    private GroupsTable() {}
+
+    /** The group's name, then each muted line under it: what the group is, and the tracker message, if any. */
+    static String heading(int group) {
+        return GROUPS + "[" + group + "].tr[0].th.'*'.collect { it.text() }";
+    }
+
+    /**
+     * The text of every cell of the header row after the name, up to the form that sets a keep override; a cell's
+     * own text only, without the lines under it.
+     */
+    static String cells(int group) {
+        return GROUPS + "[" + group + "].tr[0].td.findAll { it.form.size() == 0 }"
+                + ".collect { it.localText().join('').trim() }";
+    }
+
+    /** The line under the reason (the third cell after the name): the secondary reasons; empty when none. */
+    static String underReason(int group) {
+        return GROUPS + "[" + group + "].tr[0].td[2].small.text()";
+    }
+
+    /** The member rows of a group: name, its lines, then the seed time. */
+    static String member(int group, int member) {
+        return GROUPS + "[" + group + "].tr.findAll { it.th.size() == 0 }[" + member + "]"
+                + ".with { row -> row.td[0].'*'.collect { it.text() } + [row.td[1].text()] }";
+    }
+
+    /** The number of rows of every group. */
+    static final String ROWS = GROUPS + ".collect { it.tr.size() }";
+
+    /** The name of every group, in order. */
+    static final String NAMES = GROUPS + ".collect { it.tr[0].th.strong.text() }";
+}
