@@ -645,6 +645,11 @@ dd li + li {
   background: var(--surface);
 }
 
+/* The size of a group, the cell before its keep form: "16.0 KiB" on one line. */
+[data-page="groups"] td[rowspan]:nth-last-child(2) {
+  white-space: nowrap;
+}
+
 /* The count of groups by verdict, which doubles as a filter. */
 main > nav {
   display: flex;
