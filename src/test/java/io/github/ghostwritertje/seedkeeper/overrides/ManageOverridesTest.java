@@ -123,7 +123,9 @@ class ManageOverridesTest {
                 .statusCode(200)
                 .body("html.body.main.table.thead.tr.th[10]", is("Keep override"))
                 .body("**.find { it.name() == 'form' && it.@id == 'keep-1a1a17' }.@action", is("/groups/keep"))
-                .body("**.find { it.name() == 'form' && it.@id == 'keep-1a1a17' }.button", is("Set a keep override"));
+                .body(
+                        "**.find { it.name() == 'form' && it.@id == 'keep-1a1a17' }.'**'.find { it.name() == 'button' }",
+                        is("Set a keep override"));
 
         user.form(page, "keep-1a1a17")
                 .formParam("note", "Rewatching")

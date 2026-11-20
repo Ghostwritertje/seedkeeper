@@ -1,4 +1,4 @@
-{#include layout.html}
+{#include layout.html current='settings'}
 {#title}Settings{/title}
 <h1>Settings</h1>
 <p>The configuration seedkeeper runs with. To change it, edit <code>seedkeeper.yaml</code> or the environment and restart.</p>
@@ -68,7 +68,7 @@
 <dl>
 {#for secret in settings.secrets}
 <dt>{secret.variable}</dt>
-<dd>{secret.state}</dd>
+<dd data-tone="{#if secret.state == 'set'}ok{#else}danger{/if}">{secret.state}</dd>
 {/for}
 </dl>
 </section>

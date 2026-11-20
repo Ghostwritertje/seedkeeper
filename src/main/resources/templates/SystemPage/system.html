@@ -1,13 +1,6 @@
-{#include layout.html}
+{#include layout.html current='system'}
 {#title}System{/title}
 <h1>System</h1>
-<section id="seedkeeper">
-<h2>seedkeeper</h2>
-<dl>
-<dt>Version</dt>
-<dd>{status.version}</dd>
-</dl>
-</section>
 <section id="runs">
 <h2>Runs</h2>
 {#if notice}
@@ -15,10 +8,10 @@
 {/if}
 <dl>
 <dt>Status</dt>
-<dd>{#if status.running}Running now{#else}Idle{/if}</dd>
+<dd data-tone="{#if status.running}warn{#else}muted{/if}">{#if status.running}Running now{#else}Idle{/if}</dd>
 <dt>Last run</dt>
 {#if lastRun}
-<dd>{#if status.lastRun.succeeded}Succeeded{#else}Failed{/if}</dd>
+<dd data-tone="{#if status.lastRun.succeeded}ok{#else}danger{/if}">{#if status.lastRun.succeeded}Succeeded{#else}Failed{/if}</dd>
 <dt>Started</dt>
 <dd>{lastRun.started}</dd>
 <dt>Ended</dt>
@@ -48,17 +41,25 @@
 {/if}
 {/if}
 {! Carries out the verdicts of the Groups view: removes the groups that are due and deletes their files. !}
-<form method="post" action="/system/run">
+<form method="post" action="/system/run" onsubmit="return confirm('Run now? It removes every group marked Remove and deletes their files.')">
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
 <button type="submit">Run now</button>
+<a href="/groups?verdict=remove">See what it would remove</a>
 </form>
+</section>
+<section id="seedkeeper">
+<h2>seedkeeper</h2>
+<dl>
+<dt>Version</dt>
+<dd>{status.version}</dd>
+</dl>
 </section>
 {! Asks Transmission again every 30 s and swaps in this section of the fresh page. !}
 <section id="transmission" hx-get="/system" hx-select="#transmission" hx-trigger="every 30s" hx-swap="outerHTML">
 <h2>Transmission</h2>
 <dl>
 <dt>Status</dt>
-<dd>{#if status.transmission.usable}Reachable{#else if status.transmission.reachable}Reachable, not usable{#else}Unreachable{/if}</dd>
+<dd data-tone="{#if status.transmission.usable}ok{#else if status.transmission.reachable}warn{#else}danger{/if}">{#if status.transmission.usable}Reachable{#else if status.transmission.reachable}Reachable, not usable{#else}Unreachable{/if}</dd>
 <dt>Version</dt>
 <dd>{status.transmission.version ?: 'unknown'}</dd>
 </dl>

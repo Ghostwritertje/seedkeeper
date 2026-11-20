@@ -1,10 +1,10 @@
-{#include layout.html}
+{#include layout.html current='activity'}
 {#title}Activity{/title}
 <h1>Activity</h1>
 {#if unavailable}
 <p role="alert">{unavailable}</p>
 {#else if runs.isEmpty}
-<p>No run has ended yet.</p>
+<p>No run has ended yet. The <a href="/system">System view</a> shows when the next one starts.</p>
 {#else}
 <p>The runs of the last year, the newest first, and what each removed.</p>
 {#for run in runs}
@@ -12,7 +12,7 @@
 <h2>{run.started}</h2>
 <dl>
 <dt>Status</dt>
-<dd>{run.status}</dd>
+<dd data-tone="{#if run.status == 'Succeeded'}ok{#else}danger{/if}">{run.status}</dd>
 <dt>Ended</dt>
 <dd>{run.ended}</dd>
 <dt>Removed</dt>

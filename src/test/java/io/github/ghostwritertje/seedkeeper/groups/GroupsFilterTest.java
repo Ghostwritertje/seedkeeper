@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 class GroupsFilterTest {
 
     private static final long DAY = 86_400;
+    private static final String TALLY = "html.body.main.nav";
     private static final int SEEDING = 6;
     private static final int CHECKING = 2;
     private static final int DOWNLOADING = 4;
@@ -297,6 +298,43 @@ class GroupsFilterTest {
                 .body("html.body.main.table.tbody.tr[0].td[0]", is("Half.Gone"))
                 .body(selected("verdict"), is("left-alone"))
                 .body(selected("reason"), is("missing-data"));
+    }
+
+    @Test
+    void pageCountsTheGroupsOfEveryVerdictAndLinksToThem() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups?verdict=keep")
+                .then()
+                .statusCode(200)
+                .body(TALLY + ".a.collect { it.text() }", contains("6 All", "1 Remove", "2 Left alone", "3 Keep"))
+                .body(
+                        TALLY + ".a.@href",
+                        contains(
+                                "/groups?verdict=",
+                                "/groups?verdict=remove",
+                                "/groups?verdict=left-alone",
+                                "/groups?verdict=keep"))
+                .body(TALLY + ".a.findAll { it.@'aria-current' == 'page' }.@href", is("/groups?verdict=keep"))
+                .body(TALLY + ".a.mark.@data-verdict", contains("remove", "left-alone", "keep"))
+                .body("html.body.main.table.tbody.@data-verdict", contains("keep", "keep", "keep"))
+                .body(
+                        "html.body.main.table.tbody.tr.collect { it.td[6].@data-verdict.text() }",
+                        contains("keep", "keep", "keep"));
+    }
+
+    @Test
+    void theCountsOfTheVerdictsKeepTheReasonOfTheFilter() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups?reason=missing-data")
+                .then()
+                .statusCode(200)
+                .body(TALLY + ".a.collect { it.text() }", contains("1 All", "0 Remove", "1 Left alone", "0 Keep"))
+                .body(TALLY + ".a[2].@href", is("/groups?verdict=left-alone&reason=missing-data"))
+                .body(
+                        TALLY + ".a.findAll { it.@'aria-current' == 'page' }.@href",
+                        is("/groups?verdict=&reason=missing-data"));
     }
 
     @Test

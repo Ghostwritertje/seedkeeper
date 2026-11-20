@@ -58,6 +58,22 @@ class LoginTest {
         given().when().get("/seedkeeper.css").then().statusCode(200);
     }
 
+    /**
+     * The icon needs no login: a browser asks for it before the login, and the login would otherwise send it to the
+     * icon instead of a page.
+     */
+    @Test
+    void theIconNeedsNoLogin() {
+        given().redirects()
+                .follow(false)
+                .when()
+                .get("/favicon.svg")
+                .then()
+                .statusCode(200)
+                .contentType(containsString("image/svg+xml"));
+        given().redirects().follow(false).when().get("/favicon.ico").then().statusCode(404);
+    }
+
     @Test
     void rightUsernameAndPasswordLogIn() {
         post(TestSecrets.USERNAME, TestSecrets.PASSWORD)

@@ -1,4 +1,4 @@
-{#include layout.html}
+{#include layout.html current='overrides'}
 {#title}Overrides{/title}
 <h1>Overrides</h1>
 {#if notice}
@@ -27,16 +27,18 @@ the file as a whole: comments added by hand are lost.</p>
 </thead>
 <tbody>
 {#for override in overrides}
-<tr><td>{override.status}</td><td>{override.note}</td><td>{override.until}</td><td>{override.created}</td><td>{#if !override.known}unknown{#else if override.groups.isEmpty}no torrent{#else}{#for group in override.groups}<ul>{#for name in group}<li>{name}</li>{/for}</ul>{/for}{/if}</td><td>{override.hashes}</td><td>{override.id}</td><td><form id="edit-{override_index}" method="post" action="/overrides/edit">
+<tr><td data-tone="{#if override.status == 'Active'}ok{#else if override.status == 'Unknown'}muted{#else}warn{/if}">{override.status}</td><td>{override.note}</td><td>{override.until}</td><td>{override.created}</td><td>{#if !override.known}unknown{#else if override.groups.isEmpty}no torrent{#else}{#for group in override.groups}<ul>{#for name in group}<li>{name}</li>{/for}</ul>{/for}{/if}</td><td>{override.hashes}</td><td>{override.id}</td><td><form id="edit-{override_index}" method="post" action="/overrides/edit">
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
 <input type="hidden" name="id" value="{override.id}">
+<details><summary>Edit…</summary><div>
 <label>Note <input type="text" name="note" value="{override.note}"></label>
-<label>Until <input type="date" name="until" value="{override.untilDate}"></label>
+<label>Until (optional) <input type="date" name="until" value="{override.untilDate}"></label>
 <button type="submit">Save</button>
-</form><form id="delete-{override_index}" method="post" action="/overrides/delete">
+</div></details>
+</form><form id="delete-{override_index}" method="post" action="/overrides/delete" onsubmit="return confirm('Delete this keep override? The groups it keeps can then be removed by the next run.')">
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
 <input type="hidden" name="id" value="{override.id}">
-<button type="submit">Delete</button>
+<button type="submit" data-tone="danger">Delete</button>
 </form></td></tr>
 {/for}
 </tbody>
@@ -45,11 +47,11 @@ the file as a whole: comments added by hand are lost.</p>
 <section id="add-override">
 <h2>Add a keep override</h2>
 <p>The info hashes of the torrents to keep, separated by commas or spaces. The override keeps every group that has
-one of them. To keep a group with all its members, use "Set a keep override" in the Groups view.</p>
+one of them. To keep a group with all its members, use "Keep…" in the <a href="/groups">Groups view</a>.</p>
 <form id="add" method="post" action="/overrides">
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
-<label>Info hashes <textarea name="hashes" required></textarea></label>
-<label>Note <input type="text" name="note"></label>
+<label>Info hashes <textarea name="hashes" required placeholder="One or more info hashes"></textarea></label>
+<label>Note <input type="text" name="note" placeholder="Why keep it?"></label>
 <label>Until (inclusive, optional) <input type="date" name="until"></label>
 <button type="submit">Add</button>
 </form>
