@@ -589,6 +589,16 @@ main > nav a mark {
   text-align: center;
 }
 
+/* The pages of the Activity view: "Newer runs", "Page 1 of 2", "Older runs". */
+main > nav[aria-label="Pages"] {
+  align-items: center;
+}
+
+main > nav[aria-label="Pages"] p {
+  margin: 0;
+  color: var(--muted);
+}
+
 /* Overrides. */
 
 [data-page="overrides"] td:nth-child(6),

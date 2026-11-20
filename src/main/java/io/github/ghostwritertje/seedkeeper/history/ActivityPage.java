@@ -13,7 +13,9 @@ import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
+import java.math.BigInteger;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -23,7 +25,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
-/** The Activity view: the runs of the last year and what each removed. */
+/** The Activity view: the runs of the last year and what each removed, 20 runs to a page. */
 @Path("/activity")
 class ActivityPage {
 
@@ -33,10 +35,11 @@ class ActivityPage {
     static class Templates {
 
         /**
-         * @param runs        the newest first
+         * @param runs        the runs of this page, the newest first
+         * @param pages       which page this is, out of how many
          * @param unavailable why the history can't be read; null when it can
          */
-        static native TemplateInstance activity(List<Run> runs, @Nullable String unavailable);
+        static native TemplateInstance activity(List<Run> runs, Pages pages, @Nullable String unavailable);
     }
 
     /**
@@ -67,6 +70,54 @@ class ActivityPage {
      */
     public record Removal(List<String> members, String reason, int filesDeleted, String spaceFreed, String error) {}
 
+    /**
+     * The page of runs the Activity view shows, and how many pages there are.
+     *
+     * @param page  1-based, between 1 and {@code count}
+     * @param count 1 when there are no runs
+     */
+    public record Pages(int page, int count) {
+
+        /**
+         * @param requested the {@code page} query parameter; a page below 1 or one that is no number is the first, a
+         *                  page beyond the last is the last
+         * @param runs      how many runs there are
+         */
+        static Pages of(@Nullable String requested, int runs) {
+            int count = Math.max(1, (runs + PAGE_SIZE - 1) / PAGE_SIZE);
+            if (requested == null || !requested.strip().matches("[+-]?\\d+")) {
+                return new Pages(1, count);
+            }
+            BigInteger page = new BigInteger(requested.strip());
+            return new Pages(
+                    page.max(BigInteger.ONE).min(BigInteger.valueOf(count)).intValueExact(), count);
+        }
+
+        /** The runs of this page, out of all of them, the newest first. */
+        <T> List<T> of(List<T> runs) {
+            int from = (page - 1) * PAGE_SIZE;
+            return runs.subList(Math.min(from, runs.size()), Math.min(from + PAGE_SIZE, runs.size()));
+        }
+
+        /** Whether there is more than one page, so the view links between them. */
+        public boolean several() {
+            return count > 1;
+        }
+
+        /** Whether there is a page of newer runs before this one. */
+        public boolean newer() {
+            return page > 1;
+        }
+
+        /** Whether there is a page of older runs after this one. */
+        public boolean older() {
+            return page < count;
+        }
+    }
+
+    /** How many runs one page of the Activity view shows at most. */
+    static final int PAGE_SIZE = 20;
+
     private final History history;
     private final ZoneId timeZone;
 
@@ -78,12 +129,13 @@ class ActivityPage {
     @GET
     @Produces(MediaType.TEXT_HTML)
     @RunOnVirtualThread
-    public TemplateInstance activity() {
+    public TemplateInstance activity(@QueryParam("page") @Nullable String page) {
         try {
-            return Templates.activity(
-                    history.runs(Optional.empty()).stream().map(this::run).toList(), null);
+            List<RecordedRun> runs = history.runs(Optional.empty());
+            Pages pages = Pages.of(page, runs.size());
+            return Templates.activity(pages.of(runs).stream().map(this::run).toList(), pages, null);
         } catch (HistoryException e) {
-            return Templates.activity(List.of(), e.getMessage());
+            return Templates.activity(List.of(), Pages.of(null, 0), e.getMessage());
         }
     }
 

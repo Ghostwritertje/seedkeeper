@@ -1,6 +1,7 @@
 package io.github.ghostwritertje.seedkeeper.system;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
@@ -132,6 +133,19 @@ class LastRunAfterRestartTest {
                 .body(
                         "html.body.main.section.find { it.@id == 'runs' }.p.find { it.@role == 'alert' }",
                         is("Transmission does not answer"));
+    }
+
+    @Test
+    void theActivityViewListsTheRunsOfTheHistoryOnOnePage() {
+        Authenticated.asUser()
+                .when()
+                .get("/activity")
+                .then()
+                .statusCode(200)
+                .body(
+                        "html.body.main.article.h2.collect { it.text() }",
+                        contains("2026-11-16 07:00:00", "2026-11-16 06:00:00"))
+                .body("html.body.main.nav.size()", is(0));
     }
 
     @Test
