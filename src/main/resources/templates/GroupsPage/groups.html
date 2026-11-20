@@ -14,7 +14,7 @@
 {! A change of reason applies at once (htmx swaps in the new view and its URL); without scripts, the button does it. !}
 <form method="get" action="/groups" hx-get="/groups" hx-trigger="change" hx-select="main" hx-target="main" hx-swap="outerHTML" hx-push-url="true">
 <input type="hidden" name="verdict" value="{filter.verdictCode}">
-<label>Reason <select name="reason">
+<label>Reason <select name="reason" id="reason">
 <option value=""{#if filter.anyReason} selected="selected"{/if}>Any reason ({filter.any})</option>
 {#for option in filter.reasons}
 <option value="{option.code}"{#if option.selected} selected="selected"{/if}{#if option.disabled} disabled="disabled"{/if}>{option.label} ({option.count})</option>

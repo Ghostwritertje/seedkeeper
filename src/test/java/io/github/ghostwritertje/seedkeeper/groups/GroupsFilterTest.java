@@ -261,7 +261,8 @@ class GroupsFilterTest {
                 .body("html.body.main.form.@'hx-trigger'", is("change"))
                 .body("html.body.main.form.@'hx-get'", is("/groups"))
                 .body("html.body.main.form.button.size()", is(0))
-                .body("html.body.main.form.noscript.button", is("Filter"));
+                .body("html.body.main.form.noscript.button", is("Filter"))
+                .body("html.body.main.form.'**'.find { it.name() == 'select' }.@id", is("reason"));
     }
 
     @Test
