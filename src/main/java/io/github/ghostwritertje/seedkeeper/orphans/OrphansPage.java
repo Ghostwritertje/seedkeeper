@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
 /** The Orphans view. */
@@ -91,12 +90,15 @@ class OrphansPage {
         try {
             Orphans found = orphans.orphans();
             Instant now = Instant.now();
-            Map<Boolean, List<Orphans.Orphan>> files =
-                    found.files().stream().collect(Collectors.partitioningBy(Orphans.Orphan::systemFile));
             java.nio.file.Path root = found.downloadsRoot();
+            List<Orphans.Orphan> files = found.files().stream()
+                    .filter(orphan -> !orphan.systemFile())
+                    .toList();
+            List<Orphans.Orphan> systemFiles =
+                    found.files().stream().filter(Orphans.Orphan::systemFile).toList();
             return Templates.orphans(
-                    listing(root, files.get(false), "file", "files", now),
-                    listing(root, files.get(true), "system file", "system files", now),
+                    listing(root, files, "file", "files", now),
+                    listing(root, systemFiles, "system file", "system files", now),
                     listing(root, found.danglingSymlinks(), "dangling symlink", "dangling symlinks", now),
                     null,
                     unreadable(found.unreadable()));

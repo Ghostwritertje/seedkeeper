@@ -37,7 +37,8 @@ class OrphansListingTest {
         assertEquals(
                 List.of("S01/episode.mkv", "episode.nfo"),
                 listing.groups().get(1).rows().stream().map(Row::path).toList());
-        assertEquals("leftover.nfo", listing.groups().getFirst().rows().getFirst().path());
+        assertEquals(
+                "leftover.nfo", listing.groups().getFirst().rows().getFirst().path());
     }
 
     @Test
@@ -84,7 +85,9 @@ class OrphansListingTest {
 
         Listing listing = OrphansPage.listing(ROOT, List.of(file), "file", "files", NOW);
 
-        assertEquals(new Row("a.mkv", "", "1 B", "0m", ""), listing.groups().getFirst().rows().getFirst());
+        assertEquals(
+                new Row("a.mkv", "", "1 B", "0m", ""),
+                listing.groups().getFirst().rows().getFirst());
     }
 
     @Test

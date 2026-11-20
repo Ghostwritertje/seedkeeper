@@ -81,7 +81,9 @@ class OrphansTest {
                 .body(
                         "danglingSymlinks.path",
                         contains(downloads.resolve("cross-seed/movie.mkv").toString()))
-                .body("danglingSymlinks.target", contains(downloads.resolve("gone/movie.mkv").toString()))
+                .body(
+                        "danglingSymlinks.target",
+                        contains(downloads.resolve("gone/movie.mkv").toString()))
                 .body("danglingSymlinks.systemFile", contains(false))
                 .body("totalSizeBytes", is(2054));
     }
@@ -189,7 +191,9 @@ class OrphansTest {
                 .body(files + ".h2", is("Files"))
                 .body(
                         files + ".details.summary.code",
-                        contains(downloads.toString(), downloads.resolve("Removed").toString()))
+                        contains(
+                                downloads.toString(),
+                                downloads.resolve("Removed").toString()))
                 .body(files + ".details.summary.span", contains("1 file, 512 B", "1 file, 1.5 KiB"))
                 .body(files + ".details[0].div.table.thead.tr.th", contains("Path", "Size", "Age"))
                 .body(files + ".details[0].div.table.tbody.tr.td", contains("leftover.nfo", "512 B", "3d 2h"))
@@ -197,7 +201,9 @@ class OrphansTest {
                 .body(files + ".p", is("Total of 2 files, 2.0 KiB"))
                 .body(symlinks + ".h2", is("Dangling symlinks"))
                 .body(symlinks + ".p[0]", containsString("delete the link itself"))
-                .body(symlinks + ".details.summary.code", is(downloads.resolve("cross-seed").toString()))
+                .body(
+                        symlinks + ".details.summary.code",
+                        is(downloads.resolve("cross-seed").toString()))
                 .body(symlinks + ".details.div.table.thead.tr.th", contains("Path", "Target", "Size", "Age"))
                 .body(symlinks + ".details.div.table.tbody.tr.td[0]", is("movie.mkv"))
                 .body(
@@ -215,7 +221,9 @@ class OrphansTest {
                 .then()
                 .statusCode(200)
                 .body(system + ".summary", is("Show 1 system file"))
-                .body(system + ".details.summary.code", is(downloads.resolve("Removed").toString()))
+                .body(
+                        system + ".details.summary.code",
+                        is(downloads.resolve("Removed").toString()))
                 .body(system + ".details.div.table.tbody.tr.td[0]", is(".DS_Store"));
     }
 

@@ -32,7 +32,12 @@ record Orphans(Path downloadsRoot, List<Orphan> files, List<Orphan> danglingSyml
      * @param target       of a dangling symlink, where it leads, as the link has it (relative or absolute); null for
      *                     a file
      */
-    public record Orphan(Path path, long size, Instant lastModified, boolean libraryLink, @Nullable Path target) {
+    public record Orphan(
+            Path path,
+            long size,
+            Instant lastModified,
+            boolean libraryLink,
+            @Nullable Path target) {
 
         /**
          * Whether it is metadata the OS or the NAS writes next to the files: macOS's {@code .DS_Store} and
