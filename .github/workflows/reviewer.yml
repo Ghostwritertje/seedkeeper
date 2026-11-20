@@ -10,9 +10,10 @@ name: Reviewer
 #
 # Auto-merge: the reviewer may approve an implementer pull request and add `auto-merge` (docs/agents/auto-merge.md).
 # After the review, the gate job runs .github/scripts/auto-merge-gate.sh and, when it passes, turns on a squash
-# auto-merge with the workflow's own token: the reviewer App can't write contents, so it can't merge. Any new push to
-# an implementer pull request first withdraws an earlier auto-merge, so every head is approved again. Why:
-# docs/adr/0002-auto-merge-policy.md.
+# auto-merge with a reviewer App token, so GitHub merges as the App. Not with the workflow's own token: a merge made
+# with it closes no `Closes #<n>` issue and starts no workflow, not even CI on `main` (#47). Only the gate's token can
+# write contents; the agent's stays read-only. Any new push to an implementer pull request first withdraws an earlier
+# auto-merge, so every head is approved again. Why: docs/adr/0002-auto-merge-policy.md.
 
 on:
   pull_request:
@@ -228,6 +229,9 @@ jobs:
   # branch's gate script, so a pull request can't change its own gate. When the gate passes, it turns on a squash
   # auto-merge for the approved head only; GitHub merges once the ruleset's checks pass and the threads are resolved.
   # When it fails, it logs the reason and does nothing else.
+  # GitHub merges as whoever turned auto-merge on, so the gate does it as the reviewer App: then the merge closes the
+  # pull request's `Closes #<n>` issues and starts CI on `main`. The App, not a user, closes those issues, so the
+  # implementer starts no dependents (ADR 0002).
   gate:
     name: Auto-merge gate
     needs: review
@@ -236,9 +240,6 @@ jobs:
     if: ${{ !cancelled() && needs.review.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -246,9 +247,19 @@ jobs:
           persist-credentials: false
           sparse-checkout: .github/scripts
 
+      # Only this token can write contents, which merging needs; the agent's token above stays read-only.
+      - name: Mint the reviewer App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.REVIEWER_CLIENT_ID }}
+          private-key: ${{ secrets.REVIEWER_APP_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - name: Decide, and turn on auto-merge if the gate passes
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           REVIEWER: ${{ needs.review.outputs.reviewer }}

@@ -62,10 +62,11 @@ The human-only paths, enforced whatever the reviewer says:
 - the Docker directory, `src/main/docker/`;
 - the database migration directory, `src/main/resources/db/migration/`.
 
-The auto-merge uses the workflow's own token, as `dependabot-auto-merge.yml` does: the reviewer App can't write
-contents, so it can't merge. GitHub then merges only once the `main` ruleset is satisfied: `Verify (JVM)`,
-`Verify (native)`, `Verify (quality)`, `Lint (non-Java)` and `Test the CI scripts` green, and every review thread
-resolved.
+The gate turns on the auto-merge with a reviewer App token, so GitHub merges as the reviewer App. Not with the
+workflow's own token: a merge made with it doesn't act on `Closes #<n>` and starts no workflow, not even CI on `main`
+(#47). Only the gate's token writes contents; the reviewer agent's token stays read-only. GitHub then merges only
+once the `main` ruleset is satisfied: `Verify (JVM)`, `Verify (native)`, `Verify (quality)`, `Lint (non-Java)` and
+`Test the CI scripts` green, and every review thread resolved.
 
 **A new push withdraws it.** Any push to an implementer pull request turns off its auto-merge and removes
 `auto-merge` before the next review, so each head is approved on its own.
@@ -77,10 +78,6 @@ resolved.
 - **To change the criteria or the human-only paths:** change this doc, the gate script and its tests, in a pull
   request you merge yourself. The gate script and its tests are on a human-only path. This doc isn't: the gate
   doesn't cover `docs/agents/`, so a change to it is held back by the reviewer's **Agent setup** criterion.
-- **After an auto-merge:** the merge doesn't close the pull request's `Closes #<n>` issues, since it is made with the
-  workflow's own token. `.github/workflows/close-auto-merged-issues.yml` closes them instead: every 30 minutes, or
-  at once with Run workflow, it closes each open issue of an implementer pull request `github-actions` merged in
-  the last week as completed, then comments on it, linking the pull request. It never closes an issue again once it has
-  commented on it for that pull request, so an issue you reopen stays open. It closes with the workflow's own token
-  too, so the close starts no workflow: the issues the merged one was blocking aren't started on their own. See
-  `docs/agents/issue-tracker.md`, **Unblocked**.
+- **After an auto-merge:** the merge closes the pull request's `Closes #<n>` issues, as any merge does. The reviewer
+  App closes them, not a user, so the issues the merged one was blocking aren't started on their own: start each one
+  by hand. See `docs/agents/issue-tracker.md`, **Unblocked**.

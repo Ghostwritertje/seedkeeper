@@ -3,7 +3,8 @@
 An implementer pull request merges without the maintainer when the reviewer judges it a two-way door with a small
 blast radius, approves it and adds `auto-merge`, and a gate script then finds that the implementer opened it, the
 reviewer's latest review approves its current head, it carries `auto-merge` and it touches no human-only path. The
-gate turns on a squash auto-merge with the workflow's own token, and the `main` ruleset stays the final check: the
+gate turns on a squash auto-merge with a reviewer App token (see the 2026-11-20 note under Consequences), and the
+`main` ruleset stays the final check: the
 required checks `Verify (JVM)`, `Verify (native)`, `Verify (quality)`, `Lint (non-Java)` and `Test the CI scripts`
 green, and every review thread resolved. The criteria and the paths are in `docs/agents/auto-merge.md`.
 
@@ -49,10 +50,13 @@ green, and every review thread resolved. The criteria and the paths are in `docs
   them, which is harder to take back than to add later. After an auto-merge the maintainer starts each unblocked
   dependent by removing and re-adding its `ready-for-agent`.
 
-  _2026-11-20 (#47):_ the auto-merge doesn't close the issue either: a merge made with the workflow's own token
-  doesn't act on `Closes #<n>`, and starts no workflow, not even a `pull_request: closed` one. So
-  `close-auto-merged-issues.yml` closes those issues on a schedule, with the workflow's own token, and that close
-  starts no workflow. An issue closed by an auto-merged pull request still starts no dependents.
+  _2026-11-20 (#47):_ a merge made with the workflow's own token doesn't act on `Closes #<n>` either, and starts
+  no workflow, not even CI on `main`. A scheduled workflow that closed those issues was tried and dropped: GitHub
+  never ran its schedule. So the gate now turns auto-merge on with a reviewer App token, and GitHub merges as the
+  App: the merge closes its issues and starts CI on `main`. That reverses the "don't merge with an App token" above,
+  but not its reason: the merge does start the issue-closed trigger now, with the reviewer App as the closer, and
+  the trigger still starts dependents only for a user, so an auto-merged pull request still starts no dependents.
+  Only the gate's token asks for the App's new contents write; the reviewer agent's token stays read-only.
 - **A quality tool bump that brings new findings doesn't merge itself.** `Verify (quality)` and `Lint (non-Java)` are
   required checks (ADR 0003), so a Dependabot pull request that bumps a quality tool and makes it report something new
   fails a required check. `dependabot-auto-merge.yml` turns auto-merge on, but GitHub doesn't merge until a fix makes
