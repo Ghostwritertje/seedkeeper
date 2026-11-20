@@ -213,6 +213,20 @@ jobs:
           java-version: 25
           cache: maven
 
+      # The browser of the run-app skill (.claude/skills/run-app): a headless Chrome the agent drives to look at the
+      # views it changed. A pinned release binary checked against its SHA-256, as in the Run the app job in ci.yml:
+      # Dependabot doesn't track it, so bump the three together, by hand.
+      - name: Install agent-browser
+        run: |
+          bin="$RUNNER_TEMP/agent-browser-bin"
+          mkdir -p "$bin"
+          curl -fsSL -o "$bin/agent-browser" \
+            https://github.com/vercel-labs/agent-browser/releases/download/v0.43.0/agent-browser-linux-x64
+          echo "8e69c9fb662514c9cf36e4911e94e913742ba066e55102486350e049dd847612  $bin/agent-browser" | sha256sum -c -
+          chmod +x "$bin/agent-browser"
+          echo "$bin" >> "$GITHUB_PATH"
+          "$bin/agent-browser" install --with-deps
+
       # The allowlist is exact: --permission-mode default denies whatever it doesn't list, and the denies are on the
       # command line so they also bind the action's own git scripts. Pushes go to the pull request's branch only.
       # allowed_bots lets the reviewer App's label start a run; the implementer App's own bot is listed because the
@@ -238,6 +252,7 @@ jobs:
             REVIEW THREADS: /tmp/review-threads.json
             CONVERSATION: /tmp/pull-request-conversation.json
             HANDLED THREADS: /tmp/handled-review-threads.txt
+            SCREENSHOTS: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts
 
             ${{ steps.prompt.outputs.text }}
           claude_args: >-
@@ -245,9 +260,20 @@ jobs:
             --max-turns 150
             --permission-mode default
             --allowedTools
-            "Read,Glob,Grep,Edit,MultiEdit,Write,Agent,Skill,TodoWrite,Bash(./mvnw:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git branch --show-current),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git commit:*),Bash(git restore:*),Bash(git push origin ${{ needs.pick-up.outputs.branch }}),Bash(gh issue view:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment ${{ inputs.pull_request }}:*),Bash(gh pr edit ${{ inputs.pull_request }} --add-label needs-decision),Bash(gh pr edit ${{ inputs.pull_request }} --add-label agent:blocked)"
+            "Read,Glob,Grep,Edit,MultiEdit,Write,Agent,Skill,TodoWrite,Bash(./mvnw:*),Bash(.claude/skills/run-app/run-app.sh:*),Bash(agent-browser:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git branch --show-current),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git commit:*),Bash(git restore:*),Bash(git push origin ${{ needs.pick-up.outputs.branch }}),Bash(gh issue view:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment ${{ inputs.pull_request }}:*),Bash(gh pr edit ${{ inputs.pull_request }} --add-label needs-decision),Bash(gh pr edit ${{ inputs.pull_request }} --add-label agent:blocked)"
             --disallowedTools
             "Bash(gh pr merge:*),Bash(gh pr review:*),Bash(gh pr edit *auto-merge*),Bash(gh api:*),Bash(git push --force:*),Bash(git push -f:*),Bash(git push --force-with-lease:*),Bash(git push * --force*),Bash(git push * -f*),Bash(git push *+*),Bash(git push --delete:*),Bash(git push * --delete*),Bash(git reset --hard:*),Bash(git rebase:*),Bash(./mvnw *-Dnative*),Bash(./mvnw *-Pnative*)"
+
+      # The run-app skill's before and after screenshots, which the pull request comment links as SCREENSHOTS. Also
+      # after a failed run: they show how far it got.
+      - name: Upload the screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: screenshots
+          path: /tmp/screenshots/
+          if-no-files-found: ignore
+          retention-days: 30
 
       # Only threads that were unresolved when the run started, and that the agent listed as handled.
       - name: Resolve the handled review threads

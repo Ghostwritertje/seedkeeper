@@ -78,6 +78,61 @@ jobs:
       # Each .github/scripts/*.test.sh is a table-driven shell test. They need only bash and jq: no Docker, no Maven.
       - run: for test in .github/scripts/*.test.sh; do "$test"; done
 
+  # What the implementer agents do with the run-app skill (.claude/skills/run-app): start the app against the demo
+  # Transmission, log in with agent-browser and look at a view. Keeps the skill and the agents' browser working.
+  run-app:
+    name: Run the app (run-app skill)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+      # The same pin as in implement-issue.yml and address-review.yml: bump the three together, by hand.
+      - name: Install agent-browser
+        run: |
+          bin="$RUNNER_TEMP/agent-browser-bin"
+          mkdir -p "$bin"
+          curl -fsSL -o "$bin/agent-browser" \
+            https://github.com/vercel-labs/agent-browser/releases/download/v0.43.0/agent-browser-linux-x64
+          echo "8e69c9fb662514c9cf36e4911e94e913742ba066e55102486350e049dd847612  $bin/agent-browser" | sha256sum -c -
+          chmod +x "$bin/agent-browser"
+          echo "$bin" >> "$GITHUB_PATH"
+          "$bin/agent-browser" install --with-deps
+      - name: Start the app
+        run: .claude/skills/run-app/run-app.sh start
+      - name: Log in and look at the Groups view
+        shell: bash
+        run: |
+          mkdir -p /tmp/screenshots
+          agent-browser open http://localhost:8187/login
+          agent-browser find label "Username" fill admin
+          agent-browser find label "Password" fill ui-password
+          agent-browser find role button click --name "Log in"
+          agent-browser open http://localhost:8187/groups
+          agent-browser screenshot --full /tmp/screenshots/groups.png
+          agent-browser get text main | grep -F "The.Expanse.S01.1080p.BluRay.x264"
+      - name: Stop the app
+        if: always()
+        run: |
+          agent-browser close || true
+          .claude/skills/run-app/run-app.sh stop
+      - name: Show the logs
+        if: failure()
+        run: tail -n 200 "${TMPDIR:-/tmp}"/seedkeeper-run-app/*.log
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: run-app-screenshots
+          path: /tmp/screenshots/
+          if-no-files-found: ignore
+          retention-days: 7
+
   lint:
     name: Lint (non-Java)
     runs-on: ubuntu-latest
@@ -114,7 +169,7 @@ jobs:
       # Each linter runs even when one before it failed, so one run lists every finding.
       - name: shellcheck
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: shellcheck .github/scripts/*.sh .claude/hooks/*.sh
+        run: shellcheck .github/scripts/*.sh .claude/hooks/*.sh .claude/skills/run-app/*.sh
       # actionlint also runs the shellcheck above on the workflows' run: scripts.
       - name: actionlint
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}

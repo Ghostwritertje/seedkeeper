@@ -655,6 +655,8 @@ the formatting, Java and POM both, run:
 ```
 
 `quarkus:dev` needs the configuration too: export the environment variables above and `SEEDKEEPER_TRANSMISSION_URL`.
+To try the views without a Transmission of your own, run `.claude/skills/run-app/run-app.sh start`: it starts dev mode
+on http://localhost:8187 against a fake Transmission with demo torrents and files, and prints the login. `stop` stops it.
 
 The native executable is built for `linux/amd64` with Mandrel, inside the builder container. CI runs these steps on
 every pull request, and on any branch with `gh workflow run ci.yml --ref <branch>`. On a dev machine, leave them to
