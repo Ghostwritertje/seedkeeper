@@ -82,8 +82,7 @@ class GroupsPageTest {
         GroupsPage.SeedProgress progress = new GroupsPage.SeedProgress("warn", 3, "3%", "1d of 30d · 29d to go");
         assertEquals(
                 List.of(
-                        new GroupsPage.Member(
-                                List.of("Cross.", "Seed"), "tracker-a", progress, "Seeding", "", "0 B"),
+                        new GroupsPage.Member(List.of("Cross.", "Seed"), "tracker-a", progress, "Seeding", "", "0 B"),
                         new GroupsPage.Member(
                                 List.of("Cross-", "Seed.", "Elsewhere"), "tracker-a", progress, "Seeding", "", "0 B")),
                 group.members());

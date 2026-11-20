@@ -1313,7 +1313,8 @@ class DecideTest {
 
         List<GroupVerdict> verdicts = Decide.decide(shared, RULES, NOW);
 
-        assertEquals(List.of(20L, 10L), verdicts.stream().map(GroupVerdict::size).toList());
+        assertEquals(
+                List.of(20L, 10L), verdicts.stream().map(GroupVerdict::size).toList());
     }
 
     @Test
