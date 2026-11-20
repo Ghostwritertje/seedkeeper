@@ -125,7 +125,9 @@ class GroupsBrowseTest {
                 // The counts are of the groups the search finds.
                 .body(TALLY + ".a.collect { it.text() }", contains("2 All", "1 Remove", "0 Left alone", "1 Keep"))
                 .body(TALLY + ".a[3].@href", is("/groups?verdict=keep&q=MOVIE"))
-                .body(GroupsTable.HEADINGS + ".find { it.text() == 'Name' }.a.@href", is("/groups?q=MOVIE&sort=name&dir=asc"))
+                .body(
+                        GroupsTable.HEADINGS + ".find { it.text() == 'Name' }.a.@href",
+                        is("/groups?q=MOVIE&sort=name&dir=asc"))
                 .body("html.body.main.form.a.@href", is("/groups"))
                 .body("html.body.main.form.a", is("Clear filter"));
         Authenticated.asUser()

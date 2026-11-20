@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
 /** How the Groups view writes a group: its header row, its member rows, and where a long name may break. */
@@ -62,15 +63,13 @@ class GroupsPageTest {
 
         GroupsPage.Pages pages = GroupsPage.Pages.of(query, 101);
 
-        assertEquals(
-                new GroupsPage.Pages(3, 3, 101, "/groups?q=x&sort=name&dir=desc&page=2", ""), pages);
-        assertEquals(List.of(100), pages.of(java.util.stream.IntStream.range(0, 101).boxed().toList()));
+        assertEquals(new GroupsPage.Pages(3, 3, 101, "/groups?q=x&sort=name&dir=desc&page=2", ""), pages);
+        assertEquals(List.of(100), pages.of(IntStream.range(0, 101).boxed().toList()));
         assertEquals(new GroupsPage.Pages(1, 1, 0, "", ""), GroupsPage.Pages.of(query, 0));
         assertEquals(
                 new GroupsPage.Pages(1, 2, 51, "", "/groups?q=x&sort=name&dir=desc&page=2"),
                 GroupsPage.Pages.of(query.page(1), 51));
-        assertEquals(
-                new GroupsPage.Pages(1, 1, 50, "", ""), GroupsPage.Pages.of(query.page(1), 50));
+        assertEquals(new GroupsPage.Pages(1, 1, 50, "", ""), GroupsPage.Pages.of(query.page(1), 50));
     }
 
     @Test

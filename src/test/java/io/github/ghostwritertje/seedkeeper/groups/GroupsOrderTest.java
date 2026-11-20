@@ -42,7 +42,8 @@ class GroupsOrderTest {
     private static final GroupVerdict OVERRIDDEN = group(
             "Overridden",
             Verdict.KEEP,
-            Optional.of(new Forecast(Optional.empty(), Optional.of(LocalDate.of(2026, 11, 24)))),
+            // Ends with the day Kept.Soon's minimum is met on, at noon: after it.
+            Optional.of(new Forecast(Optional.empty(), Optional.of(LocalDate.of(2026, 11, 22)))),
             Optional.of(TRACKER_A),
             5,
             20);

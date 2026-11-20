@@ -3,6 +3,7 @@ package io.github.ghostwritertje.seedkeeper.groups;
 import io.github.ghostwritertje.seedkeeper.decide.Forecast;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -131,7 +132,7 @@ record GroupsOrder(Column column, boolean descending) {
     private static Optional<LocalDateTime> end(Forecast forecast) {
         return forecast.until()
                 .map(until -> until.plusDays(1).atStartOfDay())
-                .or(() -> forecast.date().map(date -> date.toLocalDateTime()));
+                .or(() -> forecast.date().map(ZonedDateTime::toLocalDateTime));
     }
 
     /** 0 with a date, 1 for a stopped clock, 2 with no forecast. */
