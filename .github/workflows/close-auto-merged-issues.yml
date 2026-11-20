@@ -9,8 +9,8 @@ name: Close auto-merged issues
 # maintainer merged are left alone: their merge closed the issues already.
 #
 # The comment has a marker, and an issue with the marker for that pull request is never closed again: an issue the
-# maintainer reopens stays open. The comment goes first, so `gh issue close --comment` on an already closed issue
-# can't drop it.
+# maintainer reopens stays open. The close goes first, then the comment: a close that fails leaves no marker, so the
+# next run tries again. A comment that fails leaves the issue closed without the link, and the run red.
 #
 # It closes with the workflow's own token, so the close starts no workflow, and an issue closed here starts no
 # dependents, as ADR 0002 says (docs/adr/0002-auto-merge-policy.md). No pull request code is checked out or run: only
@@ -88,9 +88,9 @@ jobs:
             exit 0
           fi
           while read -r issue pr; do
+            gh issue close "$issue" --reason completed </dev/null
             gh issue comment "$issue" --body "Closed by #$pr, which was auto-merged: an auto-merge doesn't close its issues on its own (#47).
 
           <!-- seedkeeper-auto-merge-closed: #$pr -->" </dev/null
-            gh issue close "$issue" --reason completed </dev/null
             echo "::notice::Closed #$issue, fixed by the auto-merged #$pr."
           done <<<"$to_close"
