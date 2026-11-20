@@ -294,40 +294,53 @@ class GroupsTest {
                 .body(ScrollRegions.TABLE_PARENTS, ScrollRegions.regions("Groups"))
                 .body(
                         GroupsTable.HEADINGS,
-                        contains("Name", "Seed time / minimum", "Verdict", "Reason", "Forecast", "Keep override"))
+                        contains("Name", "Minimum seed time", "Verdict", "Reason", "Forecast", "Keep override"))
                 // One header row per group; member rows only under the cross-seed group of two.
                 .body(GroupsTable.ROWS, contains(1, 1, 1, 1, 1, 1, 3, 1))
                 .body(GroupsTable.heading(0), contains("Linked.Show", "tracker-a · Seeding · 1 of 2 files linked"))
                 // The library links show once: under the name, not again in the reason.
-                .body(GroupsTable.cells(0), contains("40d / 30d", "Keep", "Library link", ""))
+                .body(GroupsTable.cells(0), contains("Met ✓", "Keep", "Library link", ""))
+                .body(GroupsTable.progressDetail(0), is("40d of 30d · met 10d ago"))
                 .body(GroupsTable.heading(1), contains("Fresh.Movie", "tracker-b · Seeding · 0 of 1 files linked"))
                 .body(
                         GroupsTable.cells(1),
                         contains(
-                                is("2d 12h / 14d"),
+                                is("18%"),
                                 is("Keep"),
                                 is("Minimum not reached"),
                                 minuteIn(before, Duration.ofDays(11).plusHours(12))))
                 .body(GroupsTable.heading(2), contains("Old.Movie", "tracker-b · Stopped · 0 of 1 files linked"))
-                .body(GroupsTable.cells(2), contains("14d / 14d", "Remove", "All met", ""))
+                // Below the minimum: a meter for screen readers, the time to go as detail.
+                .body(GroupsTable.progressCell(1) + ".meter.@value", is("18"))
+                .body(GroupsTable.progressDetail(1), is("2d 12h of 14d · 11d 12h to go"))
+                .body(GroupsTable.cells(2), contains("Met ✓", "Remove", "All met", ""))
+                .body(GroupsTable.progressDetail(2), is("14d of 14d · met just now"))
+                .body(GroupsTable.progressCell(2) + ".meter.size()", is(0))
                 .body(GroupsTable.heading(3), contains("Unknown.Tracker", "unmanaged · Seeding · 0 of 1 files linked"))
-                .body(GroupsTable.cells(3), contains("400d", "Left alone", "Unmanaged", ""))
+                .body(GroupsTable.cells(3), contains("—", "Left alone", "Unmanaged", ""))
+                .body(GroupsTable.progressDetail(3), is("400d · no minimum"))
                 .body(GroupsTable.heading(4), contains("Downloading", "tracker-a · Downloading · 0 of 1 files linked"))
-                .body(GroupsTable.cells(4), contains("0m / 30d", "Keep", "Not finished", ""))
+                .body(GroupsTable.cells(4), contains("0%", "Keep", "Not finished", ""))
                 .body(GroupsTable.underReason(4), is("also: Minimum not reached"))
                 .body(GroupsTable.underReason(0), is(""))
                 .body(GroupsTable.heading(5), contains("ubuntu.iso", "public · Seeding · 0 of 1 files linked"))
-                .body(GroupsTable.cells(5), contains("1d / 1d", "Remove", "All met", ""))
+                .body(GroupsTable.cells(5), contains("Met ✓", "Remove", "All met", ""))
                 // The cross-seed group: a header row for the group, whose cells span the rows of its members.
                 .body(GroupsTable.heading(6), contains("Cross.Seed", "2 torrents · 0 of 1 files linked"))
+                // Its header shows its slowest member, the one that sets the forecast: 10 days to go.
                 .body(
                         GroupsTable.cells(6),
-                        contains(is(""), is("Keep"), is("Minimum not reached"), minuteIn(before, Duration.ofDays(10))))
+                        contains(
+                                is("67%"),
+                                is("Keep"),
+                                is("Minimum not reached"),
+                                minuteIn(before, Duration.ofDays(10))))
+                .body(GroupsTable.progressDetail(6), is("slowest: 20d of 30d · 10d to go"))
                 .body(
                         GroupsTable.GROUPS + "[6].tr[0].td.collect { it.@rowspan.toString() }",
                         contains("1", "3", "3", "3", "3"))
-                .body(GroupsTable.member(6, 0), contains("Cross.Seed", "tracker-a · Seeding", "20d / 30d"))
-                .body(GroupsTable.member(6, 1), contains("Cross.Seed.Elsewhere", "tracker-b · Stopped", "13d / 14d"))
+                .body(GroupsTable.member(6, 0), contains("Cross.Seed", "tracker-a · Seeding", "67%"))
+                .body(GroupsTable.member(6, 1), contains("Cross.Seed.Elsewhere", "tracker-b · Stopped", "93%"))
                 // The keep form's controls name the group by its first member, so they can be told apart.
                 .body(
                         "**.find { it.name() == 'form' && it.@id == 'keep-7777' }.'**'.findAll { it.@'aria-label' != '' }"
@@ -336,7 +349,28 @@ class GroupsTest {
                 .body(GroupsTable.heading(7), contains("Paused.Movie", "tracker-a · Stopped · 0 of 1 files linked"))
                 .body(
                         GroupsTable.cells(7),
-                        contains("29d / 30d", "Keep", "Minimum not reached", "clock stopped (paused)"));
+                        contains("97%", "Keep", "Minimum not reached", "clock stopped (paused)"));
+    }
+
+    @Test
+    void pageLetsTheProgressDetailBeReachedByKeyboardAndScreenReaders() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups")
+                .then()
+                .statusCode(200)
+                // Focusable, so the detail opens on focus and tap as well as on hover.
+                .body(GroupsTable.progressCell(1) + ".@tabindex", is("0"))
+                // The text says the state; the colour only repeats it.
+                .body(GroupsTable.progressCell(1) + ".@data-tone", is("warn"))
+                .body(GroupsTable.progressCell(1) + ".meter.collect { [it.@min, it.@max] }.flatten()", contains("0", "100"))
+                .body(GroupsTable.progressCell(2) + ".@data-tone", is("ok"))
+                .body(GroupsTable.progressCell(3) + ".@data-tone", is("muted"))
+                // The whole cell, as a screen reader reads it: the state, then the exact durations.
+                .body(GroupsTable.progressCell(1) + ".text()", is("18%2d 12h of 14d · 11d 12h to go"))
+                .body(
+                        GroupsTable.GROUPS + "[6].tr[2].td[1].with { [it.@tabindex.toString(), it.small.text()] }",
+                        contains("0", "13d of 14d · 1d to go"));
     }
 
     @Test
@@ -360,8 +394,8 @@ class GroupsTest {
                 .statusCode(200)
                 .body(
                         GroupsTable.HEADINGS,
-                        contains("Name", "Seed time / minimum", "Verdict", "Reason", "Keep override"))
-                .body(GroupsTable.cells(0), contains("14d / 14d", "Remove", "All met"));
+                        contains("Name", "Minimum seed time", "Verdict", "Reason", "Keep override"))
+                .body(GroupsTable.cells(0), contains("Met ✓", "Remove", "All met"));
     }
 
     @Test

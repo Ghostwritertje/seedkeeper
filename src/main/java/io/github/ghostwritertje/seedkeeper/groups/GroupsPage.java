@@ -24,7 +24,9 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
 import java.net.URI;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -75,8 +77,9 @@ class GroupsPage {
      * @param label            the name of its first member, whole, to name the group's controls
      * @param summary          "tracker-a · Seeding · 1 of 2 files linked" for a group of one, "3 torrents · 13 of 19
      *                         files linked" for more
-     * @param seedTime         the seed time of its member, as {@link Member#seedTime()}, for a group of one; else empty
-     * @param trackerMessage   the tracker message of its member, as {@link Member#trackerMessage()}, for a group of
+     * @param progress         toward the minimum seed time: of its member for a group of one; for more, of its slowest
+     *                         managed member, the one whose minimum is met last, as the forecast counts it
+     * @param trackerMessage  the tracker message of its member, as {@link Member#trackerMessage()}, for a group of
      *                         one; else empty
      * @param verdictCode      the kebab-case code of the verdict, "left-alone"
      * @param reason           "Missing data (1 of 2 files)", or the label alone: the library links are in the summary
@@ -91,7 +94,7 @@ class GroupsPage {
             List<String> name,
             String label,
             String summary,
-            String seedTime,
+            SeedProgress progress,
             String trackerMessage,
             String verdict,
             String verdictCode,
@@ -156,11 +159,60 @@ class GroupsPage {
      *
      * @param name     its name, in the parts a line may break between
      * @param tracker  "unmanaged" when the torrent has no tracker
-     * @param seedTime "40d / 30d": the seed time and the tracker's minimum; the seed time alone when unmanaged
+     * @param progress its seed time toward its minimum seed time
      * @param trackerMessage "Unregistered: Unregistered torrent", "Tracker error: Passkey does not exist!", or
      *                       empty when the tracker reports nothing wrong
      */
-    public record Member(List<String> name, String tracker, String seedTime, String status, String trackerMessage) {}
+    public record Member(
+            List<String> name, String tracker, SeedProgress progress, String status, String trackerMessage) {}
+
+    /**
+     * How far a seed time is toward its minimum seed time, as text ready to show. The minimum is met at the same moment
+     * as the forecast counts it: once the seed time is at least the minimum.
+     *
+     * @param tone    the colour, as a {@code data-tone}: "warn" below the minimum, "ok" once it is met, "muted" with no
+     *                minimum (unmanaged)
+     * @param percent 0 to 99 below the minimum (rounded, but never 100 before it is met), 100 once it is met, 0 with no
+     *                minimum
+     * @param text    what the cell always shows: "33%", "Met ✓" or "—"
+     * @param detail  the exact durations: "9d 20h of 30d · 20d 4h to go", "168d 10h of 30d · met 138d 10h ago", "400d
+     *                · no minimum"
+     */
+    public record SeedProgress(String tone, int percent, String text, String detail) {
+
+        private static final String BELOW = "warn";
+
+        /** The progress of a group none of whose members has a minimum. */
+        static final SeedProgress NO_MINIMUM = new SeedProgress("muted", 0, "—", "no member has a minimum");
+
+        /** True below the minimum: the cell shows a meter. */
+        public boolean below() {
+            return BELOW.equals(tone);
+        }
+
+        static SeedProgress of(GroupVerdict.Member member) {
+            return member.tracker()
+                    .map(tracker -> toward(member.seedTime(), tracker.minimumSeedTime()))
+                    .orElseGet(() ->
+                            new SeedProgress("muted", 0, "—", StatusText.duration(member.seedTime()) + " · no minimum"));
+        }
+
+        private static SeedProgress toward(Duration seedTime, Duration minimum) {
+            String of = StatusText.duration(seedTime) + " of " + StatusText.duration(minimum) + " · ";
+            Duration toGo = minimum.minus(seedTime);
+            if (!toGo.isPositive()) {
+                String since = toGo.isZero() ? "met just now" : "met " + StatusText.duration(toGo.negated()) + " ago";
+                return new SeedProgress("ok", 100, "Met ✓", of + since);
+            }
+            int percent = (int) Math.min(99, Math.round(100.0 * seedTime.toSeconds() / minimum.toSeconds()));
+            return new SeedProgress(BELOW, percent, percent + "%", of + StatusText.duration(toGo) + " to go");
+        }
+
+        /** The same progress, its detail saying it is that of the slowest member of a group. */
+        SeedProgress slowest() {
+            return new SeedProgress(tone, percent, text, "slowest: " + detail);
+        }
+    }
 
     private final GroupsService groups;
     private final OverrideChanges overrides;
@@ -308,7 +360,7 @@ class GroupsPage {
                 one
                         ? first.tracker() + " · " + first.status() + " · " + libraryLinks
                         : members.size() + " torrents · " + libraryLinks,
-                one ? first.seedTime() : "",
+                one ? first.progress() : slowest(group.members()),
                 one ? first.trackerMessage() : "",
                 group.verdict().label(),
                 group.verdict().code(),
@@ -331,14 +383,24 @@ class GroupsPage {
         return List.of(NAME_BREAKS.split(name));
     }
 
+    /**
+     * The progress of the managed member that meets its minimum last: the most seed time to go, or the least past it.
+     * Below the minimum, that member sets the forecast.
+     */
+    private static SeedProgress slowest(List<GroupVerdict.Member> members) {
+        return members.stream()
+                .filter(member -> member.tracker().isPresent())
+                .max(Comparator.comparing((GroupVerdict.Member member) ->
+                        member.tracker().orElseThrow().minimumSeedTime().minus(member.seedTime())))
+                .map(member -> SeedProgress.of(member).slowest())
+                .orElse(SeedProgress.NO_MINIMUM);
+    }
+
     private static Member member(GroupVerdict.Member member) {
-        String seedTime = StatusText.duration(member.seedTime());
         return new Member(
                 breakable(member.name()),
                 member.tracker().map(Tracker::name).orElse("unmanaged"),
-                member.tracker()
-                        .map(tracker -> seedTime + " / " + StatusText.duration(tracker.minimumSeedTime()))
-                        .orElse(seedTime),
+                SeedProgress.of(member),
                 StatusText.label(member.status()),
                 member.trackerError().map(GroupsPage::trackerMessage).orElse(""));
     }
