@@ -142,7 +142,9 @@ class LastRunAfterRestartTest {
                 .get("/activity")
                 .then()
                 .statusCode(200)
-                .body("html.body.main.article.h2.collect { it.text() }", contains("2026-11-16 07:00:00", "2026-11-16 06:00:00"))
+                .body(
+                        "html.body.main.article.h2.collect { it.text() }",
+                        contains("2026-11-16 07:00:00", "2026-11-16 06:00:00"))
                 .body("html.body.main.nav.size()", is(0));
     }
 
