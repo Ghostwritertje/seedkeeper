@@ -249,10 +249,11 @@ class ActivityTest {
                 .then()
                 .statusCode(200)
                 .body("html.head.title", is("Activity · seedkeeper"))
-                .body(NEWEST_RUN + ".h2", matchesPattern("\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"))
+                .body(NEWEST_RUN + ".h2.time", matchesPattern("\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"))
+                .body(NEWEST_RUN + ".h2.span", is("just now"))
                 .body(
                         NEWEST_RUN + ".dl.dt.collect { it.text() }",
-                        contains("Status", "Ended", "Removed", "Files deleted", "Space freed"))
+                        contains("Status", "Took", "Removed", "Files deleted", "Space freed"))
                 .body(NEWEST_RUN + ".dl.dd[0]", is("Succeeded"))
                 .body(NEWEST_RUN + ".dl.dd[2]", is("2 torrents in 1 group"))
                 .body(NEWEST_RUN + ".dl.dd[3]", is("2"))

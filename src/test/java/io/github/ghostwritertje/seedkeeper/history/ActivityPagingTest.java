@@ -79,8 +79,8 @@ class ActivityPagingTest {
                 .then()
                 .statusCode(200)
                 .body("html.body.main.article.size()", is(20))
-                .body("html.body.main.article[0].h2", is("2026-11-02 00:00:00"))
-                .body("html.body.main.article[19].h2", is("2026-11-01 05:00:00"))
+                .body("html.body.main.article[0].h2.time", is("2026-11-02 00:00:00"))
+                .body("html.body.main.article[19].h2.time", is("2026-11-01 05:00:00"))
                 .body(PAGES + ".a.size()", is(1))
                 .body(PAGES + ".a", is("Older runs"))
                 .body(PAGES + ".a.@href", is("/activity?page=2"))
@@ -96,7 +96,7 @@ class ActivityPagingTest {
                 .then()
                 .statusCode(200)
                 .body(
-                        "html.body.main.article.h2.collect { it.text() }",
+                        "html.body.main.article.h2.time.collect { it.text() }",
                         contains(
                                 "2026-11-01 04:00:00",
                                 "2026-11-01 03:00:00",

@@ -10,7 +10,7 @@
 <dt>Time zone</dt>
 <dd>{settings.timeZone}</dd>
 <dt>Next run</dt>
-<dd>{settings.nextRun ?: 'Not scheduled'}</dd>
+<dd>{#if settings.nextRun}{#moment settings.nextRun /}{#else}Not scheduled{/if}</dd>
 </dl>
 </section>
 <section id="transmission">

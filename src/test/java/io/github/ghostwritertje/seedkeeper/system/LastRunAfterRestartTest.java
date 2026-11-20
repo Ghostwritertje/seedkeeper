@@ -183,9 +183,28 @@ class LastRunAfterRestartTest {
                 .then()
                 .statusCode(200)
                 .body(
-                        "html.body.main.article.h2.collect { it.text() }",
+                        "html.body.main.article.h2.time.collect { it.text() }",
                         contains("2026-11-16 07:00:00", "2026-11-16 06:00:00"))
                 .body("html.body.main.nav.size()", is(0));
+    }
+
+    @Test
+    void theActivityViewGivesWhenEachRunStartedHowLongAgoAndHowLongItTook() {
+        Authenticated.asUser()
+                .when()
+                .get("/activity")
+                .then()
+                .statusCode(200)
+                .body(
+                        "html.body.main.article.h2.time.collect { it.@datetime }",
+                        contains("2026-11-16T07:00:00Z", "2026-11-16T06:00:00Z"))
+                .body("html.body.main.article[1].h2.time.@title", is("2026-11-16 06:00:00 UTC"))
+                .body("html.body.main.article[1].h2.span", matchesPattern("\\d+d( \\d+h)? ago"))
+                .body(
+                        "html.body.main.article[1].dl.dt.collect { it.text() }",
+                        contains("Status", "Took", "Removed", "Files deleted", "Space freed"))
+                .body("html.body.main.article.collect { it.dl.dd[1].text() }", contains("1s", "4s"))
+                .body("html.body.main.p.find { it.@id == 'time-zone' }", is("Times are in UTC."));
     }
 
     @Test
