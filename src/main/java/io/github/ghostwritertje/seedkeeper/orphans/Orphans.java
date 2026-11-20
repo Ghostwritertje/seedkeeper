@@ -3,6 +3,7 @@ package io.github.ghostwritertje.seedkeeper.orphans;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /**
  * What is under the downloads root that no torrent references. Shown, never deleted.
@@ -27,8 +28,28 @@ record Orphans(List<Orphan> files, List<Orphan> danglingSymlinks, List<Path> unr
      * @param lastModified of a symlink, of the link itself
      * @param libraryLink  whether a hardlink of the file is under a library root: deleting it would free nothing.
      *                     Never true of a symlink
+     * @param target       of a dangling symlink, where it leads, as the link has it (relative or absolute); null for
+     *                     a file
      */
-    public record Orphan(Path path, long size, Instant lastModified, boolean libraryLink) {}
+    public record Orphan(Path path, long size, Instant lastModified, boolean libraryLink, @Nullable Path target) {
+
+        /**
+         * Whether it is metadata the OS or the NAS writes next to the files: macOS's {@code .DS_Store} and
+         * {@code ._*}, Windows's {@code Thumbs.db}, or anything in a Synology {@code @eaDir} directory.
+         */
+        public boolean systemFile() {
+            String name = String.valueOf(path.getFileName());
+            if (name.equals(".DS_Store") || name.equals("Thumbs.db") || name.startsWith("._")) {
+                return true;
+            }
+            for (Path part : path) {
+                if (part.toString().equals("@eaDir")) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
 
     /**
      * What deleting the orphan files would free: the bytes of those without a library link. A dangling symlink takes

@@ -83,7 +83,8 @@ final class OrphanFinder {
                     Instant lastModified = attributes.lastModifiedTime().toInstant();
                     if (attributes.isSymbolicLink()) {
                         if (Files.notExists(path) && !referencedPaths.contains(path.normalize())) {
-                            danglingSymlinks.add(new Orphan(path, attributes.size(), lastModified, false));
+                            danglingSymlinks.add(
+                                    new Orphan(path, attributes.size(), lastModified, false, target(path)));
                         }
                     } else if (attributes.isRegularFile()) {
                         Optional<FileId> id = TorrentPaths.id(path, LinkOption.NOFOLLOW_LINKS);
@@ -92,7 +93,8 @@ final class OrphanFinder {
                                     path,
                                     attributes.size(),
                                     lastModified,
-                                    id.filter(library::contains).isPresent()));
+                                    id.filter(library::contains).isPresent(),
+                                    null));
                         }
                     }
                     return FileVisitResult.CONTINUE;
@@ -118,5 +120,17 @@ final class OrphanFinder {
         danglingSymlinks.sort(Comparator.comparing(Orphan::path));
         unreadable.sort(Comparator.naturalOrder());
         return new Orphans(files, danglingSymlinks, unreadable);
+    }
+
+    /**
+     * Where a symlink leads, as the link has it. A link that can't be read between the walk and now leads to an empty
+     * path, so it is still listed.
+     */
+    private static Path target(Path symlink) {
+        try {
+            return Files.readSymbolicLink(symlink);
+        } catch (IOException e) {
+            return Path.of("");
+        }
     }
 }
