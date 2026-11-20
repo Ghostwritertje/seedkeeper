@@ -23,9 +23,7 @@ final class ScheduleText {
     /** "Every day at 06:00 (0 0 6 * * ?)", or the cron expression alone when it isn't a common schedule. */
     static String describe(String cron) {
         String expression = cron.strip();
-        return words(expression)
-                .map(words -> words + " (" + expression + ")")
-                .orElse(expression);
+        return words(expression).map(words -> words + " (" + expression + ")").orElse(expression);
     }
 
     private static Optional<String> words(String expression) {
@@ -50,8 +48,8 @@ final class ScheduleText {
     private static boolean everyDay(List<String> fields) {
         String dayOfMonth = fields.get(3);
         String dayOfWeek = fields.get(5);
-        boolean days = (dayOfMonth.equals("*") && dayOfWeek.equals("?"))
-                || (dayOfMonth.equals("?") && dayOfWeek.equals("*"));
+        boolean days =
+                (dayOfMonth.equals("*") && dayOfWeek.equals("?")) || (dayOfMonth.equals("?") && dayOfWeek.equals("*"));
         boolean everyYear = fields.size() == 6 || fields.get(6).equals("*");
         return days && fields.get(4).equals("*") && everyYear;
     }
@@ -89,8 +87,6 @@ final class ScheduleText {
 
     /** "06:00", or "06:00:15" when the second isn't 0. */
     private static String time(int hour, int minute, int second) {
-        return second == 0
-                ? "%02d:%02d".formatted(hour, minute)
-                : "%02d:%02d:%02d".formatted(hour, minute, second);
+        return second == 0 ? "%02d:%02d".formatted(hour, minute) : "%02d:%02d:%02d".formatted(hour, minute, second);
     }
 }

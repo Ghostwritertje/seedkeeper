@@ -57,6 +57,7 @@ class ScheduleTextTest {
                 "* * * * * ?", // every second
                 "0 0 */5 * * ?", // 20:00 to 00:00 is 4 hours, not 5
                 "0 0 13/12 * * ?", // only at 13:00
+                "0 0 12/12 * * ?", // only at 12:00
                 "0 0 */24 * * ?",
                 "0 0 */0 * * ?",
                 "0 0 */x * * ?",
