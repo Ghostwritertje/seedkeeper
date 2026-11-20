@@ -91,7 +91,8 @@ class ActivityRemovalTest {
         assertEquals(
                 List.of(
                         new Member("Some.Movie", "tracker-a", "", ""),
-                        new Member("Some.Movie.Cross", "unmanaged", "not finished, not removed", "Unregistered torrent")),
+                        new Member(
+                                "Some.Movie.Cross", "unmanaged", "not finished, not removed", "Unregistered torrent")),
                 removal.members());
     }
 

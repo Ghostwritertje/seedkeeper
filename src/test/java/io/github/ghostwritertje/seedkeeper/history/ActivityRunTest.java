@@ -23,6 +23,16 @@ class ActivityRunTest {
     }
 
     @Test
+    void aRunThatFailedWithoutAnErrorIsNotQuiet() {
+        assertFalse(run("Failed", null, List.of()).quiet());
+    }
+
+    @Test
+    void aRunWithAnErrorIsNotQuiet() {
+        assertFalse(run("Succeeded", "Transmission is unreachable", List.of()).quiet());
+    }
+
+    @Test
     void aRunThatRemovedSomethingIsNotQuiet() {
         assertFalse(run("Succeeded", null, List.of(removal(""))).quiet());
     }
@@ -30,7 +40,8 @@ class ActivityRunTest {
     @Test
     void errorsGetAColumnOnlyWhenARemovalHasOne() {
         assertFalse(run("Succeeded", null, List.of(removal(""), removal(""))).removalErrors());
-        assertTrue(run("Succeeded", null, List.of(removal(""), removal("Transmission refused"))).removalErrors());
+        assertTrue(run("Succeeded", null, List.of(removal(""), removal("Transmission refused")))
+                .removalErrors());
     }
 
     private static Run run(String status, @Nullable String error, List<Removal> removals) {
