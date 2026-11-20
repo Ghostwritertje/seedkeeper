@@ -400,6 +400,11 @@ class GroupsTest {
                 .body(
                         "html.body.main.table.tbody.tr[6].td.collect { it.@rowspan.toString() }",
                         contains("1", "1", "1", "1", "1", "2", "2", "2", "2", "2", "2"))
+                // The keep form's controls name the group by its first member, so they can be told apart.
+                .body(
+                        "**.find { it.name() == 'form' && it.@id == 'keep-7777' }.'**'.findAll { it.@'aria-label' != '' }"
+                                + ".collect { it.@'aria-label'.toString() }",
+                        contains("Note for Cross.Seed", "Until for Cross.Seed", "Set a keep override for Cross.Seed"))
                 .body(cells(7), contains("Cross.Seed.Elsewhere", "tracker-b", "13d / 14d", "Stopped", ""))
                 .body(
                         cells(8),

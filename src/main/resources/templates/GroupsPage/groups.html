@@ -55,9 +55,9 @@ members the group gains later are added to it. It shows in the Overrides view, w
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
 {#for hash in group.hashes}<input type="hidden" name="hash" value="{hash}">
 {/for}<details><summary>Keep…</summary><div>
-<label>Note <input type="text" name="note" placeholder="Why keep it?"></label>
-<label>Until (optional) <input type="date" name="until"></label>
-<button type="submit">Set a keep override</button>
+<label>Note <input type="text" name="note" placeholder="Why keep it?" aria-label="Note for {group.members.get(0).name}"></label>
+<label>Until (optional) <input type="date" name="until" aria-label="Until for {group.members.get(0).name}"></label>
+<button type="submit" aria-label="Set a keep override for {group.members.get(0).name}">Set a keep override</button>
 </div></details>
 </form></td>{/if}</tr>
 {/for}
