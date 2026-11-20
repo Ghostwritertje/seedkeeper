@@ -11,9 +11,21 @@ final class GroupsTable {
 
     private GroupsTable() {}
 
-    /** The group's name, then each muted line under it: what the group is, and the tracker message, if any. */
+    /**
+     * The group's name, then each muted line under it: what the group is, and the tracker message, if any; without
+     * the verdict that small screens show under them ({@link #verdictUnderName(int)}).
+     */
     static String heading(int group) {
-        return GROUPS + "[" + group + "].tr[0].th.'*'.collect { it.text() }";
+        return GROUPS + "[" + group + "].tr[0].th.'*'.findAll { it.name() != 'p' }.collect { it.text() }";
+    }
+
+    /**
+     * The verdict under the group's name, for small screens, where the verdict and reason columns are hidden: the
+     * verdict's code, the verdict, then the reason.
+     */
+    static String verdictUnderName(int group) {
+        return GROUPS + "[" + group + "].tr[0].th.p[0]"
+                + ".with { p -> [p.mark.@'data-verdict'.text(), p.mark.text(), p.localText().join('').trim()] }";
     }
 
     /**

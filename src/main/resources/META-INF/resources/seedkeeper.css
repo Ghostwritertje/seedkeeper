@@ -586,6 +586,17 @@ dd li + li {
   margin-left: 0.35rem;
 }
 
+/* The verdict and reason under the name: for small screens only, which hide their columns (see the end). */
+[data-page="groups"] tbody th > p {
+  display: none;
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+}
+
+[data-page="groups"] tbody th > p > mark {
+  margin-right: 0.35rem;
+}
+
 [data-page="groups"] tbody > tr > :nth-child(2) {
   white-space: nowrap;
 }
@@ -812,6 +823,12 @@ article table {
   column-gap: 1rem;
 }
 
+/* A grid item is as wide as its content by default: a wide table would push its card, and the page, past the screen. */
+[data-page="settings"] > *,
+[data-page="system"] > * {
+  min-width: 0;
+}
+
 [data-page="settings"] > :not(section),
 [data-page="system"] > :not(section),
 [data-page="settings"] > #trackers,
@@ -820,8 +837,10 @@ article table {
   grid-column: 1 / -1;
 }
 
+/* A long variable name breaks anywhere rather than push the page past a small screen. */
 [data-page="settings"] #secrets dt {
   font: 0.8125rem var(--mono);
+  overflow-wrap: anywhere;
 }
 
 [data-page="settings"] > section,
@@ -901,5 +920,47 @@ article table {
     grid-template-columns: max-content 1fr;
     grid-template-rows: none;
     grid-auto-flow: row;
+  }
+}
+
+/*
+ * Phones. The header is two rows: the brand and log out, then the views in one row that scrolls sideways.
+ * The Groups table keeps the name, the progress toward the minimum and the keep override; the verdict and reason
+ * move under the name, and the columns of the verdict, reason, forecast and size are hidden.
+ */
+
+@media (max-width: 40rem) {
+  body > header {
+    gap: 0.25rem 1rem;
+    padding-block: 0.5rem 0.35rem;
+  }
+
+  body > header > form {
+    margin-left: auto;
+  }
+
+  body > header > nav {
+    order: 1;
+    flex: 1 0 100%;
+    flex-wrap: nowrap;
+    margin-right: 0;
+    overflow-x: auto;
+  }
+
+  body > header > nav a {
+    white-space: nowrap;
+  }
+
+  [data-page="groups"] thead th:nth-child(n + 3):not(:last-child),
+  [data-page="groups"] tbody > tr > td[rowspan]:not(:last-child) {
+    display: none;
+  }
+
+  [data-page="groups"] tbody th > p {
+    display: block;
+  }
+
+  [data-page="groups"] tbody > tr > :first-child {
+    min-width: 10rem;
   }
 }
