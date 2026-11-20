@@ -28,7 +28,7 @@ labels. Interactive sessions use them the same way.
 |---------------------|---------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------|
 | `ready-for-agent`   | the maintainer, `to-spec`, `to-tickets`; the reviewer on a pull request | The implementer may take it. On an issue, adding it starts the implementer, and so does closing its last open blocker. On a pull request, adding it makes the implementer address the review feedback on that pull request's branch. |
 | `agent:in-progress` | the implementer, when it starts                                     | An implementer run is working on the issue or pull request. It goes when the run ends.                              |
-| `agent:blocked`     | the implementer, or a failed agent job                              | The run couldn't finish: `./mvnw verify` or the quality build (`./mvnw verify -Pquality`) stayed red (a draft pull request says where it got stuck), or the job crashed, timed out or ran out of quota (a comment links the run). |
+| `agent:blocked`     | the implementer, or a failed agent job                              | The run couldn't finish: `./mvnw verify` or the quality build (`./mvnw verify -Pquality`) stayed red (a draft pull request says where it got stuck), or the job crashed, timed out, ran out of quota or ended in none of its outcomes (a comment links the run). |
 | `needs-decision`    | either agent                                                        | A choice that is the maintainer's to make. The comment or review gives the question, the options and a recommendation. |
 | `auto-merge`        | the reviewer, on an implementer pull request it approves                  | The pull request is a two-way door with a small blast radius, and may merge without the maintainer: the `Auto-merge gate` job turns on a squash auto-merge if it touches no human-only path (`docs/agents/auto-merge.md`). A new push removes it. |
 
@@ -61,6 +61,10 @@ The life of an issue:
    - `needs-decision` on the issue, with a comment, and no pull request;
    - a draft pull request and `agent:blocked`.
 
+   After the agent, the workflow checks for one of these (`.github/scripts/agent-outcome.sh`). A run that ends in
+   none of them fails: the issue gets `agent:blocked` and a comment that links the run. The run's job log and job
+   summary list the commands the agent was denied and its last message.
+
 The life of a pull request's review feedback (`docs/agents/review.md`, **The review/fix loop**):
 
 1. **Labelled.** A user with write access, or the reviewer App when every finding has a clear fix, adds
@@ -72,6 +76,9 @@ The life of a pull request's review feedback (`docs/agents/review.md`, **The rev
    - the fixes pushed, the handled threads resolved and a comment saying what changed; the push starts a new review;
    - `needs-decision` on the pull request, with a comment;
    - `agent:blocked` on the pull request, with a comment saying where it got stuck.
+
+   The workflow checks for one of these the same way. A run that ends in none of them fails, and the pull request
+   gets `agent:blocked` and a comment that links the run.
 
 When the reviewer approves an implementer pull request and adds `auto-merge`, the gate may merge it without the
 maintainer (`docs/agents/auto-merge.md`). After three review rounds the reviewer adds `needs-decision` instead of
