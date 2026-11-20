@@ -88,8 +88,8 @@ class ActivityPage {
             + " or was no longer on disk.";
 
     /** Files were deleted, but each was a symlink or not the last hard link of its data. */
-    static final String NOTHING_FREED = "Data kept: what was deleted was a symlink, or a file still linked elsewhere,"
-            + " such as in the library.";
+    static final String NOTHING_FREED =
+            "Data kept: what was deleted was a symlink, or a file still linked elsewhere, such as in the library.";
 
     /**
      * The page of runs the Activity view shows, and how many pages there are.

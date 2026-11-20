@@ -314,9 +314,15 @@ class ActivityTest {
                 .torrents("["
                         + torrent("act3", "Activity.Fresh", 2 * DAY, downloads, "Activity.Fresh/movie.mkv")
                         + ","
-                        + torrent("gone1", "Activity.Fresh.unregistered", 2 * DAY, downloads, "Activity.Fresh/movie.mkv")
-                                .replace("\"error\": 0, \"error_string\": \"\"", "\"error\": 2, \"error_string\":"
-                                        + " \"Unregistered torrent\"")
+                        + torrent(
+                                        "gone1",
+                                        "Activity.Fresh.unregistered",
+                                        2 * DAY,
+                                        downloads,
+                                        "Activity.Fresh/movie.mkv")
+                                .replace(
+                                        "\"error\": 0, \"error_string\": \"\"",
+                                        "\"error\": 2, \"error_string\": \"Unregistered torrent\"")
                         + "]");
         runNow();
 

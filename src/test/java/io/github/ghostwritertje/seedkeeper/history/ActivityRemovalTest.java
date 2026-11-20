@@ -15,8 +15,8 @@ class ActivityRemovalTest {
 
     private static final String NOTHING_DELETED = "Data kept: every file is still used by a torrent that stays"
             + " (a cross-seed), or was no longer on disk.";
-    private static final String NOTHING_FREED = "Data kept: what was deleted was a symlink, or a file still linked"
-            + " elsewhere, such as in the library.";
+    private static final String NOTHING_FREED =
+            "Data kept: what was deleted was a symlink, or a file still linked elsewhere, such as in the library.";
 
     @Test
     void aRemovalThatDeletedAndFreedSomethingHasNoNote() {
@@ -64,6 +64,42 @@ class ActivityRemovalTest {
                 "1 path was not deleted (outside the downloads root and the incomplete dir, under a library root, or"
                         + " the filesystem refused).",
                 removal.error());
+    }
+
+    @Test
+    void aRemovalShowsTheLabelOfItsReasonAndWhatIsWorthKnowingAboutEachMember() {
+        Removal removal = ActivityPage.removal(new RecordedRemoval(
+                1,
+                Instant.EPOCH,
+                "unregistered",
+                Optional.empty(),
+                0,
+                0,
+                0,
+                List.of(
+                        new RecordedMember("a", "Some.Movie", Optional.of("tracker-a"), Optional.empty(), false, true),
+                        new RecordedMember(
+                                "b",
+                                "Some.Movie.Cross",
+                                Optional.empty(),
+                                Optional.of("Unregistered torrent"),
+                                true,
+                                false))));
+
+        assertEquals("Unregistered", removal.reason());
+        assertEquals(
+                List.of(
+                        "Some.Movie (tracker-a)",
+                        "Some.Movie.Cross (unmanaged, not finished, tracker said: Unregistered torrent, not removed)"),
+                removal.members());
+    }
+
+    @Test
+    void aReasonThisVersionDoesNotKnowShowsItsCode() {
+        Removal removal = ActivityPage.removal(
+                new RecordedRemoval(1, Instant.EPOCH, "some-old-reason", Optional.empty(), 1, 1, 0, List.of()));
+
+        assertEquals("some-old-reason", removal.reason());
     }
 
     private static RecordedRemoval removal(Optional<String> error, int filesDeleted, long spaceFreed, int refused) {
