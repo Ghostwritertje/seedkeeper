@@ -49,8 +49,9 @@ class ManageOverridesTest {
 
     private static final String DONE = "html.body.main.p.find { it.@id == 'done' }";
     private static final String DONE_COUNT = "html.body.main.p.findAll { it.@id == 'done' }.size()";
-    private static final String SELECTED_VERDICT = "html.body.main.form.'**'.find { it.name() == 'select'"
-            + " && it.@name == 'verdict' }.option.find { it.@selected == 'selected' }.@value";
+    /** The verdict the filter shows, which the filter form keeps in a hidden field: the chips choose it. */
+    private static final String SELECTED_VERDICT =
+            "html.body.main.form.'**'.find { it.name() == 'input' && it.@name == 'verdict' }.@value";
 
     private Path file;
 

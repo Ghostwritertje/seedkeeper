@@ -3,6 +3,7 @@ package io.github.ghostwritertje.seedkeeper.groups;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.startsWith;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmissionResource;
@@ -25,6 +26,9 @@ class GroupsFilterTest {
 
     private static final long DAY = 86_400;
     private static final String TALLY = "html.body.main.nav";
+    /** The verdict the filter form keeps when the reason changes: the chips choose it, the form has no control for it. */
+    private static final String VERDICT =
+            "html.body.main.form.'**'.find { it.name() == 'input' && it.@name == 'verdict' }.@value";
     private static final int SEEDING = 6;
     private static final int CHECKING = 2;
     private static final int DOWNLOADING = 4;
@@ -223,7 +227,7 @@ class GroupsFilterTest {
                 .then()
                 .statusCode(200)
                 .body(GroupsTable.NAMES, contains("Checking.Movie", "Kept.Movie", "Not.Yet"))
-                .body(selected("verdict"), is("keep"))
+                .body(VERDICT, is("keep"))
                 .body(selected("reason"), is(""));
         Authenticated.asUser()
                 .when()
@@ -231,8 +235,65 @@ class GroupsFilterTest {
                 .then()
                 .body(GroupsTable.GROUPS + ".size()", is(1))
                 .body(GroupsTable.NAMES, is("Half.Gone"))
-                .body(selected("verdict"), is("left-alone"))
+                .body(VERDICT, is("left-alone"))
                 .body(selected("reason"), is("missing-data"));
+    }
+
+    @Test
+    void theVerdictIsChosenOnlyByTheChips() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups?verdict=keep")
+                .then()
+                .statusCode(200)
+                .body("html.body.'**'.findAll { it.name() == 'select' && it.@name == 'verdict' }.size()", is(0))
+                .body("html.body.main.form.'**'.findAll { it.@name == 'verdict' }.size()", is(1))
+                .body("html.body.main.form.'**'.find { it.@name == 'verdict' }.@type", is("hidden"));
+    }
+
+    @Test
+    void theReasonAppliesOnChangeAndHasAButtonOnlyWithoutScripts() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups")
+                .then()
+                .body("html.body.main.form.@'hx-trigger'", is("change"))
+                .body("html.body.main.form.@'hx-get'", is("/groups"))
+                .body("html.body.main.form.button.size()", is(0))
+                .body("html.body.main.form.noscript.button", is("Filter"));
+    }
+
+    @Test
+    void theReasonsCountTheGroupsOfTheChosenVerdictAndThoseWithNoneAreDisabled() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups?verdict=keep&reason=keep-override")
+                .then()
+                .body(
+                        options("reason", "text()"),
+                        contains(
+                                "Any reason (3)",
+                                "Unregistered (0)",
+                                "Unmanaged (0)",
+                                "Missing data (0)",
+                                "Local error (0)",
+                                "Verifying (1)",
+                                "Not finished (1)",
+                                "Keep override (0)",
+                                "Library link (1)",
+                                "Minimum not reached (0)",
+                                "All met (0)"))
+                // The chosen reason stays enabled even with no groups, so the form can still say what it shows.
+                .body(
+                        "html.body.main.form.'**'.find { it.name() == 'select' }.option"
+                                + ".findAll { it.@disabled == 'disabled' }.@value",
+                        contains(
+                                "unregistered",
+                                "unmanaged",
+                                "missing-data",
+                                "local-error",
+                                "minimum-not-reached",
+                                "all-met"));
     }
 
     @Test
@@ -273,15 +334,13 @@ class GroupsFilterTest {
     }
 
     @Test
-    void pageOffersEveryVerdictAndReasonAsAFilter() {
+    void pageOffersEveryReasonAsAFilter() {
         Authenticated.asUser()
                 .when()
                 .get("/groups")
                 .then()
                 .body("html.body.main.form.@method", is("get"))
                 .body("html.body.main.form.@action", is("/groups"))
-                .body(options("verdict", "@value"), contains("", "remove", "left-alone", "keep"))
-                .body(options("verdict", "text()"), contains("Any verdict", "Remove", "Left alone", "Keep"))
                 .body(
                         options("reason", "@value"),
                         contains(
@@ -299,18 +358,18 @@ class GroupsFilterTest {
                 .body(
                         options("reason", "text()"),
                         contains(
-                                "Any reason",
-                                "Unregistered",
-                                "Unmanaged",
-                                "Missing data",
-                                "Local error",
-                                "Verifying",
-                                "Not finished",
-                                "Keep override",
-                                "Library link",
-                                "Minimum not reached",
-                                "All met"))
-                .body(selected("verdict"), is(""))
+                                "Any reason (6)",
+                                "Unregistered (0)",
+                                "Unmanaged (0)",
+                                "Missing data (1)",
+                                "Local error (1)",
+                                "Verifying (1)",
+                                "Not finished (1)",
+                                "Keep override (0)",
+                                "Library link (1)",
+                                "Minimum not reached (0)",
+                                "All met (1)"))
+                .body(VERDICT, is(""))
                 .body(selected("reason"), is(""));
     }
 
@@ -328,7 +387,7 @@ class GroupsFilterTest {
     }
 
     @Test
-    void pageGivesTheReasonWhenTheFilterIsUnknown() {
+    void anUnknownVerdictIsSaidAboveTheWholeView() {
         Authenticated.asUser()
                 .when()
                 .get("/groups?verdict=delete")
@@ -337,8 +396,27 @@ class GroupsFilterTest {
                 .body(
                         "html.body.main.p.find { it.@role == 'alert' }",
                         is("Unknown verdict 'delete': use remove, left-alone or keep"))
-                .body("html.body.main.'**'.findAll { it.name() == 'table' }.size()", is(0))
-                .body(selected("verdict"), is(""));
+                .body(TALLY + ".a.collect { it.text() }", contains("6 All", "1 Remove", "2 Left alone", "3 Keep"))
+                .body(TALLY + ".a.findAll { it.@'aria-current' == 'page' }.@href", is("/groups?verdict="))
+                .body(GroupsTable.GROUPS + ".size()", is(6))
+                .body(VERDICT, is(""))
+                .body(selected("reason"), is(""));
+    }
+
+    @Test
+    void anUnknownReasonIsSaidAboveTheWholeView() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups?verdict=keep&reason=libary-link")
+                .then()
+                .statusCode(200)
+                .body(
+                        "html.body.main.p.find { it.@role == 'alert' }.text()",
+                        startsWith("Unknown reason 'libary-link': use unregistered,"))
+                .body(TALLY + ".a.collect { it.text() }", contains("6 All", "1 Remove", "2 Left alone", "3 Keep"))
+                .body(GroupsTable.GROUPS + ".size()", is(6))
+                .body(VERDICT, is(""))
+                .body(selected("reason"), is(""));
     }
 
     /** The value of the selected option of a filter. */

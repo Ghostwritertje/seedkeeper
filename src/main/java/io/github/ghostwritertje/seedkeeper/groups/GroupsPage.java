@@ -47,8 +47,9 @@ class GroupsPage {
          * @param forecasts   true when one of the groups has a forecast: else the Forecast column would be empty
          * @param tally       how many groups have each verdict, among those with the reason of the filter; empty when
          *                    there are no verdicts
-         * @param unavailable why there are no verdicts right now, or what is wrong with the filter; null when all
-         *                    is well
+         * @param unknownFilter what is wrong with the filter, which is then ignored: the view shows every group; null
+         *                    when the filter is known
+         * @param unavailable why there are no verdicts right now; null when all is well
          * @param notice      why the keep override that was just set was not; null when there is nothing to tell
          * @param kept        true right after a keep override was set from this view
          */
@@ -57,6 +58,7 @@ class GroupsPage {
                 boolean forecasts,
                 List<Tally> tally,
                 Filter filter,
+                @Nullable String unknownFilter,
                 @Nullable String unavailable,
                 @Nullable String notice,
                 boolean kept);
@@ -113,32 +115,24 @@ class GroupsPage {
     }
 
     /**
-     * The filter form: every verdict and every reason, with the chosen ones selected.
+     * The filter: the chosen verdict, which the tally chooses, and every reason with how many groups of that verdict
+     * it decided.
      *
-     * @param active true when a verdict or a reason is chosen
+     * @param verdictCode the code of the chosen verdict, to keep it in the filter form and the keep form; empty when
+     *                    none is chosen
+     * @param reasons     every reason, the chosen one selected
+     * @param any         how many groups have the chosen verdict, whatever their reason
+     * @param active      true when a verdict or a reason is chosen
      */
-    public record Filter(List<Option> verdicts, List<Option> reasons, boolean active) {
-
-        public boolean anyVerdict() {
-            return verdicts.stream().noneMatch(Option::selected);
-        }
+    public record Filter(String verdictCode, List<Option> reasons, long any, boolean active) {
 
         public boolean anyReason() {
             return reasons.stream().noneMatch(Option::selected);
         }
 
-        /** The code of the chosen verdict, to keep it in the keep form; empty when none is chosen. */
-        public String verdictCode() {
-            return selectedCode(verdicts);
-        }
-
         /** The code of the chosen reason, to keep it in the links of the tally; empty when none is chosen. */
         public String reasonCode() {
-            return selectedCode(reasons);
-        }
-
-        private static String selectedCode(List<Option> options) {
-            return options.stream()
+            return reasons.stream()
                     .filter(Option::selected)
                     .map(Option::code)
                     .findFirst()
@@ -153,8 +147,18 @@ class GroupsPage {
      */
     public record Tally(String code, String label, long count, boolean selected) {}
 
-    /** One choice of a filter: the code that goes in the URL and the label to show. */
-    public record Option(String code, String label, boolean selected) {}
+    /**
+     * One reason to filter on: the code that goes in the URL, the label to show and how many groups it decided.
+     *
+     * @param count how many groups of the chosen verdict it decided
+     */
+    public record Option(String code, String label, long count, boolean selected) {
+
+        /** True when choosing it would show no group; the chosen one never is, so the form still says what it shows. */
+        public boolean disabled() {
+            return count == 0 && !selected;
+        }
+    }
 
     /**
      * One torrent of a group, as text ready to show.
@@ -294,11 +298,13 @@ class GroupsPage {
     private TemplateInstance page(
             @Nullable String verdict, @Nullable String reason, @Nullable String notice, boolean kept) {
         GroupsFilter filter;
+        String unknownFilter = null;
         try {
             filter = GroupsFilter.parse(verdict, reason);
         } catch (UnknownFilter e) {
-            return Templates.groups(
-                    List.of(), false, List.of(), filter(GroupsFilter.NONE), e.getMessage(), notice, kept);
+            // Said above the whole view, so the tally and the form are there to choose a filter that exists.
+            filter = GroupsFilter.NONE;
+            unknownFilter = e.getMessage();
         }
         try {
             List<GroupVerdict> all = groups.groups();
@@ -308,12 +314,21 @@ class GroupsPage {
                     shown,
                     shown.stream().anyMatch(g -> !g.forecast().isEmpty()),
                     tally(all, filter),
-                    filter(filter),
+                    filter(all, filter),
+                    unknownFilter,
                     null,
                     notice,
                     kept);
         } catch (GroupsUnavailable e) {
-            return Templates.groups(List.of(), false, List.of(), filter(filter), e.getMessage(), notice, kept);
+            return Templates.groups(
+                    List.of(),
+                    false,
+                    List.of(),
+                    filter(List.of(), filter),
+                    unknownFilter,
+                    e.getMessage(),
+                    notice,
+                    kept);
         }
     }
 
@@ -336,20 +351,23 @@ class GroupsPage {
                 .toList();
     }
 
-    private static Filter filter(GroupsFilter filter) {
+    /** The filter with the count of every reason among the groups with the verdict of the filter. */
+    private static Filter filter(List<GroupVerdict> all, GroupsFilter filter) {
+        List<GroupVerdict> withVerdict = all.stream()
+                .filter(new GroupsFilter(filter.verdict(), Optional.empty())::matches)
+                .toList();
         return new Filter(
-                Stream.of(Verdict.values())
-                        .map(v -> new Option(
-                                v.code(),
-                                v.label(),
-                                filter.verdict().filter(v::equals).isPresent()))
-                        .toList(),
+                filter.verdict().map(Verdict::code).orElse(""),
                 Stream.of(Reason.values())
                         .map(r -> new Option(
                                 r.code(),
                                 r.label(),
+                                withVerdict.stream()
+                                        .filter(g -> g.reason() == r)
+                                        .count(),
                                 filter.reason().filter(r::equals).isPresent()))
                         .toList(),
+                withVerdict.size(),
                 filter.active());
     }
 
