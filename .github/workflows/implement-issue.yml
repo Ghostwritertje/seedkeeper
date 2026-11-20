@@ -212,8 +212,10 @@ jobs:
       # The browser of the run-app skill (.claude/skills/run-app): a headless Chrome the agent drives to look at the
       # views it changed, installed here so the agent finds it ready. The agent reaches it only through browser.sh,
       # which limits it to the app's hosts. A pinned release binary checked against its SHA-256, as in the Run the
-      # app job in ci.yml: Dependabot doesn't track it, so bump the three together, by hand.
+      # app job in ci.yml: Dependabot doesn't track it, so bump the three together, by hand. It takes under a minute,
+      # but once hung for over 20: the timeout fails the job, so a hang reaches the blocked job.
       - name: Install agent-browser and Chrome
+        timeout-minutes: 10
         run: |
           bin="$RUNNER_TEMP/agent-browser-bin"
           mkdir -p "$bin"
@@ -228,10 +230,15 @@ jobs:
       # command line so they also bind the action's own git scripts. Pushes go to the agent branch only, and the
       # pull request tools take the agent branch, so they reach only this issue's pull request. The step's own
       # timeout, under the job's, fails the job, so a timeout reaches the blocked job.
+      # No --max-turns: the step's timeout bounds the run. The action fails a successful run whose num_turns is over
+      # the cap, and num_turns isn't what Claude Code caps: #90's run succeeded after 183 turns under a cap of 150.
+      # CLAUDE_CODE_DISABLE_BACKGROUND_TASKS takes run_in_background off the Bash and Agent tools: a headless run
+      # ends when the agent ends its turn, so a build or sub-agent left running in the background was lost.
       - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         id: claude
         timeout-minutes: 55
         env:
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
           CLAUDE_BRANCH: ${{ needs.pick-up.outputs.branch }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -248,7 +255,6 @@ jobs:
             ${{ steps.prompt.outputs.text }}
           claude_args: >-
             --model claude-opus-5-5
-            --max-turns 150
             --permission-mode default
             --allowedTools
             "Read,Glob,Grep,Edit,MultiEdit,Write,Agent,Skill,TodoWrite,Bash(./mvnw:*),Bash(.claude/skills/run-app/run-app.sh:*),Bash(.claude/skills/run-app/browser.sh:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git branch --show-current),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git commit:*),Bash(git restore:*),Bash(git push origin ${{ needs.pick-up.outputs.branch }}),Bash(git push -u origin ${{ needs.pick-up.outputs.branch }}),Bash(gh issue view:*),Bash(gh issue comment ${{ inputs.issue }}:*),Bash(gh issue edit ${{ inputs.issue }}:*),Bash(gh pr create --base ${{ github.event.repository.default_branch }} --head ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr view:*),Bash(gh pr comment ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr edit ${{ needs.pick-up.outputs.branch }}:*),Bash(gh pr ready ${{ needs.pick-up.outputs.branch }})"
