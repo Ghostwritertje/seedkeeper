@@ -205,7 +205,9 @@ body.no-iss .iss { display: none; }
 #proto button { all: unset; cursor: pointer; padding: 0.3rem 0.65rem; border-radius: 999px; background: #2b2b2b; }
 #proto button:hover { background: #444; }
 #proto button:disabled { opacity: 0.35; cursor: default; }
-#proto .lbl { padding: 0 0.4rem; min-width: 13rem; text-align: center; }
+#proto .lbl { padding: 0 0.4rem; min-width: 11rem; text-align: center; }
+#proto #abc { display: flex; gap: 0.2rem; }
+#proto #abc button[aria-pressed="true"] { background: #f6c945; color: #111; font-weight: 700; }
 #proto .tag { background: #f6c945; color: #111; font-weight: 800; font-size: 0.68rem; padding: 0.1rem 0.45rem; border-radius: 999px; }
 
 /* #118 small screens */
@@ -241,6 +243,7 @@ body.no-iss .iss { display: none; }
   <span class="tag">PROTOTYPE</span>
   <button type="button" id="prev" aria-label="Previous variant">←</button>
   <span class="lbl" id="lbl"></span>
+  <span id="abc"></span>
   <button type="button" id="next" aria-label="Next variant">→</button>
   <button type="button" id="iss" title="Show/hide issue markers (i)">#</button>
 </div>
@@ -503,7 +506,8 @@ function groupsC() {
     </section>
   </div>`;
 }
-P.groups = () => ({ A: groupsA, B: groupsB, C: groupsC }[S.variant || 'A'] || groupsA)();
+const variant = () => S.variant || localStorage.getItem('proto-variant') || 'A';
+P.groups = () => ({ A: groupsA, B: groupsB, C: groupsC }[variant()] || groupsA)();
 
 P.overrides = () => `<h1>Overrides</h1>
   ${S.done ? `<p role="status" class="done">Keep override ${esc({ added: 'added', saved: 'saved', deleted: 'deleted' }[S.done] || '')}. ${iss(87)}</p>` : ''}
@@ -592,12 +596,14 @@ function render() {
   document.querySelector('body > header').hidden = S.page === 'login';
   document.getElementById('nav').innerHTML = NAV.map(([k, v]) => `<a href="#${k}" ${S.page === k ? 'aria-current="page"' : ''}>${v}${k === 'groups' ? `<span class="count" title="Left alone">${counts['left-alone']}</span>` : ''}</a>`).join('');
   document.getElementById('main').innerHTML = (P[S.page] || P.overview)();
-  const vs = VARIANTS[S.page];
-  const cur = vs ? vs.find(v => v[0] === (S.variant || 'A')) || vs[0] : null;
-  document.getElementById('lbl').textContent = vs ? `${S.page}: ${cur[0]} (${cur[1]})` : `${S.page}: no variants`;
-  document.getElementById('prev').disabled = document.getElementById('next').disabled = !vs;
+  const vs = VARIANTS.groups, v = variant(), cur = vs.find(x => x[0] === v) || vs[0];
+  if (S.page === 'groups') localStorage.setItem('proto-variant', cur[0]);
+  document.getElementById('lbl').textContent = `Groups design ${cur[0]}: ${cur[1]}`;
+  document.getElementById('abc').innerHTML = vs.map(([k, n]) => `<button type="button" title="${n}" aria-pressed="${k === cur[0]}" onclick="pickVariant('${k}')">${k}</button>`).join('');
 }
-function cycle(d) { const vs = VARIANTS[S.page]; if (!vs) return; const i = vs.findIndex(v => v[0] === (S.variant || 'A')); set({ variant: vs[(i + d + vs.length) % vs.length][0] }); }
+// The switcher works from every page: it always shows (and jumps to) the Groups designs.
+function pickVariant(k) { localStorage.setItem('proto-variant', k); if (S.page === 'groups') set({ variant: k }); else go('groups', { variant: k }); }
+function cycle(d) { const vs = VARIANTS.groups; const i = vs.findIndex(x => x[0] === variant()); pickVariant(vs[(Math.max(i, 0) + d + vs.length) % vs.length][0]); }
 document.getElementById('prev').onclick = () => cycle(-1);
 document.getElementById('next').onclick = () => cycle(1);
 document.getElementById('iss').onclick = () => document.body.classList.toggle('no-iss');

@@ -7,7 +7,7 @@ Run it: `open prototype/ui-all-issues/index.html` (one static file, no build, in
 
 - Pages: `#overview` (new landing page), `#groups`, `#overrides`, `#activity`, `#orphans`, `#settings`, `#system`, `#login?loggedOut=1`.
 - Groups has three structurally different variants: `#groups?variant=A` (refined table), `B` (triage lanes), `C` (list + detail).
-  Cycle them with the floating bar or ← →.
+  Pick one with the A/B/C buttons in the floating bar, or cycle with ← →, from any page. The choice is remembered.
 - Purple `#nnn` markers show which issue each change comes from. Toggle them with `i` or the `#` button.
 - Try `#groups?verdict=leave` (#113), `Keep…` → Set (#88), Overrides Save/Delete (#87), and hovering or tabbing to a seeding % (#120).
 
