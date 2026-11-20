@@ -193,8 +193,8 @@ class GroupsPage {
         static SeedProgress of(GroupVerdict.Member member) {
             return member.tracker()
                     .map(tracker -> toward(member.seedTime(), tracker.minimumSeedTime()))
-                    .orElseGet(() ->
-                            new SeedProgress("muted", 0, "—", StatusText.duration(member.seedTime()) + " · no minimum"));
+                    .orElseGet(() -> new SeedProgress(
+                            "muted", 0, "—", StatusText.duration(member.seedTime()) + " · no minimum"));
         }
 
         private static SeedProgress toward(Duration seedTime, Duration minimum) {

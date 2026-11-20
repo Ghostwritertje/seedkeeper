@@ -347,9 +347,7 @@ class GroupsTest {
                                 + ".collect { it.@'aria-label'.toString() }",
                         contains("Note for Cross.Seed", "Until for Cross.Seed", "Set a keep override for Cross.Seed"))
                 .body(GroupsTable.heading(7), contains("Paused.Movie", "tracker-a · Stopped · 0 of 1 files linked"))
-                .body(
-                        GroupsTable.cells(7),
-                        contains("97%", "Keep", "Minimum not reached", "clock stopped (paused)"));
+                .body(GroupsTable.cells(7), contains("97%", "Keep", "Minimum not reached", "clock stopped (paused)"));
     }
 
     @Test
@@ -363,7 +361,9 @@ class GroupsTest {
                 .body(GroupsTable.progressCell(1) + ".@tabindex", is("0"))
                 // The text says the state; the colour only repeats it.
                 .body(GroupsTable.progressCell(1) + ".@data-tone", is("warn"))
-                .body(GroupsTable.progressCell(1) + ".meter.collect { [it.@min, it.@max] }.flatten()", contains("0", "100"))
+                .body(
+                        GroupsTable.progressCell(1) + ".meter.collect { [it.@min, it.@max] }.flatten()",
+                        contains("0", "100"))
                 .body(GroupsTable.progressCell(2) + ".@data-tone", is("ok"))
                 .body(GroupsTable.progressCell(3) + ".@data-tone", is("muted"))
                 // The whole cell, as a screen reader reads it: the state, then the exact durations.
@@ -392,9 +392,7 @@ class GroupsTest {
                 .get("/groups?verdict=remove")
                 .then()
                 .statusCode(200)
-                .body(
-                        GroupsTable.HEADINGS,
-                        contains("Name", "Minimum seed time", "Verdict", "Reason", "Keep override"))
+                .body(GroupsTable.HEADINGS, contains("Name", "Minimum seed time", "Verdict", "Reason", "Keep override"))
                 .body(GroupsTable.cells(0), contains("Met ✓", "Remove", "All met"));
     }
 

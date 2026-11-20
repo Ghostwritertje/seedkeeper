@@ -185,9 +185,7 @@ class GroupsFilterTest {
                 .get("/groups")
                 .then()
                 .statusCode(200)
-                .body(
-                        GroupsTable.HEADINGS,
-                        contains("Name", "Minimum seed time", "Verdict", "Reason", "Keep override"))
+                .body(GroupsTable.HEADINGS, contains("Name", "Minimum seed time", "Verdict", "Reason", "Keep override"))
                 .body(GroupsTable.heading(0), contains("Half.Gone", "tracker-a · Seeding · 0 of 2 files linked"))
                 .body(GroupsTable.cells(0), contains("Met ✓", "Left alone", "Missing data (1 of 2 files)"))
                 .body(GroupsTable.underReason(0), is(""))

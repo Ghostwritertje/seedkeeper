@@ -109,7 +109,7 @@ class GroupsPageTest {
                 new GroupsPage.SeedProgress("warn", 0, "0%", "0m of 30d · 30d to go"),
                 progress(Optional.of(TRACKER_A), Duration.ZERO));
         assertEquals(
-                new GroupsPage.SeedProgress("warn", 33, "33%","9d 20h of 30d · 20d 4h to go"),
+                new GroupsPage.SeedProgress("warn", 33, "33%", "9d 20h of 30d · 20d 4h to go"),
                 progress(Optional.of(TRACKER_A), Duration.ofDays(9).plusHours(20)));
         // Just under rounds to 100%, which would read as met: it stays at 99%.
         assertEquals(
@@ -170,9 +170,7 @@ class GroupsPageTest {
                 new GroupsPage.SeedProgress("warn", 67, "67%", "slowest: 20d of 30d · 10d to go"), group.progress());
         assertEquals(
                 List.of("67%", "50%", "—"),
-                group.members().stream()
-                        .map(m -> m.progress().text())
-                        .toList());
+                group.members().stream().map(m -> m.progress().text()).toList());
     }
 
     @Test

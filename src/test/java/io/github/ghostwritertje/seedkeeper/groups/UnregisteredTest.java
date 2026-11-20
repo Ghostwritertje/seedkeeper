@@ -168,9 +168,7 @@ class UnregisteredTest {
                 .then()
                 .statusCode(200)
                 // No group here has a forecast, so there is no Forecast column.
-                .body(
-                        GroupsTable.HEADINGS,
-                        contains("Name", "Minimum seed time","Verdict", "Reason", "Keep override"))
+                .body(GroupsTable.HEADINGS, contains("Name", "Minimum seed time", "Verdict", "Reason", "Keep override"))
                 .body(
                         GroupsTable.heading(0),
                         contains(
@@ -237,11 +235,7 @@ class UnregisteredTest {
                 .body(GroupsTable.member(0, 0), contains("Cross.Seed", "tracker-a · Seeding", "Met ✓"))
                 .body(
                         GroupsTable.member(0, 1),
-                        contains(
-                                "Cross.Seed.Elsewhere",
-                                "tracker-b · Seeding",
-                                "Tracker warning: Slow down",
-                                "14%"));
+                        contains("Cross.Seed.Elsewhere", "tracker-b · Seeding", "Tracker warning: Slow down", "14%"));
     }
 
     @Test
