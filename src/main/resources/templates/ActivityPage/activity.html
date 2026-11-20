@@ -10,14 +10,15 @@
 Transmission, and the verdict groups removed in full. Files deleted counts the files and symlinks taken off the disk:
 only those no torrent that stays still uses. Space freed counts the size of the deleted files that were the last link
 to their data, so a file still linked in the library, or a symlink, frees nothing.</p>
+<p id="time-zone">Times are in {timeZone}.</p>
 {#for run in runs}
 <article>
-<h2>{run.started}</h2>
+<h2>{#moment run.started /}</h2>
 <dl>
 <dt>Status</dt>
 <dd data-tone="{#if run.status == 'Succeeded'}ok{#else}danger{/if}">{run.status}</dd>
-<dt>Ended</dt>
-<dd>{run.ended}</dd>
+<dt>Took</dt>
+<dd>{run.took}</dd>
 <dt>Removed</dt>
 <dd>{run.removed}</dd>
 <dt>Files deleted</dt>
@@ -29,7 +30,7 @@ to their data, so a file still linked in the library, or a symlink, frees nothin
 <p role="alert">{run.error}</p>
 {/if}
 {#if !run.removals.isEmpty}
-<div role="region" aria-label="Removals of the run of {run.started}" tabindex="0">
+<div role="region" aria-label="Removals of the run of {run.started.text}" tabindex="0">
 <table>
 <thead>
 <tr><th>Removed</th><th>Reason</th><th>Files deleted</th><th>Space freed</th><th>Error</th></tr>

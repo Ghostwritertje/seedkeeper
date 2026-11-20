@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.matchesPattern;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
 import io.github.ghostwritertje.seedkeeper.TestSecrets;
@@ -42,6 +43,7 @@ class LastRunAfterRestartTest {
 
     private static final ZonedDateTime SUCCEEDED = ZonedDateTime.of(2026, 11, 16, 6, 0, 0, 0, ZoneOffset.UTC);
     private static final ZonedDateTime FAILED = SUCCEEDED.plusHours(1);
+    private static final String RUNS = "html.body.main.section.find { it.@id == 'runs' }";
 
     public static class RanBefore implements QuarkusTestProfile {
 
@@ -129,10 +131,46 @@ class LastRunAfterRestartTest {
                 .get("/system")
                 .then()
                 .statusCode(200)
-                .body("html.body.main.section.find { it.@id == 'runs' }.dl.dd[1]", is("Failed"))
+                .body(RUNS + ".dl.dd[1]", is("Failed"))
+                .body(RUNS + ".p.find { it.@role == 'alert' }", is("Transmission does not answer"));
+    }
+
+    @Test
+    void thePageGivesWhenTheLastRunStartedHowLongAgoAndHowLongItTook() {
+        Authenticated.asUser()
+                .when()
+                .get("/system")
+                .then()
+                .statusCode(200)
                 .body(
-                        "html.body.main.section.find { it.@id == 'runs' }.p.find { it.@role == 'alert' }",
-                        is("Transmission does not answer"));
+                        RUNS + ".dl.dt.collect { it.text() }",
+                        contains(
+                                "Status",
+                                "Last run",
+                                "Started",
+                                "Took",
+                                "Removed",
+                                "Files deleted",
+                                "Space freed",
+                                "Next run"))
+                .body(RUNS + ".dl.dd[2].time.@datetime", is("2026-11-16T07:00:00Z"))
+                .body(RUNS + ".dl.dd[2].time.@title", is("2026-11-16 07:00:00 UTC"))
+                .body(RUNS + ".dl.dd[2].time", is("2026-11-16 07:00:00"))
+                .body(RUNS + ".dl.dd[2].span", matchesPattern("\\d+d( \\d+h)? ago"))
+                .body(RUNS + ".dl.dd[3]", is("1s"))
+                .body(RUNS + ".p.find { it.@id == 'time-zone' }", is("Times are in UTC."));
+    }
+
+    @Test
+    void theNextRunIsATimeWithHowLongUntilIt() {
+        Authenticated.asUser()
+                .when()
+                .get("/system")
+                .then()
+                .statusCode(200)
+                .body(RUNS + ".dl.dd[-1].time.@datetime", matchesPattern("\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ"))
+                .body(RUNS + ".dl.dd[-1].time", matchesPattern("\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"))
+                .body(RUNS + ".dl.dd[-1].span", matchesPattern("in .+|in under a minute"));
     }
 
     @Test
@@ -143,9 +181,28 @@ class LastRunAfterRestartTest {
                 .then()
                 .statusCode(200)
                 .body(
-                        "html.body.main.article.h2.collect { it.text() }",
+                        "html.body.main.article.h2.time.collect { it.text() }",
                         contains("2026-11-16 07:00:00", "2026-11-16 06:00:00"))
                 .body("html.body.main.nav.size()", is(0));
+    }
+
+    @Test
+    void theActivityViewGivesWhenEachRunStartedHowLongAgoAndHowLongItTook() {
+        Authenticated.asUser()
+                .when()
+                .get("/activity")
+                .then()
+                .statusCode(200)
+                .body(
+                        "html.body.main.article.h2.time.collect { it.@datetime }",
+                        contains("2026-11-16T07:00:00Z", "2026-11-16T06:00:00Z"))
+                .body("html.body.main.article[1].h2.time.@title", is("2026-11-16 06:00:00 UTC"))
+                .body("html.body.main.article[1].h2.span", matchesPattern("\\d+d( \\d+h)? ago"))
+                .body(
+                        "html.body.main.article[1].dl.dt.collect { it.text() }",
+                        contains("Status", "Took", "Removed", "Files deleted", "Space freed"))
+                .body("html.body.main.article.collect { it.dl.dd[1].text() }", contains("1s", "4s"))
+                .body("html.body.main.p.find { it.@id == 'time-zone' }", is("Times are in UTC."));
     }
 
     @Test

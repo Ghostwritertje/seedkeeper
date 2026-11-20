@@ -1,6 +1,7 @@
 package io.github.ghostwritertje.seedkeeper.groups;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import io.github.ghostwritertje.seedkeeper.decide.Forecast;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
@@ -8,9 +9,12 @@ import io.github.ghostwritertje.seedkeeper.decide.Reason;
 import io.github.ghostwritertje.seedkeeper.decide.Tracker;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerError;
 import io.github.ghostwritertje.seedkeeper.decide.Verdict;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
 import io.github.ghostwritertje.seedkeeper.transmission.Torrent;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -85,6 +89,8 @@ class GroupsPageTest {
         assertEquals("2 torrents · 0 of 1 files linked", group.summary());
         assertEquals("", group.trackerMessage());
         assertEquals("until 2027-03-01", group.forecast());
+        // An end date has no time of day: no <time> for it.
+        assertNull(group.forecastDate());
         assertEquals(3, group.rows());
         GroupsPage.SeedProgress progress = new GroupsPage.SeedProgress("warn", 3, "3%", "1d of 30d · 29d to go");
         assertEquals(
@@ -100,6 +106,25 @@ class GroupsPageTest {
                                 "0 B",
                                 "")),
                 group.members());
+    }
+
+    @Test
+    void aForecastDateIsAStampInTheTimeZoneOfTheForecast() {
+        ZonedDateTime date = ZonedDateTime.of(2026, 12, 2, 10, 15, 42, 0, ZoneId.of("Asia/Kolkata"));
+        GroupVerdict verdict = new GroupVerdict(
+                List.of(member("1111", "Fresh", Optional.empty())),
+                Verdict.KEEP,
+                Reason.MINIMUM_NOT_REACHED,
+                0,
+                1,
+                Optional.of(new Forecast(Optional.of(date), Optional.empty())));
+
+        GroupsPage.Group group = GroupsPage.group(verdict);
+
+        assertEquals("2026-12-02 10:15", group.forecast());
+        assertEquals(
+                new StatusText.Stamp("2026-12-02T10:15:42+05:30", "2026-12-02 10:15", "2026-12-02 10:15 Asia/Kolkata"),
+                group.forecastDate());
     }
 
     @Test

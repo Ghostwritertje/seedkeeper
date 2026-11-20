@@ -48,6 +48,7 @@ class SettingsScheduleTest {
                 .body(RUN + ".dt", contains("Schedule", "Time zone", "Next run"))
                 .body(RUN + ".dd[0]", is("Every day at 04:30 (0 30 4 * * ?)"))
                 .body(RUN + ".dd[1]", is("UTC"))
-                .body(RUN + ".dd[2]", matchesPattern("\\d{4}-\\d{2}-\\d{2} 04:30:00"));
+                .body(RUN + ".dd[2].time", matchesPattern("\\d{4}-\\d{2}-\\d{2} 04:30:00"))
+                .body(RUN + ".dd[2].time.@datetime", matchesPattern("\\d{4}-\\d{2}-\\d{2}T04:30:00Z"));
     }
 }

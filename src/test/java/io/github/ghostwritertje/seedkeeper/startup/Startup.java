@@ -12,6 +12,8 @@ final class Startup {
     static void application(JavaArchive jar) {
         jar.addPackages(true, SeedkeeperConfig.class.getPackage())
                 .addAsResource("templates/layout.html")
+                .addAsResource("templates/tags/moment.html")
+                .addAsResource("templates/tags/stamp.html")
                 .addAsResource("templates/LoginPage/login.html")
                 .addAsResource("templates/SystemPage/system.html")
                 .addAsResource("templates/GroupsPage/groups.html")

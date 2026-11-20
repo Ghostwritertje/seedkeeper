@@ -1,8 +1,10 @@
 package io.github.ghostwritertje.seedkeeper.system;
 
+import io.github.ghostwritertje.seedkeeper.SeedkeeperConfig;
 import io.github.ghostwritertje.seedkeeper.run.RunService;
 import io.github.ghostwritertje.seedkeeper.system.SystemStatus.LastRun;
 import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText.Moment;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.common.annotation.RunOnVirtualThread;
@@ -14,43 +16,51 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
+import java.time.ZoneId;
 import org.jspecify.annotations.Nullable;
 
 /** The System view, with its Run now button. */
 @Path("/system")
 class SystemPage {
 
-    private static final DateTimeFormatter MOMENT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
     @CheckedTemplate
     static class Templates {
 
         /**
-         * @param lastRun the last run in words; null when there has been none
-         * @param nextRun "2026-11-21 06:00:00", in the configured time zone; null when no run is scheduled
-         * @param notice  what to tell about the Run now that was just pressed; null when there is nothing to tell
+         * @param lastRun  the last run in words; null when there has been none
+         * @param nextRun  when the next scheduled run starts; null when no run is scheduled
+         * @param timeZone the configured time zone, which every time on the page is in: "Europe/Brussels"
+         * @param notice   what to tell about the Run now that was just pressed; null when there is nothing to tell
          */
         static native TemplateInstance system(
-                SystemStatus status, @Nullable LastRunText lastRun, @Nullable String nextRun, @Nullable String notice);
+                SystemStatus status,
+                @Nullable LastRunText lastRun,
+                @Nullable Moment nextRun,
+                String timeZone,
+                @Nullable String notice);
     }
 
     /**
      * The last run as the page words it.
      *
-     * @param started    "2026-11-20 06:00:00", in the configured time zone
+     * @param started    when it started, in the configured time zone
+     * @param took       how long it took: "4s"
      * @param removed    "2 torrents in 1 group"
      * @param spaceFreed "1.5 GiB"
      */
-    public record LastRunText(String started, String ended, String removed, String spaceFreed) {}
+    public record LastRunText(Moment started, String took, String removed, String spaceFreed) {}
 
     private final SystemService system;
     private final RunService runs;
+    private final ZoneId timeZone;
 
-    SystemPage(SystemService system, RunService runs) {
+    SystemPage(SystemService system, RunService runs, SeedkeeperConfig config) {
         this.system = system;
         this.runs = runs;
+        this.timeZone = config.timeZone();
     }
 
     @GET
@@ -82,20 +92,29 @@ class SystemPage {
         SystemStatus status = system.status();
         LastRun lastRun = status.lastRun();
         String nextRun = status.nextRun();
+        Instant now = Instant.now();
         return Templates.system(
-                status, lastRun == null ? null : text(lastRun), nextRun == null ? null : moment(nextRun), notice);
+                status,
+                lastRun == null ? null : text(lastRun, now),
+                nextRun == null ? null : moment(nextRun, now),
+                timeZone.getId(),
+                notice);
     }
 
-    private static LastRunText text(LastRun run) {
+    private LastRunText text(LastRun run, Instant now) {
         return new LastRunText(
-                moment(run.started()),
-                moment(run.ended()),
+                moment(run.started(), now),
+                StatusText.elapsed(Duration.between(instant(run.started()), instant(run.ended()))),
                 count(run.torrentsRemoved(), "torrent") + " in " + count(run.groupsRemoved(), "group"),
                 StatusText.size(run.spaceFreedBytes()));
     }
 
-    private static String moment(String iso) {
-        return OffsetDateTime.parse(iso).format(MOMENT);
+    private Moment moment(String iso, Instant now) {
+        return StatusText.moment(instant(iso), timeZone, now);
+    }
+
+    private static Instant instant(String iso) {
+        return OffsetDateTime.parse(iso).toInstant();
     }
 
     private static String count(int number, String what) {

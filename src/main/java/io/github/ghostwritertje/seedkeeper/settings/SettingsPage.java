@@ -5,6 +5,7 @@ import io.github.ghostwritertje.seedkeeper.decide.TrackerRules;
 import io.github.ghostwritertje.seedkeeper.decide.TrackerRules.ManagedTracker;
 import io.github.ghostwritertje.seedkeeper.run.ScheduledRun;
 import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText.Moment;
 import io.github.ghostwritertje.seedkeeper.transmission.Transmission;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
@@ -12,7 +13,7 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
-import java.time.format.DateTimeFormatter;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -34,12 +35,12 @@ class SettingsPage {
      * The configuration, as text ready to show. It holds no secret value.
      *
      * @param schedule "Every day at 06:00 (0 0 6 * * ?)"; the cron expression alone when it has no plain words
-     * @param nextRun  "2026-11-21 06:00:00", in the configured time zone; null when no run is scheduled
+     * @param nextRun  when the next scheduled run starts, in the configured time zone; null when none is scheduled
      */
     public record Settings(
             String schedule,
             String timeZone,
-            @Nullable String nextRun,
+            @Nullable Moment nextRun,
             String transmissionUrl,
             String downloadsRoot,
             List<String> libraryRoots,
@@ -71,8 +72,6 @@ class SettingsPage {
         }
     }
 
-    private static final DateTimeFormatter MOMENT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
     private final SeedkeeperConfig config;
     private final ScheduledRun scheduledRun;
     private final Optional<String> sessionEncryptionKey;
@@ -94,7 +93,7 @@ class SettingsPage {
                 config.timeZone().getId(),
                 scheduledRun
                         .next()
-                        .map(next -> next.atZone(config.timeZone()).format(MOMENT))
+                        .map(next -> StatusText.moment(next, config.timeZone(), Instant.now()))
                         .orElse(null),
                 Transmission.withoutUserInfo(config.transmission().url()).toString(),
                 config.downloadsRoot().toString(),

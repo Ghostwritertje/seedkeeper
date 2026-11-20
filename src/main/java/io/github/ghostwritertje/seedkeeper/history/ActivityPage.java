@@ -7,6 +7,7 @@ import io.github.ghostwritertje.seedkeeper.history.History.RecordedMember;
 import io.github.ghostwritertje.seedkeeper.history.History.RecordedRemoval;
 import io.github.ghostwritertje.seedkeeper.history.History.RecordedRun;
 import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText.Moment;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.common.annotation.RunOnVirtualThread;
@@ -16,9 +17,10 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import java.math.BigInteger;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -29,31 +31,32 @@ import org.jspecify.annotations.Nullable;
 @Path("/activity")
 class ActivityPage {
 
-    private static final DateTimeFormatter MOMENT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
     @CheckedTemplate
     static class Templates {
 
         /**
          * @param runs        the runs of this page, the newest first
          * @param pages       which page this is, out of how many
+         * @param timeZone    the configured time zone, which every time on the page is in: "Europe/Brussels"
          * @param unavailable why the history can't be read; null when it can
          */
-        static native TemplateInstance activity(List<Run> runs, Pages pages, @Nullable String unavailable);
+        static native TemplateInstance activity(
+                List<Run> runs, Pages pages, String timeZone, @Nullable String unavailable);
     }
 
     /**
      * One run, as text ready to show.
      *
-     * @param started    "2026-11-20 06:00:00", in the configured time zone
+     * @param started    when it started, in the configured time zone
+     * @param took       how long it took: "4s"
      * @param status     "Succeeded" or "Failed"
      * @param error      the one reason of a failed run; null otherwise
      * @param removed    "2 torrents in 1 group"
      * @param spaceFreed "1.5 GiB"
      */
     public record Run(
-            String started,
-            String ended,
+            Moment started,
+            String took,
             String status,
             @Nullable String error,
             String removed,
@@ -154,16 +157,21 @@ class ActivityPage {
         try {
             List<RecordedRun> runs = history.runs(Optional.empty());
             Pages pages = Pages.of(page, runs.size());
-            return Templates.activity(pages.of(runs).stream().map(this::run).toList(), pages, null);
+            Instant now = Instant.now();
+            return Templates.activity(
+                    pages.of(runs).stream().map(run -> run(run, now)).toList(), pages, timeZone.getId(), null);
         } catch (HistoryException e) {
-            return Templates.activity(List.of(), Pages.of(null, 0), e.getMessage());
+            return Templates.activity(List.of(), Pages.of(null, 0), timeZone.getId(), e.getMessage());
         }
     }
 
-    private Run run(RecordedRun run) {
+    private Run run(RecordedRun run, Instant now) {
         return new Run(
-                moment(run.started()),
-                moment(run.ended()),
+                StatusText.moment(run.started(), timeZone, now),
+                // Between the seconds shown, as the System view, which has only those, counts it too.
+                StatusText.elapsed(Duration.between(
+                        run.started().truncatedTo(ChronoUnit.SECONDS),
+                        run.ended().truncatedTo(ChronoUnit.SECONDS))),
                 run.status().equals("succeeded") ? "Succeeded" : "Failed",
                 run.error().orElse(null),
                 count(run.torrentsRemoved(), "torrent") + " in " + count(run.groupsRemoved(), "group"),
@@ -215,10 +223,6 @@ class ActivityPage {
                 .map(Reason::label)
                 .findFirst()
                 .orElse(code);
-    }
-
-    private String moment(Instant moment) {
-        return MOMENT.format(moment.atZone(timeZone));
     }
 
     private static String count(int number, String what) {

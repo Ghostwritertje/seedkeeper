@@ -30,11 +30,11 @@ final class GroupsTable {
 
     /**
      * The text of every cell of the header row after the name, up to the form that sets a keep override; a cell's
-     * own text only, without the lines under it.
+     * own text only, without the lines under it; a cell that holds a {@code <time>}, the forecast, gives its text.
      */
     static String cells(int group) {
         return GROUPS + "[" + group + "].tr[0].td.findAll { it.form.size() == 0 }"
-                + ".collect { it.localText().join('').trim() }";
+                + ".collect { it.time.size() > 0 ? it.time.text() : it.localText().join('').trim() }";
     }
 
     /** The line under the reason (the third cell after the name): the secondary reasons; empty when none. */

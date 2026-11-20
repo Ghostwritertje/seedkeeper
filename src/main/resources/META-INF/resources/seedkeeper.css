@@ -563,6 +563,25 @@ dd li + li {
   font-size: 0.8125rem;
 }
 
+/* How long ago or until a time, next to it; the time's tooltip names the time zone. */
+time + span {
+  margin-left: 0.35rem;
+  color: var(--muted);
+  font-size: 0.875em;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+time[title] {
+  cursor: help;
+}
+
+/* Which time zone the times of the page are in. */
+#time-zone {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
 /* Why a removal deleted no files or freed no space, under the number. */
 [data-page="activity"] tbody small {
   display: block;
