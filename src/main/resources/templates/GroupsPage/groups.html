@@ -24,6 +24,9 @@
 <button type="submit">Filter</button>
 {#if filter.active}<a href="/groups">Clear filter</a>{/if}
 </form>
+{#if kept}
+<p role="status" id="done">Keep override set. It shows in the <a href="/overrides">Overrides view</a>.</p>
+{/if}
 {#if notice}
 <p role="alert" id="notice">{notice}</p>
 {/if}
@@ -53,6 +56,8 @@ members the group gains later are added to it. It shows in the Overrides view, w
 {#for member in group.members}
 <tr><td>{member.name}</td><td>{member.tracker}</td><td>{member.seedTime}</td><td>{member.status}</td><td>{member.trackerMessage}</td>{#if member_isFirst}<td rowspan="{group.members.size}">{group.libraryLinks}</td><td rowspan="{group.members.size}" data-verdict="{group.verdictCode}">{group.verdict}</td><td rowspan="{group.members.size}">{group.reason}</td><td rowspan="{group.members.size}">{group.secondaryReasons}</td><td rowspan="{group.members.size}">{group.forecast}</td><td rowspan="{group.members.size}"><form id="keep-{group.hashes.get(0)}" method="post" action="/groups/keep">
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<input type="hidden" name="verdict" value="{filter.verdictCode}">
+<input type="hidden" name="reason" value="{filter.reasonCode}">
 {#for hash in group.hashes}<input type="hidden" name="hash" value="{hash}">
 {/for}<details><summary>Keep…</summary><div>
 <label>Note <input type="text" name="note" placeholder="Why keep it?" aria-label="Note for {group.members.get(0).name}"></label>

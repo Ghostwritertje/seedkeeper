@@ -21,6 +21,7 @@ import io.restassured.http.Cookie;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -43,6 +44,8 @@ class ManageOverridesTest {
     private static final long DAY = 86_400;
     private static final String CSRF_COOKIE = "csrf-token";
     private static final String ROWS = "html.body.main.table.tbody.tr";
+    private static final String SELECTED_VERDICT = "html.body.main.form.'**'.find { it.name() == 'select'"
+            + " && it.@name == 'verdict' }.option.find { it.@selected == 'selected' }.@value";
 
     private Path file;
 
@@ -133,7 +136,7 @@ class ManageOverridesTest {
                 .post("/groups/keep")
                 .then()
                 .statusCode(303)
-                .header("Location", endsWith("/groups"));
+                .header("Location", endsWith("/groups?done=kept"));
 
         Authenticated.withApiKey()
                 .when()
@@ -148,6 +151,75 @@ class ManageOverridesTest {
                 .then()
                 .body(ROWS + ".find { it.td[0] == 'Manage.Movie' }.td[7]", is("Keep override"))
                 .body(ROWS + ".find { it.td[0] == 'Manage.Show' }.td[7]", is("All met"));
+    }
+
+    @Test
+    void aKeepOverrideSetFromAFilteredGroupsViewReturnsToTheSameFilterAndSaysSo() {
+        Session user = Session.login();
+        Response page = user.page("/groups?verdict=remove");
+        page.then()
+                .statusCode(200)
+                .body(hidden("keep-1a1a17", "verdict"), is("remove"))
+                .body(hidden("keep-1a1a17", "reason"), is(""))
+                .body(hidden("keep-3c3c17", "verdict"), is("remove"))
+                .body(hidden("keep-3c3c17", "reason"), is(""))
+                .body("html.body.main.p.findAll { it.@id == 'done' }.size()", is(0));
+
+        String location = user.form(page, "keep-1a1a17")
+                .formParam("note", "Rewatching")
+                .formParam("until", "")
+                .post("/groups/keep")
+                .then()
+                .statusCode(303)
+                .extract()
+                .header("Location");
+
+        URI uri = URI.create(location);
+        assertEquals("/groups", uri.getPath());
+        List<String> query = List.of(uri.getQuery().split("&"));
+        assertTrue(query.contains("verdict=remove"), location);
+        assertTrue(query.contains("done=kept"), location);
+        assertTrue(query.stream().noneMatch(p -> p.startsWith("reason=")), location);
+
+        user.page(uri.getPath() + "?" + uri.getQuery())
+                .then()
+                .statusCode(200)
+                .body(
+                        "html.body.main.p.find { it.@id == 'done' }.text()",
+                        is("Keep override set. It shows in the Overrides view."))
+                .body("html.body.main.p.find { it.@id == 'done' }.@role", is("status"))
+                .body("html.body.main.p.find { it.@id == 'done' }.a.@href", is("/overrides"))
+                .body("html.body.main.p.find { it.@id == 'done' }.a", is("Overrides view"))
+                // Kept now, so no longer due: only the other group is left under Remove.
+                .body(ROWS + ".size()", is(1))
+                .body(ROWS + "[0].td[0]", is("Manage.Show"));
+        user.page("/groups?done=other")
+                .then()
+                .statusCode(200)
+                .body("html.body.main.p.findAll { it.@id == 'done' }.size()", is(0));
+    }
+
+    @Test
+    void aKeepOverrideThatIsRefusedInTheGroupsViewKeepsTheFilter() {
+        Session user = Session.login();
+        Response page = user.page("/groups?verdict=remove&reason=all-met");
+        page.then()
+                .body(hidden("keep-3c3c17", "verdict"), is("remove"))
+                .body(hidden("keep-3c3c17", "reason"), is("all-met"));
+
+        user.form(page, "keep-3c3c17")
+                .formParam("note", "x")
+                .formParam("until", "31/12/2999")
+                .post("/groups/keep")
+                .then()
+                .statusCode(400)
+                .body(
+                        "html.body.main.p.find { it.@id == 'notice' }",
+                        is("The end date is not a date like 2027-03-01: 31/12/2999"))
+                .body(SELECTED_VERDICT, is("remove"))
+                .body(hidden("keep-3c3c17", "reason"), is("all-met"));
+
+        assertFalse(Files.exists(file), "the overrides file was written");
     }
 
     @Test
@@ -412,6 +484,12 @@ class ManageOverridesTest {
                 .then()
                 .statusCode(200)
                 .body("hashes", contains(List.of("3c3c17")));
+    }
+
+    /** The value of the hidden input with this name in the form with this id. */
+    private static String hidden(String form, String name) {
+        return "**.find { it.name() == 'form' && it.@id == '" + form + "' }.input.find { it.@type == 'hidden' && it.@name == '"
+                + name + "' }.@value";
     }
 
     /** Waits until the Overrides view shows the overrides with these ids: the file watcher may take a few seconds. */
