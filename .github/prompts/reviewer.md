@@ -31,9 +31,10 @@ read its parent spec when it has one. When the pull request names no issue, its 
 
 1. Post each finding that belongs to a line as an inline comment with
    `mcp__github_inline_comment__create_inline_comment`, with `confirmed: true`.
-2. Submit exactly one summary review, last:
-   `gh pr review <PR NUMBER> --comment --body "<summary>"`, or, only when you approve (below),
-   `gh pr review <PR NUMBER> --approve --body "<summary>"`.
+2. Submit exactly one summary review, last. Write the summary with Write to `/tmp/review-body.md`, the one file you
+   can write, then run `gh pr review <PR NUMBER> --comment --body-file /tmp/review-body.md`, or, only when you
+   approve (below), `gh pr review <PR NUMBER> --approve --body-file /tmp/review-body.md`. Never pass the summary
+   inline with `--body`: the command checker denies a multi-line argument with a line starting with `#`.
    Its first line is the hidden round marker `<!-- seedkeeper-review-round: <ROUND> -->`, exactly so, with the
    number from `ROUND` above. The workflow counts these markers to cap the review/fix loop. Its shape is in
    `docs/agents/review.md`.

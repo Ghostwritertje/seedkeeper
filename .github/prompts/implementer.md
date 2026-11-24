@@ -24,10 +24,13 @@ this prompt and its skills name. Anything else is denied.
   `./mvnw -B -q verify -Pquality`.
 - Read files with Read, Glob and Grep, and change them only with Edit and Write: never `python3`, `sed`, `cat` or a
   heredoc.
+- Post every comment from a file: write its body with Write to `/tmp/comment.md`, outside the checkout, and pass
+  `--body-file /tmp/comment.md`. Never pass a body inline with `--body`: the command checker denies a multi-line
+  argument with a line starting with `#`, such as a `##` heading.
 - When a command is denied, run it again in the allowed form. When you still can't do what the run needs, don't
   just stop: add `agent:blocked` with `gh issue edit <ISSUE NUMBER> --add-label agent:blocked` and comment with
-  `gh issue comment <ISSUE NUMBER>`, naming the denied command. If you have commits, push them and open a draft pull
-  request first, as below.
+  `gh issue comment <ISSUE NUMBER> --body-file /tmp/comment.md`, naming the denied command. If you have commits,
+  push them and open a draft pull request first, as below.
 
 Every run ends in one of three ways: a ready pull request, `needs-decision`, or `agent:blocked`. The workflow checks
 after you finish, and a run that ends in none of them fails.
@@ -50,8 +53,8 @@ after you finish, and a run that ends in none of them fails.
 2. Where the issue leaves a gap, take the most reversible option and note it for "Decisions I made".
 3. Where a choice can't easily be reversed (anything under **Hard to revert** in `docs/agents/auto-merge.md`, a new
    dependency, or a conflict with an ADR), stop:
-   - comment on the issue with `gh issue comment <ISSUE NUMBER>`, giving the question, the options with what follows
-     from each, and your recommendation;
+   - comment on the issue with `gh issue comment <ISSUE NUMBER> --body-file /tmp/comment.md`, giving the question,
+     the options with what follows from each, and your recommendation;
    - add the label with `gh issue edit <ISSUE NUMBER> --add-label needs-decision`;
    - if you have commits, push them with `git push -u origin <BRANCH>`, but open no pull request;
    - end the run.
@@ -86,8 +89,8 @@ uploads them once you finish. After the skill's sections, add:
 
 When a pull request for `<BRANCH>` already exists (`gh pr view <BRANCH>`), update it with
 `gh pr edit <BRANCH> --body-file /tmp/pr-body.md` instead, and mark it ready with `gh pr ready <BRANCH>` only if
-`./mvnw -B verify -Pquality` is green. Comment on it with `gh pr comment <BRANCH>`. Your tools on pull requests
-take `<BRANCH>`: they reach only this issue's pull request.
+`./mvnw -B verify -Pquality` is green. Comment on it with `gh pr comment <BRANCH> --body-file /tmp/comment.md`.
+Your tools on pull requests take `<BRANCH>`: they reach only this issue's pull request.
 
 ## Limits
 
