@@ -23,9 +23,12 @@ this prompt and its skills name. Anything else is denied.
   `./mvnw -B -q verify -Pquality`.
 - Read files with Read, Glob and Grep, and change them only with Edit and Write: never `python3`, `sed`, `cat` or a
   heredoc.
+- Post every comment from a file: write its body with Write to `/tmp/comment.md`, outside the checkout, and pass
+  `--body-file /tmp/comment.md`. Never pass a body inline with `--body`: the command checker denies a multi-line
+  argument with a line starting with `#`, such as a `##` heading.
 - When a command is denied, run it again in the allowed form. When you still can't do what the run needs, don't
   just stop: push what you have, add `agent:blocked` with `gh pr edit <PR NUMBER> --add-label agent:blocked` and
-  comment with `gh pr comment <PR NUMBER>`, naming the denied command.
+  comment with `gh pr comment <PR NUMBER> --body-file /tmp/comment.md`, naming the denied command.
 
 Every run ends in one of three ways: the fixes pushed, `needs-decision`, or `agent:blocked`. The workflow checks
 after you finish, and a run that ends in none of them fails.
@@ -53,8 +56,8 @@ after you finish, and a run that ends in none of them fails.
 2. Where a finding leaves a gap, take the most reversible option. Where a fix needs a choice that can't easily be
    reversed (anything under **Hard to revert** in `docs/agents/auto-merge.md`, a new dependency, or a conflict with
    an ADR), or where you disagree with a finding:
-   - comment on the pull request with `gh pr comment <PR NUMBER>`, giving the question, the options with what
-     follows from each, and your recommendation;
+   - comment on the pull request with `gh pr comment <PR NUMBER> --body-file /tmp/comment.md`, giving the
+     question, the options with what follows from each, and your recommendation;
    - add the label with `gh pr edit <PR NUMBER> --add-label needs-decision`;
    - leave that thread unresolved, and carry on with the others.
 3. Commit in small steps with `git add` and `git commit`, with clear messages.
@@ -72,9 +75,9 @@ after you finish, and a run that ends in none of them fails.
    starts a new review.
 2. Write the id of each thread you handled, fixed and pushed, to `<HANDLED THREADS>`, one per line. The workflow
    resolves exactly those threads after you finish; leave out any thread you didn't fix.
-3. Comment on the pull request with `gh pr comment <PR NUMBER>`: what you changed for each finding, and a
-   `## Decisions I made` section with each gap you resolved, or "None.". When you took screenshots, name each file
-   and link `<SCREENSHOTS>`, where the workflow uploads them once you finish.
+3. Comment on the pull request with `gh pr comment <PR NUMBER> --body-file /tmp/comment.md`: what you changed for
+   each finding, and a `## Decisions I made` section with each gap you resolved, or "None.". When you took
+   screenshots, name each file and link `<SCREENSHOTS>`, where the workflow uploads them once you finish.
 
 When `./mvnw -B verify` or `./mvnw -B verify -Pquality` stays red after a real effort, push what you have, list no
 threads as handled, add the label with `gh pr edit <PR NUMBER> --add-label agent:blocked`, and comment with a
