@@ -29,7 +29,10 @@ wait for a background sub-agent, before anything is posted.
   wrong, quoting the issue.
 
 It doesn't run the build: CI's `Verify (JVM)`, `Verify (native)` and `Verify (quality)` jobs do, and
-`Lint (non-Java)` lints the scripts, the workflows and the Dockerfile.
+`Lint (non-Java)` lints the scripts, the workflows and the Dockerfile. It reads their state with
+`gh pr checks <n> --required`. A required check that has already failed is a finding with a clear fix. A pending
+check is only reported: a review takes about 2 minutes and `Verify (native)` about 6, so the native job is usually
+still running. When it fails later, **Handing back on red CI** below catches it.
 
 ## How it reports
 
@@ -49,6 +52,10 @@ It doesn't run the build: CI's `Verify (JVM)`, `Verify (native)` and `Verify (qu
   ## Spec
 
   <findings, or "No findings.", or "No spec available.">
+
+  ## Checks
+
+  <each required check: passed, pending or failed>
 
   ## Verdict
 
@@ -84,10 +91,27 @@ maintainer:
    users with write access: a thread a stranger started stays unresolved for the maintainer to resolve.
 3. **Reviewing again.** The implementer's push starts a new review, the next round.
 
+**Handing back on red CI.** When CI fails on an implementer pull request's head, the `Hand back on red CI` workflow
+(`.github/workflows/ci-handback.yml`) hands it back without a review, as the reviewer App. It comments first, with
+the failed jobs, the error lines of their logs (the failing tests, Maven's `[ERROR]` lines, the lint findings) and a
+link to the run, then adds `ready-for-agent`. The implementer reads that comment with the rest of the conversation
+and fixes the failures. It hands back once per head, and leaves the pull request alone when the head has moved on,
+when it is a draft, when it already carries `ready-for-agent`, `agent:in-progress`, `needs-decision` or
+`agent:blocked`, and when someone other than the implementer opened it, Dependabot included
+(`.github/scripts/ci-handback.sh`). It runs on `workflow_run`, with secrets, so it never checks out or runs the pull
+request's code: it reads only the run's jobs and logs, with the default branch's scripts.
+
 **Rounds.** A round is one summary review by the reviewer App with the round marker. Before it reviews, the workflow
 counts the earlier ones (`.github/scripts/review-round.sh`). After three rounds the reviewer adds `needs-decision`
 instead of `ready-for-agent`, and asks whether to fix the remaining findings, accept the pull request as it is, or
 close it. The workflow only gives the reviewer the tool to add `ready-for-agent` while a handback is allowed.
+
+A CI handback is no round of its own, and follows the same cap: it hands back while the reviewer has submitted fewer
+than three summary reviews on earlier heads, and adds `needs-decision` after that, with the same question. The
+review of the failed head doesn't count, so the answer doesn't depend on whether CI or the review finished first,
+and a head that the reviewer could still hand back, CI can too. Every handback, the reviewer's or CI's, ends in one
+push at most, and every push is reviewed: the round count bounds the fixes either way. Counting a CI handback as a
+round as well would count one fix twice.
 
 **Only implementer pull requests are handed back.** On a pull request someone else wrote, the reviewer adds no
 `ready-for-agent`; the author can add it to have the implementer address the review.

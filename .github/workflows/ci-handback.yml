@@ -1,0 +1,114 @@
+name: Hand back on red CI
+
+# Sends an implementer pull request back to the implementer when CI fails on its head, as the reviewer App. The
+# review takes about 2 minutes and `Verify (native)` about 6, so the reviewer usually reviews before the native job is
+# done and can't catch its failure (#140). This workflow adds `ready-for-agent`, which starts address-review.yml
+# through implementer.yml, and comments first, with the failed jobs, the error lines from their logs and a link to the
+# run, so the implementer finds the failure in the conversation it reads. The review/fix loop:
+# docs/agents/review.md.
+#
+# `workflow_run` runs in the default branch's context, with secrets, whatever the pull request changed. So it never
+# checks out or runs code from the pull request: the scripts come from the default branch, and it reads only the
+# run's metadata, its jobs and their logs. The logs are the pull request's own output, so they go into the comment as
+# quoted text, inside a fence, and the comment says they are data.
+#
+# It hands back once per head, within review-round.sh's cap of three rounds, and only an open, non-draft implementer
+# pull request whose head is still the failed run's and that no agent label claims (.github/scripts/ci-handback.sh).
+# The handback is no round of its own: the fix it starts is pushed, and the push's review is the next round.
+
+on:
+  # Only CI's own result, and only from the default branch's copy of this file: GitHub runs a workflow_run
+  # workflow as the default branch has it, so a pull request can't change it.
+  workflow_run: # zizmor: ignore[dangerous-triggers] reads only run metadata and logs, never the pull request's code
+    workflows: [CI]
+    types: [completed]
+
+permissions: {}
+
+# bash -eo pipefail, not the default bash -e: a failed fetch at the head of a pipe fails the step.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  hand-back:
+    name: Hand back a failed CI run
+    if: >-
+      github.event.workflow_run.conclusion == 'failure'
+      && github.event.workflow_run.event == 'pull_request'
+      && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # A re-run of the same head waits for this one, then finds its handback comment.
+    concurrency:
+      group: ci-handback-${{ github.event.workflow_run.head_sha }}
+      cancel-in-progress: false
+    # The workflow's own token reads the run's jobs and logs: the reviewer App has no Actions permission, and it
+    # needs none for this.
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      # The default branch's scripts, not the pull request's.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      # Reads the reviews and comments, adds the label and comments. Labelling with an App token, not the
+      # workflow's, starts implementer.yml, which lets the reviewer App's bot start address-review.yml.
+      - name: Mint the reviewer App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.REVIEWER_CLIENT_ID }}
+          private-key: ${{ secrets.REVIEWER_APP_KEY }}
+          permission-issues: write
+          permission-pull-requests: write
+
+      # The run lists the pull requests whose head branch it ran on; the script checks each against the run's head.
+      # The comment goes before the label: the label starts the implementer, which reads the conversation once, at
+      # its start.
+      - name: Hand back the pull requests the failure is on
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ACTIONS_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          REVIEWER: ${{ steps.app-token.outputs.app-slug }}[bot]
+          IMPLEMENTER: ${{ vars.IMPLEMENTER_APP_SLUG }}[bot]
+        run: |
+          script=.github/scripts/ci-handback.sh
+          prs="$(jq -r '.workflow_run.pull_requests[].number' "$GITHUB_EVENT_PATH")"
+          if [ -z "$prs" ]; then
+            echo "::notice::The run is on no pull request of this repository."
+            exit 0
+          fi
+          for pr in $prs; do
+            gh api "repos/$GH_REPO/pulls/$pr" > "$RUNNER_TEMP/pr.json"
+            gh api --paginate "repos/$GH_REPO/issues/$pr/comments" > "$RUNNER_TEMP/comments.json"
+            decision="$(gh api --paginate "repos/$GH_REPO/pulls/$pr/reviews" \
+              | "$script" decide "$HEAD_SHA" "$IMPLEMENTER" "$REVIEWER" "$RUNNER_TEMP/pr.json" "$RUNNER_TEMP/comments.json")"
+            handback="$(sed -n 's/^handback=//p' <<<"$decision")"
+            reason="$(sed -n 's/^reason=//p' <<<"$decision")"
+            if [ "$handback" = none ]; then
+              echo "::notice::Not handing back #$pr: $reason."
+              continue
+            fi
+
+            GH_TOKEN="$ACTIONS_TOKEN" gh api --paginate "repos/$GH_REPO/actions/runs/$RUN_ID/jobs?filter=latest" \
+              | "$script" failed-jobs > "$RUNNER_TEMP/failed.json"
+            logs="$RUNNER_TEMP/logs"
+            mkdir -p "$logs"
+            for id in $(jq -r '.[].id' "$RUNNER_TEMP/failed.json"); do
+              GH_TOKEN="$ACTIONS_TOKEN" gh api "repos/$GH_REPO/actions/jobs/$id/logs" > "$logs/$id.log" \
+                || echo "::warning::Couldn't read the log of job $id."
+            done
+            "$script" comment "$HEAD_SHA" "$RUN_URL" "$handback" "$RUNNER_TEMP/failed.json" "$logs" \
+              > "$RUNNER_TEMP/comment.md"
+            gh pr comment "$pr" --body-file "$RUNNER_TEMP/comment.md"
+            gh pr edit "$pr" --add-label "$handback"
+            echo "::notice::Added $handback to #$pr: $reason."
+          done

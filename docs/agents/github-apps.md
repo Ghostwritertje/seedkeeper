@@ -83,6 +83,18 @@ reviewer hands nothing back. Update them when you rename an App.
 To check the setup, have the reviewer find a clear fix on an implementer pull request: it adds `ready-for-agent`,
 the `Implementer` workflow runs on the pull request's branch, and its push starts a new `Reviewer` run.
 
+## Handing back on red CI
+
+The `Hand back on red CI` workflow (`.github/workflows/ci-handback.yml`) comments and labels as the reviewer App, with
+only **Issues** and **Pull requests** in its token. It reads the failed run's jobs and logs with the workflow's own
+token, which asks for `actions: read`, so the reviewer App needs no **Actions** permission: leave it at **No
+access**. It uses `IMPLEMENTER_APP_SLUG` to know the implementer's pull requests; without it, it hands nothing back.
+
+GitHub runs a `workflow_run` workflow only from the default branch's copy, so it starts working once it is merged.
+To check the setup, let CI fail on an implementer pull request that carries no agent label: once the CI run
+completes, `<reviewer>[bot]` comments with the failed jobs, adds `ready-for-agent`, and the `Implementer` workflow
+runs on the pull request's branch.
+
 ## Labels
 
 The agents use these labels; `docs/agents/issue-tracker.md` describes their lifecycle. Create any that are

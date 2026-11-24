@@ -42,6 +42,9 @@ after you finish, and a run that ends in none of them fails.
    reviewer's latest summary review (it starts with `<!-- seedkeeper-review-round:`) gives the findings that have no
    line. When the pull request had `needs-decision`, the maintainer's answer is in a comment after it: follow the
    answer.
+   When CI failed on the pull request's head, the reviewer App's bot posted a comment that starts with
+   `<!-- seedkeeper-ci-handback: <sha> -->`: it names the failed jobs and quotes the error lines of their logs. It is
+   open when its sha is the branch's head (`git rev-parse HEAD`); the earlier ones were fixed by earlier pushes.
 3. The issue it closes (`Closes #<n>`): `gh issue view <n> --json number,title,body`, and its parent spec the same
    way.
 4. `CLAUDE.md`, `GLOSSARY.md`, the ADRs in `docs/adr/` and the docs in `docs/agents/`. Use the glossary's domain
@@ -49,10 +52,10 @@ after you finish, and a run that ends in none of them fails.
 
 ## Work
 
-1. Address each unresolved thread and each finding of the latest summary review, test-first with the `tdd` skill
-   where the fix changes behaviour. When a fix shows in the UI (a template, the CSS, what a view lists), also follow
-   the `run-app` skill: its before screenshots come before your first edit, its after screenshots and click-through
-   once the tests are green.
+1. Address each unresolved thread, each finding of the latest summary review and each failure in an open CI
+   handback comment, test-first with the `tdd` skill where the fix changes behaviour. When a fix shows in the UI (a
+   template, the CSS, what a view lists), also follow the `run-app` skill: its before screenshots come before your
+   first edit, its after screenshots and click-through once the tests are green.
 2. Where a finding leaves a gap, take the most reversible option. Where a fix needs a choice that can't easily be
    reversed (anything under **Hard to revert** in `docs/agents/auto-merge.md`, a new dependency, or a conflict with
    an ADR), or where you disagree with a finding:
@@ -63,7 +66,8 @@ after you finish, and a run that ends in none of them fails.
 3. Commit in small steps with `git add` and `git commit`, with clear messages.
 4. Run `./mvnw -B verify` while you work: it is the fast build, compile and tests. It needs no Docker. The native
    build (`-Dnative`, `-Pnative`), the image build and the image smoke test run in CI only, and the repo's hook
-   blocks them: verify on the JVM.
+   blocks them: verify on the JVM. Fix a `Verify (native)` failure you can't reproduce on the JVM from the quoted
+   log, and say in your comment that only CI's run on your push confirms the fix.
 5. Once `./mvnw -B verify` is green, do the quality pass: run `./mvnw -B verify -Pquality` once, and fix everything
    it reports in one batch. Fix formatting with `./mvnw spotless:apply sortpom:sort` first, then the rest by hand.
    Re-run it until it is green, and commit the fixes. It is slower, so don't run it after every change. CI's
