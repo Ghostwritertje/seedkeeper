@@ -95,29 +95,32 @@ class SystemPage {
         Instant now = Instant.now();
         return Templates.system(
                 status,
-                lastRun == null ? null : text(lastRun, now),
-                nextRun == null ? null : moment(nextRun, now),
+                lastRun == null ? null : text(lastRun, timeZone, now),
+                nextRun == null ? null : moment(nextRun, timeZone, now),
                 timeZone.getId(),
                 notice);
     }
 
-    private LastRunText text(LastRun run, Instant now) {
+    /** The last run as the System view and the overview word it. */
+    static LastRunText text(LastRun run, ZoneId timeZone, Instant now) {
         return new LastRunText(
-                moment(run.started(), now),
+                moment(run.started(), timeZone, now),
                 StatusText.elapsed(Duration.between(instant(run.started()), instant(run.ended()))),
                 count(run.torrentsRemoved(), "torrent") + " in " + count(run.groupsRemoved(), "group"),
                 StatusText.size(run.spaceFreedBytes()));
     }
 
-    private Moment moment(String iso, Instant now) {
+    /** A moment of {@link SystemStatus}, ISO 8601, as the pages show it. */
+    static Moment moment(String iso, ZoneId timeZone, Instant now) {
         return StatusText.moment(instant(iso), timeZone, now);
     }
 
-    private static Instant instant(String iso) {
+    static Instant instant(String iso) {
         return OffsetDateTime.parse(iso).toInstant();
     }
 
-    private static String count(int number, String what) {
+    /** "1 group", "2 groups". */
+    static String count(int number, String what) {
         return number + " " + what + (number == 1 ? "" : "s");
     }
 }

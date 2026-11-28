@@ -731,15 +731,21 @@ time[title] {
   white-space: nowrap;
 }
 
-/* The count of groups by verdict, which doubles as a filter. */
-main > nav {
+/* The count of groups by verdict, which doubles as a filter; on the overview, links to it. */
+main > nav,
+[data-page="home"] #verdicts > nav {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin: 1rem 0;
 }
 
-main > nav a {
+[data-page="home"] #verdicts > nav {
+  margin-bottom: 0;
+}
+
+main > nav a,
+[data-page="home"] #verdicts > nav a {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -753,7 +759,8 @@ main > nav a {
   font-weight: 500;
 }
 
-main > nav a:hover {
+main > nav a:hover,
+[data-page="home"] #verdicts > nav a:hover {
   border-color: var(--border-strong);
 }
 
@@ -762,7 +769,8 @@ main > nav a[aria-current="page"] {
   box-shadow: 0 0 0 1px var(--accent);
 }
 
-main > nav a mark {
+main > nav a mark,
+[data-page="home"] #verdicts > nav a mark {
   min-width: 2rem;
   text-align: center;
 }
@@ -886,8 +894,9 @@ article[data-quiet] > p {
   overflow-wrap: anywhere;
 }
 
-/* Settings and System: the cards in columns. */
+/* Overview, Settings and System: the cards in columns. */
 
+[data-page="home"],
 [data-page="settings"],
 [data-page="system"] {
   display: grid;
@@ -897,17 +906,34 @@ article[data-quiet] > p {
 }
 
 /* A grid item is as wide as its content by default: a wide table would push its card, and the page, past the screen. */
+[data-page="home"] > *,
 [data-page="settings"] > *,
 [data-page="system"] > * {
   min-width: 0;
 }
 
+[data-page="home"] > :not(section),
 [data-page="settings"] > :not(section),
 [data-page="system"] > :not(section),
+[data-page="home"] > #warnings,
+[data-page="home"] > #verdicts,
 [data-page="settings"] > #trackers,
 [data-page="settings"] > #secrets,
 [data-page="system"] > #runs {
   grid-column: 1 / -1;
+}
+
+[data-page="home"] > section {
+  margin: 0.5rem 0;
+}
+
+/* What needs a look: each line in the colour of a problem. */
+[data-page="home"] #warnings {
+  border-color: var(--danger);
+}
+
+[data-page="home"] #warnings a {
+  color: var(--danger);
 }
 
 /* A long variable name breaks anywhere rather than push the page past a small screen. */

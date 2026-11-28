@@ -1,0 +1,62 @@
+{#include layout.html current='home'}
+{#title}Overview{/title}
+<h1>Overview</h1>
+{#if !warnings.isEmpty}
+<section id="warnings">
+<h2>Needs a look</h2>
+<ul>
+{#for w in warnings}
+<li><a href="{w.href}">{w.text}</a></li>
+{/for}
+</ul>
+</section>
+{/if}
+<section id="verdicts">
+<h2>Groups</h2>
+{#if unavailable}
+<p role="alert">{unavailable}</p>
+{#else}
+<nav aria-label="Groups by verdict">
+{#for t in tally}
+<a href="{t.href}">{#if t.code}<mark data-verdict="{t.code}">{t.count}</mark>{#else}<mark>{t.count}</mark>{/if} {t.label}</a>
+{/for}
+</nav>
+{/if}
+</section>
+<section id="runs">
+<h2>Runs</h2>
+<dl>
+<dt>Last run</dt>
+{#if lastRun}
+<dd><mark data-tone="{#if lastRunOk}ok{#else}danger{/if}">{#if lastRunOk}Succeeded{#else}Failed{/if}</mark> {#moment lastRun.started /}</dd>
+<dt>Removed</dt>
+<dd><a href="/activity">{lastRun.removed}</a></dd>
+<dt>Space freed</dt>
+<dd>{lastRun.spaceFreed}</dd>
+{#else}
+<dd>None yet</dd>
+{/if}
+<dt>Next run</dt>
+<dd>{#if nextRun}{#moment nextRun /}{#else}Not scheduled{/if}</dd>
+</dl>
+<p id="time-zone">Times are in {timeZone}.</p>
+</section>
+{#if dueSoon}
+<section id="due-soon">
+<h2>Due soon</h2>
+<p><a href="{dueSoon.href}">{dueSoon.count}</a> may be removed by the next run or within a week, whichever is later: by {#stamp dueSoon.horizon /}</p>
+{#if !dueSoon.groups.isEmpty}
+<table>
+<thead>
+<tr><th scope="col">Group</th><th scope="col">Forecast</th></tr>
+</thead>
+<tbody>
+{#for g in dueSoon.groups}
+<tr><th scope="row"><a href="{g.href}">{g.name}</a></th><td>{#stamp g.when /}</td></tr>
+{/for}
+</tbody>
+</table>
+{/if}
+</section>
+{/if}
+{/include}
