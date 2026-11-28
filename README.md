@@ -694,13 +694,25 @@ for that build, builds the native executable, runs the integration tests, publis
 `ghcr.io/ghostwritertje/seedkeeper:X.Y.Z`, and then creates the tag `vX.Y.Z` and its GitHub Release with generated
 notes. There is no `latest` tag; pin the version you want.
 
-Start one from the Actions tab (**Release** → **Run workflow** on `main`, with the version as `X.Y.Z`, no `v`), or:
+Start one from the Actions tab (**Release** → **Run workflow** on `main`, with a bump: `patch`, `minor` or
+`major`), or:
 
 ```sh
-gh workflow run release.yml -R Ghostwritertje/seedkeeper -f version=0.1.0
+gh workflow run release.yml -R Ghostwritertje/seedkeeper -f bump=minor
 ```
 
-That releases the head of `main`, and refuses when CI hasn't passed on that commit or the tag exists already.
-Pushing a tag `vX.Y.Z` (or creating a GitHub Release with a new tag) still works and releases that tag's commit.
-Either way a published `X.Y.Z` is never overwritten: a run refuses before it builds when the image is there already.
-When a run pushed the image and then failed, re-run only its failed jobs.
+The bump applies to the latest release tag, not to the POM: after `v0.5.0`, `patch` releases 0.5.1, `minor` 0.6.0
+and `major` 1.0.0 (with no tag yet, it starts from 0.0.0). That releases the head of `main`, and refuses when CI
+hasn't passed on that commit or the tag exists already. Pushing a tag `vX.Y.Z` (or creating a GitHub Release with a
+new tag) still works and releases that tag's commit. Either way a published `X.Y.Z` is never overwritten: a run
+refuses before it builds when the image is there already. When a run pushed the image and then failed, re-run only
+its failed jobs.
+
+The run is titled `Release v0.6.0` for a pushed tag and `Release (minor bump)` for a dispatch; its job names and its
+summary show the version, the image and the GitHub Release.
+
+After the release, the run's last job pushes one commit to `main`, `Prepare X.Y.(Z+1)-SNAPSHOT`, which moves
+`pom.xml` to the next patch snapshot, so builds of `main` report a version past the last release. It is pushed by
+the release App, the only actor that may bypass the `main` ruleset (`docs/adr/0004-release-app-bypass.md`; setup in
+`docs/agents/github-apps.md`). It never force-pushes: when `main` moves on while that job runs, it fails and pushes
+nothing, and the release still stands; re-run only that job.

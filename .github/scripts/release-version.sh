@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
-# Prints the version a run of release.yml publishes, as X.Y.Z, or fails with the reason. A pushed tag `vX.Y.Z` is
-# released as X.Y.Z. A run started by hand (workflow_dispatch) must run on main and is given the version as input,
-# as X.Y.Z without a `v`, so that it names the same concurrency group as the tag vX.Y.Z. No network access of its own.
-# Usage: release-version.sh <event name> <ref name> [<version input>]
+# Works out the version a run of release.yml publishes, or fails with the reason. A pushed tag `vX.Y.Z` is released
+# as X.Y.Z. A run started by hand (workflow_dispatch) must run on main and is given a bump, `patch`, `minor` or
+# `major`, which it applies to the latest release tag `vX.Y.Z` (0.0.0 when there is none yet): the tags are what has
+# really been released, not the POM. No network access of its own: the caller looks up the latest tag.
+# Prints, for $GITHUB_OUTPUT:
+#   version=X.Y.Z
+#   tag=vX.Y.Z
+#   next=X.Y.(Z+1)-SNAPSHOT   the POM version on main after the release
+# Usage: release-version.sh <event name> <ref name> [<bump> [<latest tag>]]
 set -euo pipefail
 
-event="$1" ref="$2" input="${3:-}"
-semver='^[0-9]+\.[0-9]+\.[0-9]+$'
+event="$1" ref="$2" bump="${3:-}" latest="${4:-}"
+semver='^([0-9]+)\.([0-9]+)\.([0-9]+)$'
 
 case "$event" in
   push)
@@ -21,15 +26,29 @@ case "$event" in
       echo "A release is started from main, not from '$ref'" >&2
       exit 1
     fi
-    version="$input"
-    if [[ ! "$version" =~ $semver ]]; then
-      echo "Version '$input' is not X.Y.Z (no leading v)" >&2
+    base="${latest:-v0.0.0}"
+    if [[ "$base" != v* || ! "${base#v}" =~ $semver ]]; then
+      echo "The latest tag '$latest' is not vX.Y.Z" >&2
       exit 1
     fi
+    major="${BASH_REMATCH[1]}" minor="${BASH_REMATCH[2]}" patch="${BASH_REMATCH[3]}"
+    case "$bump" in
+      patch) version="$major.$minor.$((patch + 1))" ;;
+      minor) version="$major.$((minor + 1)).0" ;;
+      major) version="$((major + 1)).0.0" ;;
+      *)
+        echo "Bump '$bump' is not patch, minor or major" >&2
+        exit 1
+        ;;
+    esac
     ;;
   *)
     echo "release.yml doesn't run on '$event'" >&2
     exit 1
     ;;
 esac
-echo "$version"
+
+[[ "$version" =~ $semver ]]
+echo "version=$version"
+echo "tag=v$version"
+echo "next=${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((BASH_REMATCH[3] + 1))-SNAPSHOT"
