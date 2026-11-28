@@ -1,10 +1,16 @@
-{! The sidebar's status block, swapped into <div id="status">; the <span> after it replaces the badge of the Groups link (hx-swap-oob). !}
+{! The sidebar's status block, swapped into <div id="status">; the <span> after it replaces the badge of the Groups link (hx-swap-oob). Each label and its value share a <div>, so they wrap as one on a small screen. !}
 <dl>
+<div>
 <dt>Transmission</dt>
 <dd data-tone="{#if transmission.usable}ok{#else if transmission.reachable}warn{#else}danger{/if}">{#if transmission.usable}Reachable{#else if transmission.reachable}Reachable, not usable{#else}Unreachable{/if}</dd>
+</div>
+<div>
 <dt>Next run</dt>
 <dd>{#if nextRun}<time datetime="{nextRun.datetime}" title="{nextRun.title}">{nextRun.relative}</time>{#else}Not scheduled{/if}</dd>
+</div>
+<div>
 <dt>Last run</dt>
 <dd>{#if lastRun}<time datetime="{lastRun.datetime}" title="{lastRun.title}">{lastRun.relative}</time>{#else}None yet{/if}</dd>
+</div>
 </dl>
 <span id="left-alone" hx-swap-oob="true">{#if leftAlone > 0}<mark data-verdict="left-alone">{leftAlone}<span data-visually-hidden> left alone</span></mark>{/if}</span>

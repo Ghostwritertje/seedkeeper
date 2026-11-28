@@ -31,8 +31,9 @@
 <li><a href="/system"{#if current == 'system'} aria-current="page"{/if}>System</a></li>
 </ul>
 </nav>
-{! Loaded after the page, and again every minute: the page never waits on Transmission. !}
-<div id="status" hx-get="/status" hx-trigger="load, every 60s"></div>
+{! Loaded after the page, and again every minute: the page never waits on Transmission. Only its <dl> is swapped in, so a
+   login that has expired doesn't put the login page in the sidebar. !}
+<div id="status" hx-get="/status" hx-trigger="load, every 60s" hx-select="dl"></div>
 {! Every form needs this hidden field: a POST without the CSRF token is rejected. !}
 <form method="post" action="/logout">
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">

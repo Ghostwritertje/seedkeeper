@@ -75,9 +75,9 @@ class UnreachableTransmissionTest {
                 .get("/status")
                 .then()
                 .statusCode(200)
-                .body("html.body.dl.dd[0]", is("Unreachable"))
-                .body("html.body.dl.dd[0].@data-tone", is("danger"))
-                .body("html.body.dl.dd[2]", is("None yet"))
+                .body(NavigationTest.VALUES + "[0]", is("Unreachable"))
+                .body(NavigationTest.VALUES + "[0].@data-tone", is("danger"))
+                .body(NavigationTest.VALUES + "[2]", is("None yet"))
                 .body("html.body.span.find { it.@id == 'left-alone' }.children().size()", is(0));
     }
 

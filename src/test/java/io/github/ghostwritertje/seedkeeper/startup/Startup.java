@@ -18,6 +18,7 @@ final class Startup {
                 .addAsResource("templates/LoginPage/login.html")
                 .addAsResource("templates/SystemPage/system.html")
                 .addAsResource("templates/OverviewPage/overview.html")
+                .addAsResource("templates/StatusFragment/status.html")
                 .addAsResource("templates/GroupsPage/groups.html")
                 .addAsResource("templates/ActivityPage/activity.html")
                 .addAsResource("db/migration/V1__history.sql")

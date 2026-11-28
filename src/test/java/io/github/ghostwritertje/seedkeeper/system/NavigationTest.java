@@ -32,7 +32,12 @@ import org.junit.jupiter.api.Test;
 class NavigationTest {
 
     private static final String NAV = "html.body.aside.nav.find { it.@'aria-label' == 'Views' }";
-    private static final String STATUS = "html.body.dl";
+    /*
+     * The labels and values of the status, wherever the parser puts them: its HTML 4 schema doesn't know that a <dl>
+     * may group each pair in a <div>.
+     */
+    static final String LABELS = "html.'**'.findAll { it.name() == 'dt' }";
+    static final String VALUES = "html.'**'.findAll { it.name() == 'dd' }";
     private static final String BADGE = "html.body.span.find { it.@id == 'left-alone' }";
     private static final String CSRF_COOKIE = "csrf-token";
 
@@ -87,6 +92,7 @@ class NavigationTest {
                 .statusCode(200)
                 .body("html.body.aside.div.find { it.@id == 'status' }.@hx-get", is("/status"))
                 .body("html.body.aside.div.find { it.@id == 'status' }.@hx-trigger", is("load, every 60s"))
+                .body("html.body.aside.div.find { it.@id == 'status' }.@hx-select", is("dl"))
                 .body("html.body.aside.div.find { it.@id == 'status' }.children().size()", is(0));
 
         assertEquals(List.of(), FakeTransmissionResource.fake().requests());
@@ -101,14 +107,14 @@ class NavigationTest {
                 .get("/status")
                 .then()
                 .statusCode(200)
-                .body(STATUS + ".dt.collect { it.text() }", contains("Transmission", "Next run", "Last run"))
-                .body(STATUS + ".dd[0]", is("Reachable"))
-                .body(STATUS + ".dd[0].@data-tone", is("ok"))
-                // The test schedule runs on 1 January at 06:00: always days away, at least one more month.
-                .body(STATUS + ".dd[1].time", matchesPattern("in \\d+d( \\d+h)?"))
-                .body(STATUS + ".dd[1].time.@datetime", matchesPattern("\\d{4}-01-01T06:00:00\\+05:30"))
-                .body(STATUS + ".dd[2].time", matchesPattern("just now|\\d+m ago"))
-                .body(STATUS + ".dd[2].time.@title", matchesPattern("\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d .+"));
+                .body(LABELS + ".collect { it.text() }", contains("Transmission", "Next run", "Last run"))
+                .body(VALUES + "[0]", is("Reachable"))
+                .body(VALUES + "[0].@data-tone", is("ok"))
+                // The test schedule runs on 1 January at 06:00: always days away.
+                .body(VALUES + "[1].time", matchesPattern("in \\d+d( \\d+h)?"))
+                .body(VALUES + "[1].time.@datetime", matchesPattern("\\d{4}-01-01T06:00:00\\+05:30"))
+                .body(VALUES + "[2].time", matchesPattern("just now|\\d+m ago"))
+                .body(VALUES + "[2].time.@title", matchesPattern("\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d .+"));
     }
 
     @Test
@@ -120,8 +126,8 @@ class NavigationTest {
                 .get("/status")
                 .then()
                 .statusCode(200)
-                .body(STATUS + ".dd[0]", is("Reachable, not usable"))
-                .body(STATUS + ".dd[0].@data-tone", is("warn"));
+                .body(VALUES + "[0]", is("Reachable, not usable"))
+                .body(VALUES + "[0].@data-tone", is("warn"));
     }
 
     @Test
