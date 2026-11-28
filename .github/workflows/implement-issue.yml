@@ -208,6 +208,8 @@ jobs:
           distribution: temurin
           java-version: 25
           cache: maven
+          # Verify (quality) in ci.yml writes the cache, see there.
+          cache-read-only: true
 
       # The browser of the run-app skill (.claude/skills/run-app): a headless Chrome the agent drives to look at the
       # views it changed, installed here so the agent finds it ready. The agent reaches it only through browser.sh,
