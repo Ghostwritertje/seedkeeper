@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
 import io.github.ghostwritertje.seedkeeper.TestSecrets;
-import io.github.ghostwritertje.seedkeeper.keep.OverrideStore;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmission;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmissionResource;
 import io.quarkus.test.common.WithTestResource;
@@ -21,7 +20,6 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.Cookie;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
-import jakarta.inject.Inject;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
@@ -54,9 +52,6 @@ class ManageOverridesTest {
     /** The verdict the filter shows, which the filter form keeps in a hidden field: the chips choose it. */
     private static final String SELECTED_VERDICT =
             "html.body.main.form.'**'.find { it.name() == 'input' && it.@name == 'verdict' }.@value";
-
-    @Inject
-    OverrideStore store;
 
     private Path file;
 
@@ -95,12 +90,31 @@ class ManageOverridesTest {
     }
 
     /**
-     * Deletes the overrides file and has the application read it now, so that it has no overrides when this returns.
-     * The file watcher sees the delete too, but late on macOS, where the JDK's watch service polls.
+     * Leaves the application no overrides and no overrides file. Deleting the file alone isn't enough: the application
+     * forgets its overrides only once its file watcher sees a change, and on macOS, where the JDK's watch service polls
+     * every few seconds, a file written and deleted between two polls is never seen at all. So this first writes a file
+     * with no overrides, which the watcher always sees, waits until the application has read it, and only then deletes
+     * it: whether the watcher sees that delete doesn't matter, as no file also means no overrides.
      */
     private void deleteOverrides() throws IOException {
-        Files.deleteIfExists(file);
-        store.reload();
+        Files.writeString(file, "overrides: []\n");
+        awaitNoOverrides();
+        Files.delete(file);
+    }
+
+    private static void awaitNoOverrides() {
+        long deadline = System.nanoTime() + 60_000_000_000L;
+        Response overrides;
+        do {
+            overrides = Authenticated.withApiKey().when().get("/api/v1/overrides");
+            if (overrides.statusCode() == 200
+                    && overrides.jsonPath().getList("$").isEmpty()) {
+                return;
+            }
+            pause();
+        } while (System.nanoTime() < deadline);
+        throw new AssertionError("The application never read the overrides file with no overrides; it still answers "
+                + overrides.statusCode() + " " + overrides.asString());
     }
 
     @Test
@@ -551,15 +565,20 @@ class ManageOverridesTest {
                     .equals(List.of(ids))) {
                 return page;
             }
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new AssertionError(e);
-            }
+            pause();
         } while (System.nanoTime() < deadline);
         throw new AssertionError(
                 "The Overrides view never showed the overrides " + List.of(ids) + ": " + page.asString());
+    }
+
+    /** The pause between two polls of the application. */
+    private static void pause() {
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError(e);
+        }
     }
 
     /** A logged-in user, who reads pages and posts their forms. */
