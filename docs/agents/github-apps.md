@@ -83,6 +83,29 @@ reviewer hands nothing back. Update them when you rename an App.
 To check the setup, have the reviewer find a clear fix on an implementer pull request: it adds `ready-for-agent`,
 the `Implementer` workflow runs on the pull request's branch, and its push starts a new `Reviewer` run.
 
+## The release App
+
+The last job of `.github/workflows/release.yml` pushes `Prepare X.Y.(Z+1)-SNAPSHOT` straight to `main` as this App,
+the `main` ruleset's only bypass actor. Why a dedicated App: `docs/adr/0004-release-app-bypass.md`.
+
+1. Create it as for the reviewer App, steps 1 to 10, with these differences:
+   - **GitHub App name:** for example `seedkeeper-release`. Its bot, `<name>[bot]`, authors the bump commits.
+   - **Repository permissions**, exactly these, every other permission at **No access**:
+     - **Contents:** Read and write
+     - **Metadata:** Read-only (GitHub sets this)
+
+     Leave **Workflows** at **No access**: the App can't push a change to `.github/workflows/`.
+   - **Install** it on `seedkeeper` only, through **Only select repositories**.
+   - **Secrets:**
+     - `RELEASE_CLIENT_ID`: the Client ID.
+     - `RELEASE_APP_KEY`: the whole contents of the `.pem` file, including the `BEGIN` and `END` lines.
+2. In the repo, open **Settings → Rules → Rulesets → main**. Under **Bypass list**, click **Add bypass**, pick the
+   release App, and leave it on **Always** (not **For pull requests only**). It is the only entry: add no other actor.
+   Save.
+
+To check the setup, release a patch: the run's last job, `Move main's POM to X.Y.(Z+1)-SNAPSHOT`, pushes one commit
+to `main` as `<name>[bot]`, and CI runs on it.
+
 ## Handing back on red CI
 
 The `Hand back on red CI` workflow (`.github/workflows/ci-handback.yml`) comments and labels as the reviewer App, with

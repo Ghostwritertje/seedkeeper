@@ -1,37 +1,95 @@
 name: Release
 
 # Two ways to release X.Y.Z, both entirely in GitHub Actions:
-# - Actions → Release → Run workflow on main, with the version (or `gh workflow run release.yml -f version=X.Y.Z`).
-#   It releases the head of main, once CI has passed on that commit, and creates the tag vX.Y.Z itself.
+# - Actions → Release → Run workflow on main, with a bump, patch, minor or major (or
+#   `gh workflow run release.yml -f bump=minor`). It bumps the latest tag vX.Y.Z, releases the head of main once CI
+#   has passed on that commit, and creates the new tag itself.
 # - Push a tag vX.Y.Z (or create a GitHub Release with a new tag, which pushes it).
 # Either way the image is published first; the tag and the GitHub Release come after, so a release page never names
-# an image that isn't there.
+# an image that isn't there. Last, main's POM moves to the next patch snapshot (docs/adr/0004-release-app-bypass.md).
 on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version to release, X.Y.Z (the tag will be vX.Y.Z)'
+      bump:
+        description: 'Which part of the latest release tag vX.Y.Z to bump'
         required: true
-        type: string
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+# run-name reads only the inputs and the github context: the version a bump gives is in the job names and the summary.
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('Release ({0} bump)', inputs.bump) || format('Release {0}', github.ref_name) }}
 
 permissions: {}
 
-# One run per version at a time, whichever way it was started: a dispatch of X.Y.Z and the tag vX.Y.Z share a group
-# (the input has no leading v). A running release is never cancelled. GitHub keeps one pending run per group, so a
-# third run of the same version cancels the one waiting; releases of different versions don't touch each other.
+# bash -eo pipefail, not the default bash -e: a refusal at the head of a pipe fails the step.
+defaults:
+  run:
+    shell: bash
+
+# Dispatched runs share one group, main, because their version is only known once the run starts: two of them never
+# work out the same version at the same time. A pushed tag vX.Y.Z has a group of its own. A running release is never
+# cancelled. GitHub keeps one pending run per group, so a third dispatch cancels the one waiting.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && 'main' || github.ref_name }}
   cancel-in-progress: false
 
 env:
   IMAGE: ghcr.io/ghostwritertje/seedkeeper
 
 jobs:
+  version:
+    name: Work out the version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      # Lists the release tags.
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      next: ${{ steps.version.outputs.next }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Take the version from the tag, or bump the latest tag
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref_name }}
+          BUMP: ${{ inputs.bump }}
+        run: |
+          latest=""
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            latest="$(gh api --paginate "repos/$REPO/git/matching-refs/tags/v" --jq '.[].ref' \
+              | sed 's#^refs/tags/##' | { grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true; } | sort -V | tail -n 1)"
+            echo "The latest release tag is ${latest:-none yet}"
+          fi
+          .github/scripts/release-version.sh "$EVENT" "$REF" "$BUMP" "$latest" | tee -a "$GITHUB_OUTPUT"
+      - name: Write the summary
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          {
+            echo "## Release $TAG"
+            echo
+            echo "- Version: \`$VERSION\`"
+            echo "- Image: \`${IMAGE}:${VERSION}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   release:
-    name: Build and publish the image
+    name: Build and publish ${{ needs.version.outputs.tag }}
+    needs: version
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
@@ -40,31 +98,18 @@ jobs:
       packages: write
       # Reads the CI runs of the commit a release by hand takes.
       actions: read
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      tag: ${{ steps.version.outputs.tag }}
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Take the version from the tag or the input
-        id: version
-        env:
-          EVENT: ${{ github.event_name }}
-          REF: ${{ github.ref_name }}
-          INPUT_VERSION: ${{ inputs.version }}
-        run: |
-          version="$(.github/scripts/release-version.sh "$EVENT" "$REF" "$INPUT_VERSION")"
-          {
-            echo "version=$version"
-            echo "tag=v$version"
-          } >> "$GITHUB_OUTPUT"
       - name: Check the tag is new and CI passed on this commit
         if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          TAG: ${{ steps.version.outputs.tag }}
+          TAG: ${{ needs.version.outputs.tag }}
         run: |
           existing="$(gh api "repos/$REPO/git/matching-refs/tags/$TAG" --jq "map(select(.ref == \"refs/tags/$TAG\")) | length")"
           if [ "$existing" != "0" ]; then
@@ -84,7 +129,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           ACTOR: ${{ github.actor }}
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
           repository="${IMAGE#ghcr.io/}"
           bearer="$(printf 'user = "%s:%s"\n' "$ACTOR" "$GH_TOKEN" \
@@ -116,14 +160,10 @@ jobs:
           distribution: temurin
           java-version: 25
       - name: Set the project version (not committed)
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
         run: ./mvnw -B versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false
       - name: Build native and run the integration tests
         run: ./mvnw -B verify -Dnative
       - name: Build the image
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
           docker build --platform linux/amd64 \
             -f src/main/docker/Dockerfile.native-micro \
@@ -133,8 +173,6 @@ jobs:
             --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
             -t "${IMAGE}:${VERSION}" .
       - name: Run the image as an arbitrary non-root user
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
         run: .github/scripts/smoke-test-image.sh "${IMAGE}:${VERSION}"
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
@@ -143,16 +181,15 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       # Only the exact version is pushed. There is no `latest`: consumers pin a version.
       - name: Push the image
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
         run: docker push "${IMAGE}:${VERSION}"
 
   github-release:
-    name: Tag and GitHub Release
-    needs: release
+    name: Tag and GitHub Release ${{ needs.version.outputs.tag }}
+    needs: [version, release]
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # The only job that can write to the repo, and it runs no build: it creates the tag and the release page.
+    # The only job whose workflow token can write to the repo, and it runs no build: it creates the tag and the
+    # release page.
     permissions:
       contents: write
     steps:
@@ -162,12 +199,80 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          VERSION: ${{ needs.release.outputs.version }}
-          TAG: ${{ needs.release.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.version }}
+          TAG: ${{ needs.version.outputs.tag }}
         run: |
           if gh release view "$TAG" > /dev/null 2>&1; then
             echo "The GitHub Release $TAG exists already"
+          else
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --generate-notes \
+              --notes "Image: \`${IMAGE}:${VERSION}\`"
+          fi
+          echo "- GitHub Release: ${GITHUB_SERVER_URL}/${GH_REPO}/releases/tag/${TAG}" >> "$GITHUB_STEP_SUMMARY"
+
+  # Main's POM follows the releases: one commit, `Prepare X.Y.(Z+1)-SNAPSHOT`, pushed straight to main by the release
+  # App, the main ruleset's only bypass actor (docs/adr/0004-release-app-bypass.md). Its token is minted only here,
+  # after the image and the release are out, so no build job ever holds a token that can skip the ruleset. If this job
+  # fails, the release still stands: re-run only this job.
+  bump-pom:
+    name: Move main's POM to ${{ needs.version.outputs.next }}
+    needs: [version, github-release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      # Main as it is now, not the released commit: the bump goes on top, as a fast-forward.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: 25
+      # The POM only moves forward. A tag pushed for an older line (v0.5.1 while main is at 0.7.0-SNAPSHOT), or a
+      # re-run after the bump went through, leaves it as it is.
+      - name: Set the POM to the next snapshot
+        id: pom
+        env:
+          NEXT: ${{ needs.version.outputs.next }}
+        run: |
+          current="$(./mvnw -B -q help:evaluate -Dexpression=project.version -DforceStdout)"
+          highest="$(printf '%s\n%s\n' "${current%-SNAPSHOT}" "${NEXT%-SNAPSHOT}" | sort -V | tail -n 1)"
+          if [ "$highest" = "${current%-SNAPSHOT}" ]; then
+            echo "::notice::main's POM is at $current already, at or past $NEXT: nothing to push."
+            echo "- POM: main is at \`$current\` already, at or past \`$NEXT\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "bump=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --generate-notes \
-            --notes "Image: \`${IMAGE}:${VERSION}\`"
+          ./mvnw -B -q versions:set -DnewVersion="$NEXT" -DgenerateBackupPoms=false
+          echo "bump=true" >> "$GITHUB_OUTPUT"
+      - name: Mint the release App token
+        if: steps.pom.outputs.bump == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.RELEASE_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
+          permission-contents: write
+      # A plain push, never a force push: when main has moved on since the checkout, it isn't a fast-forward, GitHub
+      # refuses it and nothing changes. Re-run this job to bump on top of the new head. The token reaches git through
+      # the environment, not its arguments or .git/config.
+      - name: Commit and push to main
+        if: steps.pom.outputs.bump == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          SLUG: ${{ steps.app-token.outputs.app-slug }}
+          REPO: ${{ github.repository }}
+          NEXT: ${{ needs.version.outputs.next }}
+        run: |
+          id="$(gh api "users/${SLUG}[bot]" --jq .id)"
+          git -c user.name="${SLUG}[bot]" -c user.email="${id}+${SLUG}[bot]@users.noreply.github.com" \
+            commit -q -m "Prepare ${NEXT}" -- pom.xml
+          basic="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)"
+          echo "::add-mask::$basic"
+          GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL}/.extraheader" \
+            GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $basic" git push origin HEAD:main
+          echo "- POM: main moved to \`$NEXT\` in ${GITHUB_SERVER_URL}/${REPO}/commit/$(git rev-parse HEAD)" \
+            >> "$GITHUB_STEP_SUMMARY"
