@@ -44,7 +44,7 @@
 {#if dueSoon}
 <section id="due-soon">
 <h2>Due soon</h2>
-<p><a href="{dueSoon.href}">{dueSoon.count}</a> may be removed by {#stamp dueSoon.horizon /}: the next run, or a week from now when that is later.</p>
+<p><a href="{dueSoon.href}">{dueSoon.count}</a> may be removed by the next run or within a week, whichever is later: by {#stamp dueSoon.horizon /}</p>
 {#if !dueSoon.groups.isEmpty}
 <table>
 <thead>

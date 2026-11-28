@@ -121,9 +121,7 @@ class OverviewPage {
         try {
             List<GroupVerdict> all = groups.groups();
             tally = tally(all);
-            dueSoon = dueSoon(
-                    all,
-                    DueSoon.horizon(Optional.ofNullable(nextRun).map(SystemPage::instant), now));
+            dueSoon = dueSoon(all, DueSoon.horizon(Optional.ofNullable(nextRun).map(SystemPage::instant), now));
             leftAlone(all).ifPresent(warnings::add);
         } catch (GroupsUnavailable e) {
             unavailable = e.getMessage();
@@ -171,7 +169,9 @@ class OverviewPage {
                                 .map(v -> new Tally(
                                         v.code(),
                                         v.label(),
-                                        all.stream().filter(g -> g.verdict() == v).count(),
+                                        all.stream()
+                                                .filter(g -> g.verdict() == v)
+                                                .count(),
                                         "/groups?verdict=" + v.code())))
                 .toList();
     }

@@ -32,7 +32,8 @@ record DueSoon(GroupVerdict group, ZonedDateTime when) {
     static List<DueSoon> of(List<GroupVerdict> groups, Instant horizon, ZoneId zone) {
         return groups.stream()
                 .filter(group -> group.verdict() == Verdict.KEEP)
-                .flatMap(group -> group.forecast()
+                .flatMap(group -> group
+                        .forecast()
                         .flatMap(forecast -> end(forecast, zone))
                         .filter(when -> !when.toInstant().isAfter(horizon))
                         .map(when -> new DueSoon(group, when))

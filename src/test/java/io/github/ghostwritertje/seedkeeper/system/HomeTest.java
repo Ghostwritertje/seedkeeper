@@ -160,7 +160,8 @@ class HomeTest {
                 .get("/")
                 .then()
                 .statusCode(200)
-                .body(WARNINGS + ".ul.li.a.find { it.@href == '/groups?verdict=left-alone' }",
+                .body(
+                        WARNINGS + ".ul.li.a.find { it.@href == '/groups?verdict=left-alone' }",
                         is("1 group is left alone: someone should look at it"));
     }
 

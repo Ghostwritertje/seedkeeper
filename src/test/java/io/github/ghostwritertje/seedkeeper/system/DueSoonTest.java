@@ -22,7 +22,8 @@ class DueSoonTest {
     private static final ZoneId ZONE = ZoneId.of("Europe/Brussels");
 
     /** Thursday 2026-11-26 12:00 in Brussels. */
-    private static final Instant NOW = ZonedDateTime.of(2026, 11, 26, 12, 0, 0, 0, ZONE).toInstant();
+    private static final Instant NOW =
+            ZonedDateTime.of(2026, 11, 26, 12, 0, 0, 0, ZONE).toInstant();
 
     @Test
     void theHorizonIsAWeekFromNowWhenTheNextRunIsSooner() {
@@ -49,16 +50,14 @@ class DueSoonTest {
         GroupVerdict tomorrow = kept("Tomorrow", at(2026, 11, 27, 18));
         GroupVerdict nextMonth = kept("Next.Month", at(2026, 12, 26, 9));
         GroupVerdict paused = keptWith("Paused", new Forecast(Optional.empty(), Optional.empty()));
-        GroupVerdict linked = new GroupVerdict(
-                List.of(member("Linked")), Verdict.KEEP, Reason.LIBRARY_LINK, 1, 1, Optional.empty());
+        GroupVerdict linked =
+                new GroupVerdict(List.of(member("Linked")), Verdict.KEEP, Reason.LIBRARY_LINK, 1, 1, Optional.empty());
 
         List<DueSoon> due = DueSoon.of(
                 List.of(inThreeDays, nextMonth, paused, tomorrow, linked), NOW.plus(Duration.ofDays(7)), ZONE);
 
         assertEquals(
-                List.of(
-                        new DueSoon(tomorrow, at(2026, 11, 27, 18)),
-                        new DueSoon(inThreeDays, at(2026, 11, 29, 9))),
+                List.of(new DueSoon(tomorrow, at(2026, 11, 27, 18)), new DueSoon(inThreeDays, at(2026, 11, 29, 9))),
                 due);
     }
 
@@ -69,8 +68,7 @@ class DueSoonTest {
         GroupVerdict lastDayInAMonth =
                 keptWith("Later", new Forecast(Optional.empty(), Optional.of(LocalDate.of(2026, 12, 31))));
 
-        List<DueSoon> due =
-                DueSoon.of(List.of(lastDayInAMonth, lastDayMonday), NOW.plus(Duration.ofDays(7)), ZONE);
+        List<DueSoon> due = DueSoon.of(List.of(lastDayInAMonth, lastDayMonday), NOW.plus(Duration.ofDays(7)), ZONE);
 
         assertEquals(List.of(new DueSoon(lastDayMonday, at(2026, 12, 1, 0))), due);
     }
