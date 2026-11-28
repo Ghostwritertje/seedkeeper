@@ -645,55 +645,223 @@ dd li + li {
 }
 
 /*
- * Groups: one tbody per group, so the members of a cross-seed group read as one and a removal stands out. Its header
- * row names the group in a <th>; the rows of its members, when it has more than one, sit indented under it, and the
- * group's verdict, reason, forecast and keep override span them all.
+ * Groups: a lane per verdict, side by side, Keep, Left alone, Remove from left to right; small screens stack them in
+ * the same order (see the end). A lane's top edge and the pill of its count are in its verdict's colour; its heading
+ * says the verdict in words. Each group in it is a card.
  */
 
-[data-page="groups"] tbody > tr:not(:last-child) > :is(th, td) {
-  border-bottom-style: dashed;
+#lanes {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  align-items: start;
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
-[data-page="groups"] tbody > tr:last-child > :is(th, td),
-[data-page="groups"] tbody > tr > td[rowspan] {
-  border-bottom-style: solid;
+#lanes > section {
+  margin: 0;
+  padding: 1rem;
+  border-top: 3px solid var(--tone);
+  background: var(--background);
+  box-shadow: none;
 }
 
-[data-page="groups"] tbody[data-verdict="remove"] > tr > :first-child {
-  box-shadow: inset 3px 0 0 var(--danger);
+#lanes h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
 }
 
-[data-page="groups"] tbody th {
-  font-weight: 400;
+#lanes h2 > mark {
+  min-width: 2rem;
+  text-align: center;
 }
 
-[data-page="groups"] tbody tr:hover > th {
-  background: var(--hover);
+#lanes > section > p {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.875rem;
 }
 
-[data-page="groups"] tbody > tr > td:first-child {
-  padding-left: 1.75rem;
+#lanes > section > a {
+  display: inline-block;
+  font-weight: 500;
+}
+
+#lanes article {
+  margin: 0 0 0.75rem;
+  padding: 0.85rem 1rem;
 }
 
 /*
  * Release names have no spaces: they break after a dot or a dash (the template puts a <wbr> there), and only inside
- * a word when one part alone is wider than the column.
+ * a word when one part alone is wider than the card.
  */
-[data-page="groups"] tbody > tr > :first-child {
-  min-width: 16rem;
+#lanes article :is(h3, li > span) {
   overflow-wrap: break-word;
 }
 
-[data-page="groups"] tbody > tr > td:first-child > span {
-  font-weight: 500;
+#lanes h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
 }
 
-/* The muted lines under a name or a reason: what the group is, the secondary reasons, the tracker message. */
-[data-page="groups"] tbody small {
-  display: block;
+#lanes article > p {
+  margin: 0.4rem 0 0;
+  font-size: 0.875rem;
+}
+
+/* What the group is and its size, right under the name. */
+#lanes article > h3 + p {
   margin-top: 0.1rem;
   color: var(--muted);
   font-size: 0.8125rem;
+}
+
+/* The size, "16.0 KiB", on one line. */
+#lanes article > h3 + p > span {
+  white-space: nowrap;
+}
+
+/* The muted lines: the secondary reasons, what to do about the reason, the exact durations, the lines of a member. */
+#lanes article small,
+#lanes article > p[data-hint] {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+#lanes article > p[data-hint]::before {
+  content: "→ " / "";
+}
+
+#lanes article [data-tone="danger"] {
+  color: var(--danger);
+}
+
+#lanes article > p[data-cause] mark {
+  margin-right: 0.15rem;
+}
+
+/*
+ * The progress toward the minimum seed time, below it: a bar in the colour of its data-tone over the percent and the
+ * forecast, then the exact durations. The text says the state; the colour only repeats it.
+ */
+#lanes article > p[data-tone] > small {
+  display: block;
+}
+
+[data-page="groups"] meter {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 0.4rem;
+  margin: 0.15rem 0 0.25rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--muted-surface);
+}
+
+[data-page="groups"] meter::-webkit-meter-bar {
+  height: 0.4rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--muted-surface);
+}
+
+[data-page="groups"] meter::-webkit-meter-optimum-value {
+  border-radius: 999px;
+  background: var(--tone);
+}
+
+[data-page="groups"] meter::-moz-meter-bar {
+  border-radius: 999px;
+  background: var(--tone);
+}
+
+/* The members of a cross-seed group, on demand: each its name, then its lines; the one that causes the reason marked. */
+#lanes article > details {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+
+#lanes article > details > ul {
+  margin-top: 0.35rem;
+  padding: 0;
+  list-style: none;
+}
+
+#lanes article > details li {
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.375rem;
+}
+
+#lanes article > details li[data-cause] {
+  background: var(--warn-surface);
+}
+
+#lanes article > details li > span {
+  font-weight: 500;
+}
+
+#lanes article > details li > mark {
+  margin-left: 0.35rem;
+}
+
+#lanes article > details li > small {
+  display: block;
+}
+
+#lanes article > details li > small[data-tone]:not([data-tone="muted"]) {
+  color: var(--tone);
+}
+
+/* Keep…: a small button that opens its fields in the card, under it. */
+#lanes article > form {
+  margin-top: 0.75rem;
+}
+
+#lanes form details > summary {
+  list-style: none;
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.375rem;
+  background: var(--surface-raised);
+  font-size: 0.875rem;
+}
+
+#lanes form details > summary::-webkit-details-marker {
+  display: none;
+}
+
+#lanes form details > summary::after {
+  content: " ▾" / "";
+  font-size: 0.75em;
+}
+
+#lanes form details[open] > summary {
+  border-color: var(--accent);
+}
+
+#lanes form details[open] > div {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+
+#lanes form details label {
+  display: grid;
+  gap: 0.2rem;
+}
+
+/* The Reverse box of the filter: next to its label, on the line of the fields. */
+main > form > label:has(> input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-bottom: 0.5rem;
 }
 
 /* How long ago or until a time, next to it; the time's tooltip names the time zone. */
@@ -730,114 +898,7 @@ time[title] {
   margin-top: 0.4rem;
 }
 
-[data-page="groups"] tbody small[data-tone="danger"] {
-  color: var(--danger);
-}
-
-/* A member that makes its group's reason hold: the row is highlighted, its badge names the reason. */
-[data-page="groups"] tbody > tr[data-cause] > td {
-  background: var(--warn-surface);
-}
-
-[data-page="groups"] tbody > tr[data-cause] mark {
-  margin-left: 0.35rem;
-}
-
-/* The verdict and reason under the name: for small screens only, which hide their columns (see the end). */
-[data-page="groups"] tbody th > p {
-  display: none;
-  margin: 0.35rem 0 0;
-  font-size: 0.8125rem;
-}
-
-[data-page="groups"] tbody th > p > mark {
-  margin-right: 0.35rem;
-}
-
-[data-page="groups"] tbody > tr > :nth-child(2) {
-  white-space: nowrap;
-}
-
-/*
- * The progress toward the minimum seed time, coloured by its data-tone: a meter and the percent below the minimum,
- * "Met ✓" once it is met, "—" with no minimum. The text says the state; the colour only repeats it. Its <small>, the
- * exact durations, is a tooltip that opens on hover and on focus (the cell is focusable, so a tap reaches it too);
- * closed, it is hidden from sight only, and screen readers still read it.
- */
-[data-page="groups"] tbody td[data-tone] {
-  position: relative;
-}
-
-[data-page="groups"] tbody td[data-tone]::before {
-  content: none;
-}
-
-[data-page="groups"] td[data-tone] meter {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 3.5rem;
-  height: 0.5rem;
-  margin-right: 0.45rem;
-  border: 0;
-  border-radius: 999px;
-  background: var(--muted-surface);
-  vertical-align: 0.05em;
-}
-
-[data-page="groups"] td[data-tone] meter::-webkit-meter-bar {
-  height: 0.5rem;
-  border: 0;
-  border-radius: 999px;
-  background: var(--muted-surface);
-}
-
-[data-page="groups"] td[data-tone] meter::-webkit-meter-optimum-value {
-  border-radius: 999px;
-  background: var(--tone);
-}
-
-[data-page="groups"] td[data-tone] meter::-moz-meter-bar {
-  border-radius: 999px;
-  background: var(--tone);
-}
-
-[data-page="groups"] tbody td[data-tone] > small {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-[data-page="groups"] tbody td[data-tone]:is(:hover, :focus) > small {
-  top: calc(100% - 0.35rem);
-  left: 0.5rem;
-  z-index: 2;
-  width: auto;
-  height: auto;
-  padding: 0.35rem 0.6rem;
-  overflow: visible;
-  clip-path: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--text);
-  font-weight: 400;
-  background: var(--surface-raised);
-  box-shadow: var(--popover-shadow);
-}
-
-[data-page="groups"] td[rowspan] {
-  background: var(--surface);
-}
-
-/* The size of a group, the cell before its keep form: "16.0 KiB" on one line. */
-[data-page="groups"] td[rowspan]:nth-last-child(2) {
-  white-space: nowrap;
-}
-
-/* The count of groups by verdict, which doubles as a filter; on the overview, links to it. */
+/* Links side by side, as cards: the pages of a view, and on the overview the count of groups by verdict. */
 main > nav,
 [data-page="home"] #verdicts > nav {
   display: flex;
@@ -1122,6 +1183,11 @@ article[data-quiet] > p {
     grid-template-rows: none;
     grid-auto-flow: row;
   }
+
+  /* The lanes of the Groups view, one under the other in the same order: Keep, Left alone, Remove. */
+  #lanes {
+    grid-auto-flow: row;
+  }
 }
 
 /*
@@ -1198,25 +1264,5 @@ article[data-quiet] > p {
   #status dl > div {
     display: flex;
     gap: 0.4rem;
-  }
-}
-
-/*
- * Phones. The Groups table keeps the name, the progress toward the minimum and the keep override; the verdict and
- * reason move under the name, and the columns of the verdict, reason, forecast and size are hidden.
- */
-
-@media (max-width: 40rem) {
-  [data-page="groups"] thead th:nth-child(n + 3):not(:last-child),
-  [data-page="groups"] tbody > tr > td[rowspan]:not(:last-child) {
-    display: none;
-  }
-
-  [data-page="groups"] tbody th > p {
-    display: block;
-  }
-
-  [data-page="groups"] tbody > tr > :first-child {
-    min-width: 10rem;
   }
 }

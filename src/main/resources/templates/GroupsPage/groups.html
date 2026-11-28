@@ -74,7 +74,7 @@ members the group gains later are added to it. It shows in the Overrides view, w
 {#for group in lane.groups}
 <article data-verdict="{group.verdictCode}">
 <h3>{#each group.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</h3>
-<p>{group.summary} · {group.size}</p>
+<p>{group.summary} · <span>{group.size}</span></p>
 <p><strong>{group.reason}</strong>{#if group.secondaryReasons} <small>also: {group.secondaryReasons}</small>{/if}</p>
 {#if group.hint}<p data-hint="true">{group.hint}</p>{/if}
 {#if group.trackerMessage}<p data-tone="danger">{group.trackerMessage}</p>{/if}

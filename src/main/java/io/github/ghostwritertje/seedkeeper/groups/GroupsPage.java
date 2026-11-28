@@ -529,7 +529,7 @@ class GroupsPage {
                     return new Lane(
                             v.code(),
                             v.label(),
-                            explanation(v),
+                            explanation(v, query.order().equals(GroupsOrder.DEFAULT)),
                             of.size(),
                             shown.stream().map(GroupsPage::group).toList(),
                             alone || of.size() <= PAGE_SIZE ? "" : query.verdict(v.code()).href());
@@ -537,10 +537,10 @@ class GroupsPage {
                 .toList();
     }
 
-    /** What a lane holds, in one line. */
-    private static String explanation(Verdict verdict) {
+    /** What a lane holds, in one line; the Keep lane says it is soonest first only in the order of the lanes. */
+    private static String explanation(Verdict verdict, boolean laneOrder) {
         return switch (verdict) {
-            case KEEP -> "waiting, soonest first";
+            case KEEP -> laneOrder ? "waiting, soonest first" : "waiting";
             case LEFT_ALONE -> "a person should look";
             case REMOVE -> "the next run removes these";
         };

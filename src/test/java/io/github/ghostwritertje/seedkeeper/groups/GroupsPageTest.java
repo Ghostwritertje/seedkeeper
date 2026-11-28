@@ -118,6 +118,12 @@ class GroupsPageTest {
                 List.of("1111", "3333"),
                 lanes.get(2).groups().stream().map(GroupsPage.Group::label).toList());
         assertEquals(List.of("", "", ""), lanes.stream().map(GroupsPage.Lane::showAll).toList());
+        // Sorted another way, the Keep lane is no longer soonest first.
+        assertEquals(
+                "waiting",
+                lanes(matching, GroupsFilter.NONE, GroupsPage.Query.of(null, null, null, "name", null, null))
+                        .getFirst()
+                        .explanation());
     }
 
     @Test
