@@ -350,3 +350,8 @@ main[data-page="proto-system"] > section form { display: flex; gap: 1rem; align-
 .proto-subhead { margin: 1.75rem 0 0.75rem; font-size: 1.05rem; }
 .proto-settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(26rem, 1fr)); gap: 1rem; }
 .proto-settings > section { margin: 0; }
+
+/* Decision 2026-11-28: lanes read Keep, Left alone, Remove (left to right). */
+.proto-lane[data-verdict="keep"] { order: 1; }
+.proto-lane[data-verdict="left-alone"] { order: 2; }
+.proto-lane[data-verdict="remove"] { order: 3; }

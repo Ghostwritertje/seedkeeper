@@ -29,3 +29,9 @@ Findings with no variant:
 Code: `PrototypeVariant.java` (template globals `variant` and `nav`), `*-prototype-*.html` next to each view,
 `tags/protoKeep.html`, `META-INF/resources/prototype/`. The variants read other views over `fetch` where the view's own
 data doesn't have what they need. That's a prototype shortcut, not a design.
+
+## Decision (2026-11-28)
+
+Chosen: header `nav=B` (sidebar), Overview B (next-run preview), Groups C (lanes, ordered Keep, Left alone, Remove
+from left to right), Overrides B, Orphans B, Activity B (the chart is the point), System B (merged with Settings).
+Not chosen: header C, Overview C (timeline), Groups B and D, Overrides C.
