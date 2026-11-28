@@ -15,7 +15,7 @@
   A change of reason or name applies at once (htmx swaps in the new view and its URL), and so does Enter in the name
   field; without scripts, the button does it. The order the view is in carries over; a new filter starts at page 1.
 !}
-<form method="get" action="/groups" hx-get="/groups" hx-trigger="change, submit"hx-select="main" hx-target="main" hx-swap="outerHTML" hx-push-url="true">
+<form method="get" action="/groups" hx-get="/groups" hx-trigger="change, submit" hx-select="main" hx-target="main" hx-swap="outerHTML" hx-push-url="true">
 <input type="hidden" name="verdict" value="{filter.verdictCode}">
 <label>Reason <select name="reason" id="reason">
 <option value=""{#if filter.anyReason} selected="selected"{/if}>Any reason ({filter.any})</option>

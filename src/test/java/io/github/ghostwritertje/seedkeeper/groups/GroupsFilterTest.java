@@ -1,6 +1,8 @@
 package io.github.ghostwritertje.seedkeeper.groups;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
@@ -265,9 +267,24 @@ class GroupsFilterTest {
                 // Enter in the name field submits the form: htmx takes that too, rather than the browser loading it.
                 .body("html.body.main.form.@'hx-trigger'", is("change, submit"))
                 .body("html.body.main.form.@'hx-get'", is("/groups"))
+                .body("html.body.main.form.@'hx-select'", is("main"))
                 .body("html.body.main.form.button.size()", is(0))
                 .body("html.body.main.form.noscript.button", is("Filter"))
                 .body("html.body.main.form.'**'.find { it.name() == 'select' }.@id", is("reason"));
+    }
+
+    @Test
+    void theFilterFormsAttributesAreSeparatedByWhitespace() {
+        // The HTML parser recovers from attributes with no whitespace between them, so look at the raw markup.
+        String html = Authenticated.asUser()
+                .when()
+                .get("/groups")
+                .then()
+                .statusCode(200)
+                .extract()
+                .asString();
+
+        assertThat(html, containsString("hx-trigger=\"change, submit\" hx-select=\"main\""));
     }
 
     @Test
