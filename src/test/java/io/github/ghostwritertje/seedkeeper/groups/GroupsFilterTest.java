@@ -1,6 +1,8 @@
 package io.github.ghostwritertje.seedkeeper.groups;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
@@ -193,14 +195,18 @@ class GroupsFilterTest {
                 .body(
                         GroupsTable.HEADINGS,
                         contains("Name", "Minimum seed time", "Verdict", "Reason", "Size", "Keep override"))
-                .body(GroupsTable.heading(0), contains("Half.Gone", "tracker-a · Seeding · 0 of 2 files linked"))
+                // Remove first, then Left alone, then Keep.
+                .body(
+                        GroupsTable.NAMES,
+                        contains("Done.Movie", "Half.Gone", "Broken.Movie", "Checking.Movie", "Kept.Movie", "Not.Yet"))
+                .body(GroupsTable.heading(1), contains("Half.Gone", "tracker-a · Seeding · 0 of 2 files linked"))
                 // The file that is gone still counts: the size is what Transmission says the data is.
-                .body(GroupsTable.cells(0), contains("Met ✓", "Left alone", "Missing data (1 of 2 files)", "8 B"))
-                .body(GroupsTable.underReason(0), is(""))
-                .body(GroupsTable.cells(1), contains("3%", "Left alone", "Local error", "4 B"))
-                .body(GroupsTable.underReason(1), is("also: Minimum not reached"))
-                .body(GroupsTable.heading(2), contains("Checking.Movie", "tracker-a · Verifying · 0 of 1 files linked"))
-                .body(GroupsTable.cells(2), contains("Met ✓", "Keep", "Verifying", "4 B"))
+                .body(GroupsTable.cells(1), contains("Met ✓", "Left alone", "Missing data (1 of 2 files)", "8 B"))
+                .body(GroupsTable.underReason(1), is(""))
+                .body(GroupsTable.cells(2), contains("3%", "Left alone", "Local error", "4 B"))
+                .body(GroupsTable.underReason(2), is("also: Minimum not reached"))
+                .body(GroupsTable.heading(3), contains("Checking.Movie", "tracker-a · Verifying · 0 of 1 files linked"))
+                .body(GroupsTable.cells(3), contains("Met ✓", "Keep", "Verifying", "4 B"))
                 .body(GroupsTable.cells(5), contains("0%", "Keep", "Not finished", "4 B"))
                 .body(GroupsTable.underReason(5), is("also: Minimum not reached"));
     }
@@ -253,16 +259,32 @@ class GroupsFilterTest {
     }
 
     @Test
-    void theReasonAppliesOnChangeAndHasAButtonOnlyWithoutScripts() {
+    void theReasonAndTheNameApplyOnChangeAndHaveAButtonOnlyWithoutScripts() {
         Authenticated.asUser()
                 .when()
                 .get("/groups")
                 .then()
-                .body("html.body.main.form.@'hx-trigger'", is("change"))
+                // Enter in the name field submits the form: htmx takes that too, rather than the browser loading it.
+                .body("html.body.main.form.@'hx-trigger'", is("change, submit"))
                 .body("html.body.main.form.@'hx-get'", is("/groups"))
+                .body("html.body.main.form.@'hx-select'", is("main"))
                 .body("html.body.main.form.button.size()", is(0))
                 .body("html.body.main.form.noscript.button", is("Filter"))
                 .body("html.body.main.form.'**'.find { it.name() == 'select' }.@id", is("reason"));
+    }
+
+    @Test
+    void theFilterFormsAttributesAreSeparatedByWhitespace() {
+        // The HTML parser recovers from attributes with no whitespace between them, so look at the raw markup.
+        String html = Authenticated.asUser()
+                .when()
+                .get("/groups")
+                .then()
+                .statusCode(200)
+                .extract()
+                .asString();
+
+        assertThat(html, containsString("hx-trigger=\"change, submit\" hx-select=\"main\""));
     }
 
     @Test
@@ -309,7 +331,7 @@ class GroupsFilterTest {
                 .body(
                         TALLY + ".a.@href",
                         contains(
-                                "/groups?verdict=",
+                                "/groups",
                                 "/groups?verdict=remove",
                                 "/groups?verdict=left-alone",
                                 "/groups?verdict=keep"))
@@ -330,9 +352,7 @@ class GroupsFilterTest {
                 .statusCode(200)
                 .body(TALLY + ".a.collect { it.text() }", contains("1 All", "0 Remove", "1 Left alone", "0 Keep"))
                 .body(TALLY + ".a[2].@href", is("/groups?verdict=left-alone&reason=missing-data"))
-                .body(
-                        TALLY + ".a.findAll { it.@'aria-current' == 'page' }.@href",
-                        is("/groups?verdict=&reason=missing-data"));
+                .body(TALLY + ".a.findAll { it.@'aria-current' == 'page' }.@href", is("/groups?reason=missing-data"));
     }
 
     @Test
@@ -399,10 +419,53 @@ class GroupsFilterTest {
                         "html.body.main.p.find { it.@role == 'alert' }",
                         is("Unknown verdict 'delete': use remove, left-alone or keep"))
                 .body(TALLY + ".a.collect { it.text() }", contains("6 All", "1 Remove", "2 Left alone", "3 Keep"))
-                .body(TALLY + ".a.findAll { it.@'aria-current' == 'page' }.@href", is("/groups?verdict="))
+                .body(TALLY + ".a.findAll { it.@'aria-current' == 'page' }.@href", is("/groups"))
                 .body(GroupsTable.GROUPS + ".size()", is(6))
                 .body(VERDICT, is(""))
                 .body(selected("reason"), is(""));
+    }
+
+    @Test
+    void anUnknownFilterIsLeftOutOfTheLinksAndTheOrderIsKept() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups?reason=libary-link&q=movie&sort=name&dir=desc")
+                .then()
+                .statusCode(200)
+                .body(
+                        "html.body.main.p.find { it.@role == 'alert' }.text()",
+                        startsWith("Unknown reason 'libary-link': use unregistered,"))
+                // The whole view, by name the other way round: the name searched for goes with the unknown reason.
+                .body(GroupsTable.GROUPS + ".size()", is(6))
+                .body(TALLY + ".a[3].@href", is("/groups?verdict=keep&sort=name&dir=desc"))
+                .body(TALLY + ".a.findAll { it.@'aria-current' == 'page' }.@href", is("/groups?sort=name&dir=desc"))
+                .body("html.body.main.form.'**'.find { it.@name == 'q' }.@value", is(""))
+                .body("html.body.main.form.'**'.find { it.@name == 'sort' }.@value", is("name"))
+                .body("html.body.main.form.'**'.find { it.@name == 'dir' }.@value", is("desc"));
+    }
+
+    @Test
+    void theNameSearchedForNarrowsTheCountsOfTheReasonsAndKeepsTheOrderInTheClearLink() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups?verdict=keep&q=KEPT&sort=size&dir=desc")
+                .then()
+                .statusCode(200)
+                .body(
+                        options("reason", "text()"),
+                        contains(
+                                "Any reason (1)",
+                                "Unregistered (0)",
+                                "Unmanaged (0)",
+                                "Missing data (0)",
+                                "Local error (0)",
+                                "Verifying (0)",
+                                "Not finished (0)",
+                                "Keep override (0)",
+                                "Library link (1)",
+                                "Minimum not reached (0)",
+                                "All met (0)"))
+                .body("html.body.main.form.'**'.find { it.name() == 'a' }.@href", is("/groups?sort=size&dir=desc"));
     }
 
     @Test

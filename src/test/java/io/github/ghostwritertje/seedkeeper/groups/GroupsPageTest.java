@@ -17,6 +17,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
 /** How the Groups view writes a group: its header row, its member rows, and where a long name may break. */
@@ -32,6 +33,62 @@ class GroupsPageTest {
         assertEquals(List.of("Some Movie (2020)"), GroupsPage.breakable("Some Movie (2020)"));
         // Nothing follows the last dot: no break after it.
         assertEquals(List.of("Ends.", "with."), GroupsPage.breakable("Ends.with."));
+    }
+
+    @Test
+    void aKeepOverrideReturnsToTheSameFilterOrderAndPage() {
+        assertEquals(
+                "/groups?verdict=remove&q=Movie&sort=size&dir=desc&page=2&done=kept",
+                GroupsPage.afterKeep(GroupsPage.Query.of("remove", "", " Movie ", "size", "desc", "2"))
+                        .toString());
+        // What is empty, the default order and the first page are left out.
+        assertEquals(
+                "/groups?reason=all-met&done=kept",
+                GroupsPage.afterKeep(GroupsPage.Query.of(null, "all-met", null, "verdict", "asc", "1"))
+                        .toString());
+        assertEquals(
+                "/groups?done=kept",
+                GroupsPage.afterKeep(GroupsPage.Query.of("", " ", "", "", "", ""))
+                        .toString());
+    }
+
+    @Test
+    void aPageThatIsNoNumberOrBelowOneIsTheFirst() {
+        assertEquals(1, GroupsPage.Pages.number(null));
+        assertEquals(1, GroupsPage.Pages.number("two"));
+        assertEquals(1, GroupsPage.Pages.number("0"));
+        assertEquals(1, GroupsPage.Pages.number("-3"));
+        assertEquals(3, GroupsPage.Pages.number(" +3 "));
+        assertEquals(Integer.MAX_VALUE, GroupsPage.Pages.number("99999999999999999999"));
+    }
+
+    @Test
+    void aPageBeyondTheLastIsTheLastAndLinksOnlyBack() {
+        GroupsPage.Query query = GroupsPage.Query.of(null, null, "x", "name", "desc", "9");
+
+        GroupsPage.Pages pages = GroupsPage.Pages.of(query, 101);
+
+        assertEquals(new GroupsPage.Pages(3, 3, 101, "/groups?q=x&sort=name&dir=desc&page=2", ""), pages);
+        assertEquals(List.of(100), pages.of(IntStream.range(0, 101).boxed().toList()));
+        assertEquals(new GroupsPage.Pages(1, 1, 0, "", ""), GroupsPage.Pages.of(query, 0));
+        assertEquals(
+                new GroupsPage.Pages(1, 2, 51, "", "/groups?q=x&sort=name&dir=desc&page=2"),
+                GroupsPage.Pages.of(query.page(1), 51));
+        assertEquals(new GroupsPage.Pages(1, 1, 50, "", ""), GroupsPage.Pages.of(query.page(1), 50));
+    }
+
+    @Test
+    void aSortableColumnLinksToItsOrderAndSaysWhetherTheViewIsSortedByIt() {
+        GroupsPage.Columns columns = GroupsPage.Columns.of(GroupsPage.Query.of(null, null, null, "size", "desc", "3"));
+
+        assertEquals(new GroupsPage.Column("/groups?sort=size&dir=asc", "descending"), columns.size());
+        assertEquals(new GroupsPage.Column("/groups?sort=name&dir=asc", ""), columns.name());
+        // The verdict, the usual way, is the default order: no sort in the URL.
+        assertEquals(new GroupsPage.Column("/groups", ""), columns.verdict());
+        assertEquals(
+                new GroupsPage.Column("/groups?sort=verdict&dir=desc", "ascending"),
+                GroupsPage.Columns.of(GroupsPage.Query.of(null, null, null, null, null, null))
+                        .verdict());
     }
 
     @Test
