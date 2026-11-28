@@ -152,7 +152,7 @@ class OverviewPage {
     }
 
     private static Optional<Warning> leftAlone(List<GroupVerdict> all) {
-        long count = all.stream().filter(g -> g.verdict() == Verdict.LEFT_ALONE).count();
+        long count = StatusFragment.leftAlone(all);
         if (count == 0) {
             return Optional.empty();
         }

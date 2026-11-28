@@ -106,7 +106,7 @@ class SettingsTest {
                 .when()
                 .get("/system")
                 .then()
-                .body("html.body.header.nav.a.find { it.@href == '/settings' }", is("Settings"));
+                .body("html.body.aside.nav.ul.li.a.find { it.@href == '/settings' }", is("Settings"));
     }
 
     private static String section(String id) {

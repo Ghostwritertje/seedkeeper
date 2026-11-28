@@ -637,7 +637,7 @@ class GroupsTest {
                 .when()
                 .get("/system")
                 .then()
-                .body("html.body.header.nav.a.find { it.@href == '/groups' }", is("Groups"));
+                .body("html.body.aside.nav.ul.li.a.find { it.@href == '/groups' }.text()", is("Groups"));
     }
 
     @Test
@@ -646,7 +646,7 @@ class GroupsTest {
                 .when()
                 .get("/groups")
                 .then()
-                .body("html.body.header.nav.a.findAll { it.@'aria-current' == 'page' }.@href", is("/groups"))
+                .body("html.body.aside.nav.ul.li.a.findAll { it.@'aria-current' == 'page' }.@href", is("/groups"))
                 .body("html.body.main.@data-page", is("groups"));
     }
 

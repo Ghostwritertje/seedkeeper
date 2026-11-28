@@ -7,6 +7,7 @@
  *                 tracker message);
  *                 danger or quiet: the look of a <button>
  *   data-quiet    on an <article> of the Activity view: a run that succeeded and removed nothing, shown on one line
+ *   data-visually-hidden  words for a screen reader only, such as "left alone" after the count on the Groups link
  */
 :root {
   color-scheme: light dark;
@@ -49,23 +50,25 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* The header: brand, the views, log out. */
+[data-visually-hidden] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The header of the log in page: the brand only. */
 
 body > header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 2rem;
   padding: 0.6rem max(1rem, calc((100% - 90rem) / 2 + 1.5rem));
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
 
 body > header > strong,
-body > header > a {
+body > aside > a {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -76,37 +79,140 @@ body > header > a {
   text-decoration: none;
 }
 
-body > header > a::before,
-body > header > strong::before {
+body > header > strong::before,
+body > aside > a::before {
   content: "";
   width: 1.4rem;
   height: 1.4rem;
   background: url("/favicon.svg") center / contain no-repeat;
 }
 
-body > header > nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-right: auto;
+/*
+ * The sidebar: the brand, the views in their sections, the status block and log out. The status block and the count
+ * on the Groups link load after the page (GET /status); the links work without them. Below 50rem it is a bar above
+ * the page instead (see the end).
+ */
+
+body:has(> aside) {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  min-height: 100vh;
 }
 
-body > header > nav a {
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
+body > aside {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: 100vh;
+  height: 100dvh;
+  padding: 1rem;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+
+body > aside h2 {
+  margin: 0.8rem 0 0.2rem;
+  padding: 0 0.6rem;
   color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+body > aside ul {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0;
+  list-style: none;
+}
+
+body > aside nav a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.4rem;
+  color: var(--text);
   font-weight: 500;
   text-decoration: none;
 }
 
-body > header > nav a:hover {
-  color: var(--text);
+body > aside nav a:hover {
   background: var(--hover);
 }
 
-body > header > nav a[aria-current="page"] {
+body > aside nav a[aria-current="page"] {
   color: var(--accent-strong);
   background: var(--accent-surface);
+}
+
+body > aside nav a mark {
+  min-width: 1.5rem;
+  padding-inline: 0.4rem;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+/* Transmission, the next run and the last run: a dot in the colour of a state, always next to its text. */
+#status {
+  margin-top: auto;
+  padding: 0.75rem;
+  border-radius: var(--radius);
+  background: var(--background);
+  font-size: 0.8125rem;
+}
+
+#status:empty {
+  padding: 0;
+}
+
+/*
+ * The page next to the sidebar: as wide as its column allows, up to its max-width, and as high as its content. A grid
+ * item with auto margins would shrink to its content's width, and one that stretches to the sidebar's height would
+ * stretch the rows of the pages that are grids themselves.
+ */
+body:has(> aside) > main {
+  width: 100%;
+  align-self: start;
+}
+
+/* Each value under its label: "Reachable, not usable" doesn't fit next to "Transmission" in the sidebar. */
+#status dl {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.4rem;
+  margin: 0;
+}
+
+#status dd {
+  font-weight: 600;
+  overflow-wrap: normal;
+}
+
+/* A flex box, so the dot stays next to the text when the text wraps. */
+#status dd[data-tone] {
+  display: flex;
+  align-items: baseline;
+  padding: 0;
+  font-size: inherit;
+  white-space: normal;
+  color: var(--tone, var(--muted));
+  background: transparent;
+}
+
+#status dd[data-tone]::before {
+  content: "";
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.4rem;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 main {
@@ -465,7 +571,7 @@ td {
 
 thead th {
   position: sticky;
-  top: 3.4rem;
+  top: 0;
   z-index: 1;
   padding-block: 0.5rem;
   color: var(--muted);
@@ -1011,10 +1117,6 @@ article[data-quiet] > p {
     position: static;
   }
 
-  body > header {
-    position: static;
-  }
-
   article > dl {
     grid-template-columns: max-content 1fr;
     grid-template-rows: none;
@@ -1023,33 +1125,88 @@ article[data-quiet] > p {
 }
 
 /*
- * Phones. The header is two rows: the brand and log out, then the views in one row that scrolls sideways.
- * The Groups table keeps the name, the progress toward the minimum and the keep override; the verdict and reason
- * move under the name, and the columns of the verdict, reason, forecast and size are hidden.
+ * Small screens: the sidebar is a bar above the page. The brand and log out, then the views, wrapping onto as many
+ * rows as they need, so every view stays in sight; the section headings are left to screen readers. The status block
+ * is one line under them.
  */
 
-@media (max-width: 40rem) {
-  body > header {
-    gap: 0.25rem 1rem;
-    padding-block: 0.5rem 0.35rem;
+@media (max-width: 50rem) {
+  body:has(> aside) {
+    display: block;
   }
 
-  body > header > form {
+  body > aside {
+    position: static;
+    flex-flow: row wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    height: auto;
+    padding: 0.5rem 1rem;
+    overflow: visible;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  body > aside > form {
     margin-left: auto;
   }
 
-  body > header > nav {
+  body > aside > nav,
+  #status {
     order: 1;
     flex: 1 0 100%;
-    flex-wrap: nowrap;
-    margin-right: 0;
-    overflow-x: auto;
   }
 
-  body > header > nav a {
+  #status {
+    margin-top: 0;
+    padding: 0.4rem 0.6rem;
+  }
+
+  body > aside nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  body > aside ul {
+    display: contents;
+  }
+
+  body > aside nav h2 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
     white-space: nowrap;
   }
 
+  body > aside nav a {
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  #status dl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15rem 1rem;
+  }
+
+  #status dl > div {
+    display: flex;
+    gap: 0.4rem;
+  }
+}
+
+/*
+ * Phones. The Groups table keeps the name, the progress toward the minimum and the keep override; the verdict and
+ * reason move under the name, and the columns of the verdict, reason, forecast and size are hidden.
+ */
+
+@media (max-width: 40rem) {
   [data-page="groups"] thead th:nth-child(n + 3):not(:last-child),
   [data-page="groups"] tbody > tr > td[rowspan]:not(:last-child) {
     display: none;

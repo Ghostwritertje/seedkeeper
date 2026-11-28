@@ -383,7 +383,7 @@ class ActivityTest {
                 .get("/system")
                 .then()
                 .statusCode(200)
-                .body("html.body.header.nav.a.collect { it.@href }", hasItem("/activity"));
+                .body("html.body.aside.nav.ul.li.a.collect { it.@href }", hasItem("/activity"));
     }
 
     /** Presses Run now as a logged-in user. */
