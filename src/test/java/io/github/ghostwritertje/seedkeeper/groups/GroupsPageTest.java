@@ -101,7 +101,8 @@ class GroupsPageTest {
                 verdict("2222", Verdict.KEEP, Reason.MINIMUM_NOT_REACHED),
                 verdict("3333", Verdict.REMOVE, Reason.ALL_MET));
 
-        List<GroupsPage.Lane> lanes = lanes(matching, GroupsFilter.NONE, GroupsPage.Query.of(null, null, null, null, null, null));
+        List<GroupsPage.Lane> lanes =
+                lanes(matching, GroupsFilter.NONE, GroupsPage.Query.of(null, null, null, null, null, null));
 
         assertEquals(
                 List.of("keep", "left-alone", "remove"),
@@ -112,12 +113,15 @@ class GroupsPageTest {
         assertEquals(
                 List.of("waiting, soonest first", "a person should look", "the next run removes these"),
                 lanes.stream().map(GroupsPage.Lane::explanation).toList());
-        assertEquals(List.of(1L, 0L, 2L), lanes.stream().map(GroupsPage.Lane::count).toList());
+        assertEquals(
+                List.of(1L, 0L, 2L), lanes.stream().map(GroupsPage.Lane::count).toList());
         // In the order given, which is the order chosen.
         assertEquals(
                 List.of("1111", "3333"),
                 lanes.get(2).groups().stream().map(GroupsPage.Group::label).toList());
-        assertEquals(List.of("", "", ""), lanes.stream().map(GroupsPage.Lane::showAll).toList());
+        assertEquals(
+                List.of("", "", ""),
+                lanes.stream().map(GroupsPage.Lane::showAll).toList());
         // Sorted another way, the Keep lane is no longer soonest first.
         assertEquals(
                 "waiting",
@@ -133,8 +137,8 @@ class GroupsPageTest {
                 .toList();
         GroupsPage.Query query = GroupsPage.Query.of(null, "all-met", "0", "size", "desc", null);
 
-        GroupsPage.Lane remove = lanes(matching, GroupsFilter.parse(null, "all-met", "0"), query)
-                .get(2);
+        GroupsPage.Lane remove =
+                lanes(matching, GroupsFilter.parse(null, "all-met", "0"), query).get(2);
 
         assertEquals(51, remove.count());
         assertEquals(50, remove.groups().size());
@@ -165,14 +169,27 @@ class GroupsPageTest {
 
     @Test
     void aGroupKeptByAKeepOverrideHasNoFormToSetOne() {
-        assertEquals(false, GroupsPage.group(verdict("1111", Verdict.KEEP, Reason.KEEP_OVERRIDE)).keepable());
-        assertEquals(true, GroupsPage.group(verdict("1111", Verdict.KEEP, Reason.LIBRARY_LINK)).keepable());
-        assertEquals(true, GroupsPage.group(verdict("1111", Verdict.REMOVE, Reason.ALL_MET)).keepable());
+        assertEquals(
+                false,
+                GroupsPage.group(verdict("1111", Verdict.KEEP, Reason.KEEP_OVERRIDE))
+                        .keepable());
+        assertEquals(
+                true,
+                GroupsPage.group(verdict("1111", Verdict.KEEP, Reason.LIBRARY_LINK))
+                        .keepable());
+        assertEquals(
+                true,
+                GroupsPage.group(verdict("1111", Verdict.REMOVE, Reason.ALL_MET))
+                        .keepable());
     }
 
     private static List<GroupsPage.Lane> lanes(
             List<GroupVerdict> matching, GroupsFilter filter, GroupsPage.Query query) {
-        return GroupsPage.lanes(matching, filter, GroupsPage.Pages.of(query, filter.verdict().isPresent() ? matching.size() : 0), query);
+        return GroupsPage.lanes(
+                matching,
+                filter,
+                GroupsPage.Pages.of(query, filter.verdict().isPresent() ? matching.size() : 0),
+                query);
     }
 
     private static GroupVerdict verdict(String hash, Verdict verdict, Reason reason) {

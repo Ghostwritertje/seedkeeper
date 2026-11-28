@@ -157,8 +157,7 @@ class GroupsPage {
      * @param showAll     the URL of this lane alone, which pages, when it holds more groups than it shows here; else
      *                    empty
      */
-    public record Lane(
-            String code, String label, String explanation, long count, List<Group> groups, String showAll) {}
+    public record Lane(String code, String label, String explanation, long count, List<Group> groups, String showAll) {}
 
     /**
      * One way to sort the view, in the Sort field: the order applies within every lane.
@@ -532,7 +531,9 @@ class GroupsPage {
                             explanation(v, query.order().equals(GroupsOrder.DEFAULT)),
                             of.size(),
                             shown.stream().map(GroupsPage::group).toList(),
-                            alone || of.size() <= PAGE_SIZE ? "" : query.verdict(v.code()).href());
+                            alone || of.size() <= PAGE_SIZE
+                                    ? ""
+                                    : query.verdict(v.code()).href());
                 })
                 .toList();
     }

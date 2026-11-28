@@ -327,7 +327,9 @@ class GroupsTest {
                         contains("waiting, soonest first", "a person should look", "the next run removes these"))
                 .body(GroupsLanes.LANES + ".@'data-verdict'", contains("keep", "left-alone", "remove"))
                 .body(GroupsLanes.LANES + ".h2.mark.@'data-verdict'", contains("keep", "left-alone", "remove"))
-                .body(GroupsLanes.LANES + ".collect { it.@'aria-labelledby'.text() }", contains("lane-keep", "lane-left-alone", "lane-remove"))
+                .body(
+                        GroupsLanes.LANES + ".collect { it.@'aria-labelledby'.text() }",
+                        contains("lane-keep", "lane-left-alone", "lane-remove"))
                 // Keep by soonest forecast: a stopped clock after every date, no forecast last.
                 .body(
                         GroupsLanes.names("keep"),
@@ -361,7 +363,9 @@ class GroupsTest {
                 // Below the minimum: a meter, the percent and when it becomes removable, and the exact durations.
                 .body(
                         GroupsLanes.progress("keep", 1),
-                        endsInMinute("18% of minimum · removable ", before, Duration.ofDays(11).plusHours(12)))
+                        endsInMinute(
+                                "18% of minimum · removable ",
+                                before, Duration.ofDays(11).plusHours(12)))
                 .body(GroupsLanes.progressLine("keep", 1) + ".meter.@value", is("18"))
                 .body(
                         GroupsLanes.progressLine("keep", 1) + ".meter.collect { [it.@min, it.@max] }.flatten()",
@@ -474,7 +478,9 @@ class GroupsTest {
                 .statusCode(200)
                 .body(GroupsLanes.HEADINGS, contains("2 Keep", "0 Left alone", "1 Remove"))
                 .body(GroupsLanes.lane("left-alone") + ".article.size()", is(0))
-                .body(GroupsLanes.lane("left-alone") + ".p[1].text()", is("No group of this verdict matches the filter."));
+                .body(
+                        GroupsLanes.lane("left-alone") + ".p[1].text()",
+                        is("No group of this verdict matches the filter."));
         FakeTransmissionResource.fake()
                 .torrents("["
                         + torrent(
@@ -575,7 +581,8 @@ class GroupsTest {
                     .body(GroupsLanes.names("left-alone"), contains("Two.Hosts", "No.Trackers"))
                     .body(
                             GroupsLanes.summary("left-alone", 0),
-                            is("Unmanaged (elsewhere.example, tracker-a.example) · Seeding · 0 of 1 files linked · 4 B"))
+                            is(
+                                    "Unmanaged (elsewhere.example, tracker-a.example) · Seeding · 0 of 1 files linked · 4 B"))
                     .body(
                             GroupsLanes.summary("left-alone", 1),
                             is("Unmanaged (no trackers) · Seeding · 0 of 1 files linked · 4 B"))

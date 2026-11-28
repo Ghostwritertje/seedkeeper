@@ -29,8 +29,7 @@ class GroupsBrowseTest {
     private static final String PAGES = "html.body.main.nav.find { it.@'aria-label' == 'Pages' }";
     private static final String SEARCH = "html.body.main.form.'**'.find { it.name() == 'input' && it.@name == 'q' }";
     private static final String SORT = "html.body.main.form.'**'.find { it.name() == 'select' && it.@name == 'sort' }";
-    private static final String REVERSE =
-            "html.body.main.form.'**'.find { it.name() == 'input' && it.@name == 'dir' }";
+    private static final String REVERSE = "html.body.main.form.'**'.find { it.name() == 'input' && it.@name == 'dir' }";
 
     @BeforeEach
     void torrents() throws IOException {

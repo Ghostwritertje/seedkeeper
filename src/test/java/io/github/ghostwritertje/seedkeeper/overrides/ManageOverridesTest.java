@@ -550,13 +550,13 @@ class ManageOverridesTest {
                 .body("hashes", contains(List.of("3c3c17")));
     }
 
-    /** The value of the hidden input with this name in the form with this id. */
     /** The card of the group with this name in the lane of this verdict of the Groups view. */
     private static String card(String verdict, String name) {
         return LANES + ".find { it.@'data-verdict' == '" + verdict + "' }.article.find { it.h3.text() == '" + name
                 + "' }";
     }
 
+    /** The value of the hidden input with this name in the form with this id. */
     private static String hidden(String form, String name) {
         return "**.find { it.name() == 'form' && it.@id == '" + form
                 + "' }.input.find { it.@type == 'hidden' && it.@name == '" + name + "' }.@value";
