@@ -69,6 +69,19 @@ class UnreachableTransmissionTest {
     }
 
     @Test
+    void theSidebarStatusSaysUnreachableNoRunYetAndHasNoBadge() {
+        Authenticated.asUser()
+                .when()
+                .get("/status")
+                .then()
+                .statusCode(200)
+                .body("html.body.dl.dd[0]", is("Unreachable"))
+                .body("html.body.dl.dd[0].@data-tone", is("danger"))
+                .body("html.body.dl.dd[2]", is("None yet"))
+                .body("html.body.span.find { it.@id == 'left-alone' }.children().size()", is(0));
+    }
+
+    @Test
     void readinessIsDownAndLivenessStaysUp() {
         given().when()
                 .get("/q/health/ready")

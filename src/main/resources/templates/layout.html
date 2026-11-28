@@ -1,4 +1,4 @@
-{! Every page passes `current`: the code of its view, for the link to it in the header and the layout of <main>. !}
+{! Every page passes `current`: the code of its view, for the link to it in the sidebar and the layout of <main>. !}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,22 +10,35 @@
 <script src="/htmx.min.js" defer></script>
 </head>
 <body>
-<header>
-<a href="/"{#if current == 'home'} aria-current="page"{/if}>seedkeeper</a>
-<nav>
-<a href="/groups"{#if current == 'groups'} aria-current="page"{/if}>Groups</a>
-<a href="/overrides"{#if current == 'overrides'} aria-current="page"{/if}>Overrides</a>
-<a href="/activity"{#if current == 'activity'} aria-current="page"{/if}>Activity</a>
-<a href="/orphans"{#if current == 'orphans'} aria-current="page"{/if}>Orphans</a>
-<a href="/settings"{#if current == 'settings'} aria-current="page"{/if}>Settings</a>
-<a href="/system"{#if current == 'system'} aria-current="page"{/if}>System</a>
+<aside>
+<a href="/">seedkeeper</a>
+<nav aria-label="Views">
+<h2 id="views-day-to-day">Day to day</h2>
+<ul aria-labelledby="views-day-to-day">
+<li><a href="/"{#if current == 'home'} aria-current="page"{/if}>Overview</a></li>
+{! The status fragment fills in the badge: how many groups are left alone, when there are any. !}
+<li><a href="/groups"{#if current == 'groups'} aria-current="page"{/if}>Groups<span id="left-alone"></span></a></li>
+<li><a href="/activity"{#if current == 'activity'} aria-current="page"{/if}>Activity</a></li>
+</ul>
+<h2 id="views-tools">Tools</h2>
+<ul aria-labelledby="views-tools">
+<li><a href="/overrides"{#if current == 'overrides'} aria-current="page"{/if}>Keep overrides</a></li>
+<li><a href="/orphans"{#if current == 'orphans'} aria-current="page"{/if}>Orphans</a></li>
+</ul>
+<h2 id="views-setup">Setup</h2>
+<ul aria-labelledby="views-setup">
+<li><a href="/settings"{#if current == 'settings'} aria-current="page"{/if}>Settings</a></li>
+<li><a href="/system"{#if current == 'system'} aria-current="page"{/if}>System</a></li>
+</ul>
 </nav>
+{! Loaded after the page, and again every minute: the page never waits on Transmission. !}
+<div id="status" hx-get="/status" hx-trigger="load, every 60s"></div>
 {! Every form needs this hidden field: a POST without the CSRF token is rejected. !}
 <form method="post" action="/logout">
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
 <button type="submit" data-tone="quiet">Log out</button>
 </form>
-</header>
+</aside>
 <main data-page="{current}">
 {#insert}{/}
 </main>

@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 class LogoutTest {
 
     private static final String CSRF_COOKIE = "csrf-token";
-    private static final String CSRF_FIELD = "html.body.header.form.input.find { it.@name == 'csrf-token' }.@value";
+    private static final String CSRF_FIELD = "html.body.aside.form.input.find { it.@name == 'csrf-token' }.@value";
 
     @Test
     void logoutFormWithItsCsrfTokenLogsOut() {
@@ -28,8 +28,8 @@ class LogoutTest {
         Response page = given().cookie(session).when().get("/system");
         page.then()
                 .statusCode(200)
-                .body("html.body.header.form.@action", is("/logout"))
-                .body("html.body.header.form.@method", is("post"));
+                .body("html.body.aside.form.@action", is("/logout"))
+                .body("html.body.aside.form.@method", is("post"));
         String token = page.htmlPath().getString(CSRF_FIELD);
         assertFalse(token == null || token.isBlank(), "the logout form has no CSRF token");
 

@@ -323,7 +323,7 @@ class OverridesTest {
                 .when()
                 .get("/system")
                 .then()
-                .body("html.body.header.nav.a.find { it.@href == '/overrides' }", is("Overrides"));
+                .body("html.body.aside.nav.ul.li.a.find { it.@href == '/overrides' }", is("Keep overrides"));
     }
 
     @Test

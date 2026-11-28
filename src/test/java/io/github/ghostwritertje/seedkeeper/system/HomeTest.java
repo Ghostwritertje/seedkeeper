@@ -74,7 +74,7 @@ class HomeTest {
                 .get("/groups")
                 .then()
                 .statusCode(200)
-                .body("html.body.header.a[0].@href", is("/"));
+                .body("html.body.aside.a[0].@href", is("/"));
     }
 
     @Test

@@ -279,7 +279,7 @@ class OrphansTest {
                 .when()
                 .get("/system")
                 .then()
-                .body("html.body.header.nav.a.find { it.@href == '/orphans' }", is("Orphans"));
+                .body("html.body.aside.nav.ul.li.a.find { it.@href == '/orphans' }", is("Orphans"));
     }
 
     private static void file(Path path, int size, Instant modified) throws IOException {
