@@ -1,5 +1,8 @@
 {#include layout.html current='activity'}
 {#title}Activity{/title}
+{! PROTOTYPE: the variants replace the whole view. !}
+{#if variant == 'B'}{#include ActivityPage/activity-prototype-B /}
+{#else}
 <h1>Activity</h1>
 {#if unavailable}
 <p role="alert">{unavailable}</p>
@@ -64,6 +67,7 @@ to their data, so a file still linked in the library, or a symlink, frees nothin
 <p>Page {pages.page} of {pages.count}</p>
 {#if pages.older}<a href="/activity?page={pages.page.plus(1)}">Older runs</a>{/if}
 </nav>
+{/if}
 {/if}
 {/if}
 {/include}

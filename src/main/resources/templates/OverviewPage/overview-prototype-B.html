@@ -1,0 +1,63 @@
+{! PROTOTYPE Overview B: the next run, previewed. One sentence says what the next run will do; under it the groups it
+   removes, the groups that need a person (with what to do), and what becomes removable soon. The lists are read from
+   the Groups view (variant B markup) over fetch, since the overview's own data doesn't list groups. !}
+<h1>Overview</h1>
+<p class="proto-note">Prototype B: lead with what the next run will do, and list the work for a person by name, with the
+hint, instead of a red "someone should look" box.</p>
+<section class="proto-hero">
+<p class="proto-hero-line">The next run{#if nextRun}, <strong>{nextRun.relative}</strong> <span class="proto-muted">({nextRun.text})</span>,{/if}
+removes <strong data-proto-sum="count">…</strong> holding <strong data-proto-sum="size">…</strong>.</p>
+<p class="proto-muted proto-small">{#if lastRun}Last run {lastRun.started.relative}: {#if lastRunOk}succeeded{#else}<span data-tone="danger">failed</span>{/if}, removed {lastRun.removed}, freed {lastRun.spaceFreed}. <a href="/activity">Activity</a>{#else}No run yet.{/if}</p>
+<p class="proto-hero-actions"><a class="proto-button" href="/system">Run now…</a> <a href="/groups?verdict=remove">Review in Groups</a></p>
+</section>
+<div class="proto-two">
+<section class="proto-list">
+<h2>Will be removed</h2>
+<ul data-proto-list="remove"><li class="proto-muted">Loading…</li></ul>
+</section>
+<section class="proto-list" data-tone="warn">
+<h2>Needs you <span class="proto-badge" data-proto-count="left-alone"></span></h2>
+<ul data-proto-list="left-alone"><li class="proto-muted">Loading…</li></ul>
+</section>
+</div>
+<section class="proto-list">
+<h2>Becoming removable</h2>
+<ul data-proto-list="soon"><li class="proto-muted">Loading…</li></ul>
+</section>
+<script>{|
+(window.protoPage ||= []).push(() => {
+  const el = document.querySelector("[data-proto-list='remove']");
+  if (!el || el.dataset.done) return;
+  el.dataset.done = 1;
+  const bytes = (s) => {
+    const m = /([\d.]+)\s*(B|KiB|MiB|GiB|TiB)/.exec(s || "");
+    return m ? parseFloat(m[1]) * 1024 ** ["B", "KiB", "MiB", "GiB", "TiB"].indexOf(m[2]) : 0;
+  };
+  const human = (n) => { const u = ["B", "KiB", "MiB", "GiB", "TiB"]; let i = 0; while (n >= 1024 && i < 4) { n /= 1024; i++; } return n.toFixed(1) + " " + u[i]; };
+  const rows = (doc) => [...doc.querySelectorAll(".proto-row")].map((r) => ({
+    verdict: r.dataset.verdict,
+    name: r.querySelector(".proto-row-name strong").textContent.trim(),
+    summary: (r.querySelector(".proto-row-name small, .proto-members summary") || {}).textContent || "",
+    why: r.querySelector(".proto-row-why").childNodes[0].textContent.trim(),
+    hint: (r.querySelector(".proto-hint") || {}).textContent?.replace(/^ — /, "") || "",
+    seed: r.querySelector(".proto-row-seed small")?.textContent.trim() || "",
+    size: r.querySelector(".proto-row-size").textContent.trim(),
+  }));
+  const link = (g) => `/groups?variant=D&q=${encodeURIComponent(g.name)}`;
+  protoFetch("/groups?variant=B&sort=forecast&dir=asc").then((doc) => {
+    const all = rows(doc);
+    const remove = all.filter((g) => g.verdict === "remove");
+    const alone = all.filter((g) => g.verdict === "left-alone");
+    const soon = all.filter((g) => g.verdict === "keep" && / · /.test(g.seed)).slice(0, 5);
+    document.querySelector("[data-proto-sum='count']").textContent = `${remove.length} group${remove.length === 1 ? "" : "s"}`;
+    document.querySelector("[data-proto-sum='size']").textContent = human(remove.reduce((a, g) => a + bytes(g.size), 0));
+    document.querySelector("[data-proto-count='left-alone']").textContent = alone.length;
+    const fill = (key, list, f, empty) => {
+      document.querySelector(`[data-proto-list='${key}']`).innerHTML = list.length ? list.map(f).join("") : `<li class="proto-muted">${empty}</li>`;
+    };
+    fill("remove", remove, (g) => `<li><a href="${link(g)}">${g.name}</a><span class="proto-muted">${g.why}</span><span>${g.size}</span></li>`, "Nothing: the next run removes no group.");
+    fill("left-alone", alone, (g) => `<li><a href="${link(g)}">${g.name}</a><span><strong>${g.why}</strong><br><span class="proto-hint">${g.hint}</span></span><span>${g.size}</span></li>`, "Nothing needs you.");
+    fill("soon", soon, (g) => `<li><a href="${link(g)}">${g.name}</a><span class="proto-muted">${g.seed}</span><span>${g.size}</span></li>`, "No kept group has a forecast.");
+  });
+});
+|}</script>

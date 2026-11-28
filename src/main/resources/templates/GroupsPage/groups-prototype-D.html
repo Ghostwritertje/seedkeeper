@@ -1,0 +1,49 @@
+{! PROTOTYPE Groups D: list + detail. A narrow, scannable list on the left (name, verdict, size); the selected group's
+   whole story on the right: verdict, why, what to do, every member with its seed time, tracker message and size, and
+   the keep form. Selection is the URL #hash, so it is linkable. !}
+<h1>Groups</h1>
+<p class="proto-note">Prototype D: master/detail. The list stays short and scannable; everything about one group lives in
+the panel. Click a row, or use j/k.</p>
+{#include GroupsPage/groups-prototype-filter showTally=true /}
+{#if unavailable}<p role="alert">{unavailable}</p>
+{#else if groups.isEmpty}<p>No group matches.</p>
+{#else}
+<div class="proto-md">
+<ol class="proto-md-list">
+{#for group in groups}
+<li><a href="#g-{group.hashes.get(0)}" data-verdict="{group.verdictCode}"><span class="proto-dot" data-tone="{#if group.verdictCode == 'remove'}danger{#else if group.verdictCode == 'left-alone'}warn{#else}ok{/if}"></span>
+<span><strong>{#each group.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</strong><small class="proto-muted">{group.reason}{#if !group.members.isEmpty} · {group.rows.minus(1)} torrents{/if}</small></span>
+<small class="proto-muted">{group.size}</small></a></li>
+{/for}
+</ol>
+<div class="proto-md-detail">
+{#for group in groups}
+<article id="g-{group.hashes.get(0)}" class="proto-card" hidden>
+<p><span class="proto-pill" data-verdict="{group.verdictCode}">{group.verdict}</span></p>
+<h2>{#each group.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</h2>
+<dl class="proto-dl">
+<dt>Why</dt><dd>{group.reason}{#if group.secondaryReasons}<br><small class="proto-muted">also {group.secondaryReasons}</small>{/if}</dd>
+{#if group.hint}<dt>What to do</dt><dd class="proto-hint">{group.hint}</dd>{/if}
+<dt>Seed time</dt><dd>{group.progress.detail}</dd>
+{#if group.forecast}<dt>Forecast</dt><dd>{#if group.forecastDate}{#stamp group.forecastDate /}{#else}{group.forecast}{/if}</dd>{/if}
+<dt>Size</dt><dd>{group.size} <small class="proto-muted">{group.summary}</small></dd>
+{#if group.trackerMessage}<dt>Tracker said</dt><dd data-tone="danger">{group.trackerMessage}</dd>{/if}
+</dl>
+{#if !group.members.isEmpty}
+<h3>Members</h3>
+<table class="proto-md-members">
+<thead><tr><th>Torrent</th><th>Tracker</th><th>Status</th><th>Seed time</th><th>Size</th></tr></thead>
+<tbody>
+{#for member in group.members}
+<tr{#if member.cause} data-cause="true"{/if}><td>{#each member.name}{it}{#if it_hasNext}<wbr>{/if}{/each}{#if member.cause} <mark data-tone="warn">{member.cause}</mark>{/if}{#if member.trackerMessage}<br><small data-tone="danger">{member.trackerMessage}</small>{/if}</td><td>{member.tracker}</td><td>{member.status}</td><td>{member.progress.text}<br><small class="proto-muted">{member.progress.detail}</small></td><td>{member.size}</td></tr>
+{/for}
+</tbody>
+</table>
+{/if}
+<h3>Keep it</h3>
+{#protoKeep g=group filter=filter /}
+</article>
+{/for}
+</div>
+</div>
+{/if}

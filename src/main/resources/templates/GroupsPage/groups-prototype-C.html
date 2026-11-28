@@ -1,0 +1,31 @@
+{! PROTOTYPE Groups C: verdict lanes. Three columns, one per verdict, each a stack of cards, so the page reads as
+   "what goes / what needs me / what waits". The tally becomes the lane headers. !}
+<h1>Groups</h1>
+<p class="proto-note">Prototype C: lanes instead of a table. The verdict chips become lane headers; the Left alone lane
+says what to do; the Keep lane is ordered by when each group becomes removable.</p>
+{#include GroupsPage/groups-prototype-filter showTally=false /}
+{#if unavailable}<p role="alert">{unavailable}</p>
+{#else}
+<div class="proto-lanes">
+{#for lane in tally}{#if lane.code}
+<section class="proto-lane" data-verdict="{lane.code}">
+<header><span class="proto-pill" data-verdict="{lane.code}">{lane.count}</span> <strong>{lane.label}</strong>
+<small class="proto-muted">{#if lane.code == 'remove'}the next run removes these{#else if lane.code == 'left-alone'}a person should look{#else}waiting, soonest first{/if}</small></header>
+{#for group in groups}{#if group.verdictCode == lane.code}
+<article class="proto-lane-card">
+<strong>{#each group.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</strong>
+<small class="proto-muted">{group.summary} · {group.size}</small>
+<p>{group.reason}{#if group.secondaryReasons} <small class="proto-muted">(also {group.secondaryReasons})</small>{/if}</p>
+{#if group.hint}<p class="proto-hint">→ {group.hint}</p>{/if}
+{#if group.trackerMessage}<small data-tone="danger">{group.trackerMessage}</small>{/if}
+{#if group.progress.below}<div class="proto-bar" title="{group.progress.detail}"><span style="width: {group.progress.percent}%"></span></div>
+<small class="proto-muted">{group.progress.percent}% of minimum{#if group.forecastDate} · removable {#stamp group.forecastDate /}{#else if group.forecast} · {group.forecast}{/if}</small>{/if}
+{#for member in group.members}{#if member.cause}<small><mark data-tone="warn">{member.cause}</mark> {member.tracker}</small>{/if}{/for}
+{#if lane.code != 'keep'}<details class="proto-menu proto-menu-inline"><summary>Keep…</summary><div>{#protoKeep g=group filter=filter /}</div></details>{/if}
+</article>
+{/if}{/for}
+{#if lane.count == 0}<p class="proto-muted proto-small">Nothing here.</p>{/if}
+</section>
+{/if}{/for}
+</div>
+{/if}

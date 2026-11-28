@@ -1,0 +1,22 @@
+{! PROTOTYPE: the verdict tally and the filter of the Groups view, kept on the variant (hidden `variant` field). !}
+<div class="proto-filterbar">
+{#if showTally}
+<nav aria-label="Groups by verdict">
+{#for t in tally}
+<a href="{t.href}"{#if t.selected} aria-current="page"{/if}>{#if t.code}<mark data-verdict="{t.code}">{t.count}</mark>{#else}<mark>{t.count}</mark>{/if} {t.label}</a>
+{/for}
+</nav>
+{/if}
+<form method="get" action="/groups" hx-get="/groups" hx-trigger="change, submit, keyup changed delay:300ms from:input[name=q]" hx-select="main" hx-target="main" hx-swap="outerHTML" hx-push-url="true">
+<input type="hidden" name="variant" value="{variant}">
+<input type="hidden" name="verdict" value="{filter.verdictCode}">
+<input type="search" name="q" value="{filter.name}" placeholder="Search names…" aria-label="Name">
+<select name="reason" aria-label="Reason">
+<option value=""{#if filter.anyReason} selected="selected"{/if}>Any reason</option>
+{#for option in filter.reasons}
+<option value="{option.code}"{#if option.selected} selected="selected"{/if}{#if option.disabled} disabled="disabled"{/if}>{option.label} ({option.count})</option>
+{/for}
+</select>
+{#if filter.active}<a href="/groups?variant={variant}">Clear</a>{/if}
+</form>
+</div>

@@ -1,5 +1,9 @@
 {#include layout.html current='home'}
 {#title}Overview{/title}
+{! PROTOTYPE: the variants B and C replace the whole view. !}
+{#if variant == 'B'}{#include OverviewPage/overview-prototype-B /}
+{#else if variant == 'C'}{#include OverviewPage/overview-prototype-C /}
+{#else}
 <h1>Overview</h1>
 {#if !warnings.isEmpty}
 <section id="warnings">
@@ -58,5 +62,6 @@
 </table>
 {/if}
 </section>
+{/if}
 {/if}
 {/include}

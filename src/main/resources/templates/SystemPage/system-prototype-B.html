@@ -1,0 +1,47 @@
+{! PROTOTYPE System B: System and Settings as one page, led by a health checklist. Each check is a line that is green
+   or says what's wrong; the configuration follows, read from the Settings view over fetch. Run now stays here. !}
+<h1>System</h1>
+<p class="proto-note">Prototype B: merge System and Settings (both show the next run and Transmission today) into one page
+that opens with "is everything OK?". The nav would lose one entry.</p>
+<section class="proto-card">
+<h2>Health</h2>
+<ul class="proto-checks" data-proto-checks><li class="proto-muted">Checking…</li></ul>
+<form method="post" action="/system/run" onsubmit="return confirm('Run now? It removes every group marked Remove and deletes their files.')">
+<input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<button type="submit">Run now</button> <a href="/groups?verdict=remove">See what it would remove</a>
+</form>
+</section>
+<h2 class="proto-subhead">Configuration <small class="proto-muted">— edit <code>seedkeeper.yaml</code> or the environment, then restart</small></h2>
+<div class="proto-settings" data-proto-settings></div>
+<script>{|
+(window.protoPage ||= []).push(() => {
+  const ul = document.querySelector("[data-proto-checks]");
+  if (!ul || ul.dataset.done) return;
+  ul.dataset.done = 1;
+  Promise.all([protoFetch("/system"), protoFetch("/settings"), protoFetch("/")]).then(([sys, set, home]) => {
+    const dd = (doc, sel, term) => { const dt = [...doc.querySelectorAll(sel + " dt")].find((d) => d.textContent.trim() === term); return dt ? dt.nextElementSibling : null; };
+    const checks = [];
+    const tm = sys.querySelector("#transmission dd[data-tone]");
+    const tmv = dd(sys, "#transmission", "Version");
+    checks.push([tm?.dataset.tone || "muted", `Transmission ${tm?.textContent.trim().toLowerCase()}`, tmv ? `version ${tmv.textContent.trim()}` : "", sys.querySelector("#transmission [role=alert]")?.textContent || ""]);
+    const last = home.querySelector("#runs mark");
+    checks.push([last ? (last.dataset.tone === "ok" ? "ok" : "danger") : "muted", last ? `Last run ${last.textContent.trim().toLowerCase()}` : "No run yet", dd(home, "#runs", "Last run")?.querySelector("span")?.textContent || "", ""]);
+    const next = dd(home, "#runs", "Next run");
+    checks.push([next && !/Not scheduled/.test(next.textContent) ? "ok" : "warn", "Next run scheduled", next ? next.textContent.trim().replace(/\s+/g, " ") : "", ""]);
+    const secrets = [...set.querySelectorAll("#secrets dd")];
+    const unset = secrets.filter((m) => m.textContent.trim() !== "set");
+    checks.push([unset.length ? "danger" : "ok", unset.length ? `${unset.length} secret(s) not set` : `All ${secrets.length} secrets set`, "", ""]);
+    const trackers = set.querySelectorAll("table tbody tr").length;
+    checks.push([trackers ? "ok" : "warn", `${trackers} trackers configured`, "incl. public", ""]);
+    const alone = home.querySelector("#verdicts mark[data-verdict='left-alone']")?.textContent.trim();
+    if (alone && alone !== "0") checks.push(["warn", `${alone} groups left alone`, "", `<a href="/groups?verdict=left-alone">look at them</a>`]);
+    const orph = sys.querySelector("#incomplete-dir");
+    if (orph) checks.push(["warn", "Incomplete dir", "", orph.textContent]);
+    ul.innerHTML = checks.map(([tone, what, detail, extra]) => `<li data-tone="${tone}"><span class="proto-dot" data-tone="${tone}"></span><strong>${what}</strong> <span class="proto-muted">${detail}</span>${extra ? `<div class="proto-small">${extra}</div>` : ""}</li>`).join("");
+    const box = document.querySelector("[data-proto-settings]");
+    set.querySelectorAll("main > section").forEach((s) => box.append(document.importNode(s, true)));
+    const ver = sys.querySelector("#seedkeeper");
+    if (ver) box.append(document.importNode(ver, true));
+  });
+});
+|}</script>

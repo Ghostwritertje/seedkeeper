@@ -1,0 +1,11 @@
+{! PROTOTYPE: the real keep form of the Groups view, for a group `g` and the `filter`, reused by its variants. !}
+<form method="post" action="/groups/keep">
+<input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<input type="hidden" name="verdict" value="{filter.verdictCode}">
+<input type="hidden" name="reason" value="{filter.reasonCode}">
+<input type="hidden" name="q" value="{filter.name}">
+{#for hash in g.hashes}<input type="hidden" name="hash" value="{hash}">
+{/for}<label>Note <input type="text" name="note" placeholder="Why keep it?"></label>
+<label>Until (optional) <input type="date" name="until"></label>
+<button type="submit">Set a keep override</button>
+</form>

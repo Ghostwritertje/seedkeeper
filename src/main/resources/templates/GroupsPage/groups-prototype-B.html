@@ -1,0 +1,44 @@
+{! PROTOTYPE Groups B: compact rows. One line per group; members behind a disclosure; reason and hint read as one
+   sentence; seed progress and forecast in one cell; the keep form behind a ⋯ menu. No table. !}
+<h1>Groups</h1>
+<p class="proto-note">Prototype B: one line per group. "Met ✓" is gone (only what still waits shows a bar), the Forecast
+column folds into the seed cell, members open on demand, and the keep form sits behind ⋯.</p>
+{#include GroupsPage/groups-prototype-filter showTally=true /}
+{#if kept}<p role="status">Keep override set.</p>{/if}
+{#if unavailable}<p role="alert">{unavailable}</p>
+{#else if groups.isEmpty}<p>No group matches.</p>
+{#else}
+<div class="proto-rows">
+<div class="proto-rows-head"><span>Group</span><span>Why</span><span>Seed time</span><span>Size</span><span></span></div>
+{#for group in groups}
+<div class="proto-row" data-verdict="{group.verdictCode}">
+<div class="proto-row-name">
+<span class="proto-pill" data-verdict="{group.verdictCode}">{group.verdict}</span>
+<strong>{#each group.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</strong>
+{#if group.members.isEmpty}
+<small class="proto-muted">{group.summary}</small>
+{#else}
+<details class="proto-members"><summary>{group.summary}</summary>
+<ul>
+{#for member in group.members}
+<li{#if member.cause} data-cause{/if}><span>{#each member.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</span> <small class="proto-muted">{member.tracker} · {member.status} · {member.size} · {member.progress.detail}</small>{#if member.cause} <mark data-tone="warn">{member.cause}</mark>{/if}{#if member.trackerMessage} <small data-tone="danger">{member.trackerMessage}</small>{/if}</li>
+{/for}
+</ul>
+</details>
+{/if}
+{#if group.trackerMessage}<small data-tone="danger">{group.trackerMessage}</small>{/if}
+</div>
+<div class="proto-row-why">{group.reason}{#if group.hint}<span class="proto-hint"> — {group.hint}</span>{/if}{#if group.secondaryReasons}<small class="proto-muted"> (also {group.secondaryReasons})</small>{/if}</div>
+<div class="proto-row-seed" title="{group.progress.detail}">
+{#if group.progress.below}
+<div class="proto-bar"><span style="width: {group.progress.percent}%"></span></div>
+<small>{group.progress.percent}%{#if group.forecastDate} · met {#stamp group.forecastDate /}{#else if group.forecast} · {group.forecast}{/if}</small>
+{#else if group.progress.tone == 'ok'}<small class="proto-muted">met</small>
+{#else}<small class="proto-muted">no minimum</small>{/if}
+</div>
+<div class="proto-row-size">{group.size}</div>
+<details class="proto-menu"><summary aria-label="Actions for {group.label}">⋯</summary><div>{#protoKeep g=group filter=filter /}</div></details>
+</div>
+{/for}
+</div>
+{/if}

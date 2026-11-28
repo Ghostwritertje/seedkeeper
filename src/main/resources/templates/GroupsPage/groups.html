@@ -1,5 +1,10 @@
 {#include layout.html current='groups'}
 {#title}Groups{/title}
+{! PROTOTYPE: the variants B, C and D replace the whole view. !}
+{#if variant == 'B'}{#include GroupsPage/groups-prototype-B /}
+{#else if variant == 'C'}{#include GroupsPage/groups-prototype-C /}
+{#else if variant == 'D'}{#include GroupsPage/groups-prototype-D /}
+{#else}
 <h1>Groups</h1>
 {#if unknownFilter}
 <p role="alert">{unknownFilter}</p>
@@ -108,6 +113,7 @@ members the group gains later are added to it. It shows in the Overrides view, w
 <p>Page {pages.page} of {pages.count} · {pages.groups} groups</p>
 {#if pages.next}<a href="{pages.next}">Next</a>{/if}
 </nav>
+{/if}
 {/if}
 {/if}
 {/include}

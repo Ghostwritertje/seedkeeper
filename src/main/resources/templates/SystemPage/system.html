@@ -1,5 +1,8 @@
 {#include layout.html current='system'}
 {#title}System{/title}
+{! PROTOTYPE: the variants replace the whole view. !}
+{#if variant == 'B'}{#include SystemPage/system-prototype-B /}
+{#else}
 <h1>System</h1>
 <section id="runs">
 <h2>Runs</h2>
@@ -71,4 +74,5 @@
 <p role="alert" id="incomplete-dir">{status.transmission.incompleteDirWarning}</p>
 {/if}
 </section>
+{/if}
 {/include}

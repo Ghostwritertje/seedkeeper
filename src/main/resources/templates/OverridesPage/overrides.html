@@ -1,5 +1,9 @@
 {#include layout.html current='overrides'}
 {#title}Overrides{/title}
+{! PROTOTYPE: the variants replace the whole view. !}
+{#if variant == 'B'}{#include OverridesPage/overrides-prototype-B /}
+{#else if variant == 'C'}{#include OverridesPage/overrides-prototype-C /}
+{#else}
 <h1>Overrides</h1>
 {#if notice}
 <p role="alert" id="notice">{notice}</p>
@@ -61,5 +65,6 @@ one of them. To keep a group with all its members, use "Keep…" in the <a href=
 <button type="submit">Add</button>
 </form>
 </section>
+{/if}
 {/if}
 {/include}

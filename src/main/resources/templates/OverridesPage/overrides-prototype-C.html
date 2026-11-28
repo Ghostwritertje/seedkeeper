@@ -1,0 +1,66 @@
+{! PROTOTYPE Overrides C: by effect. Three sections: in effect, ending within two weeks, no effect (expired or stale)
+   with one button to tidy them all away. "Ending soon" is worked out in the browser from the until date. !}
+<h1>Keep overrides</h1>
+<p class="proto-note">Prototype C: sort overrides by whether they still do anything. Expired and stale ones pile up (they
+"stay until someone deletes them"), so they get their own section and a single "Delete all" (stubbed here).</p>
+{#if done}<p role="status">{done}</p>{/if}
+{#if unavailable}<p role="alert">{unavailable}</p>
+{#else}
+<div class="proto-ovsections">
+<section class="proto-card" data-proto-bucket="active">
+<h2><span class="proto-dot" data-tone="ok"></span> In effect <span class="proto-badge" data-proto-n></span></h2>
+<table class="proto-ovtable"><tbody></tbody></table>
+<p class="proto-muted proto-small" data-proto-empty>None.</p>
+</section>
+<section class="proto-card" data-proto-bucket="soon">
+<h2><span class="proto-dot" data-tone="warn"></span> Ending within 14 days <span class="proto-badge" data-proto-n></span></h2>
+<p class="proto-muted proto-small">After the end date the group follows its verdict again: the next run may remove it.</p>
+<table class="proto-ovtable"><tbody></tbody></table>
+<p class="proto-muted proto-small" data-proto-empty>None.</p>
+</section>
+<section class="proto-card" data-proto-bucket="dead">
+<h2><span class="proto-dot"></span> No effect <span class="proto-badge" data-proto-n></span>
+<button type="button" data-tone="danger" onclick="alert('Prototype: would delete every expired and stale override in one go.')">Delete all</button></h2>
+<table class="proto-ovtable"><tbody></tbody></table>
+<p class="proto-muted proto-small" data-proto-empty>None.</p>
+</section>
+</div>
+<details class="proto-card"><summary>Add by info hash</summary>
+<form method="post" action="/overrides">
+<input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<label>Info hashes <textarea name="hashes" required></textarea></label>
+<label>Note <input type="text" name="note"></label>
+<label>Until (optional) <input type="date" name="until"></label>
+<button type="submit">Add</button>
+</form>
+</details>
+<template id="proto-ov-rows">
+{#for o in overrides}
+<tr data-status="{o.status}" data-until="{o.untilDate}"><td><strong>{#if !o.known}unknown{#else if o.groups.isEmpty}no torrent left{#else}{#for g in o.groups}{g.get(0)}{#if g_hasNext}, {/if}{/for}{/if}</strong><br><small class="proto-muted">{o.note}</small></td><td class="proto-muted proto-small" data-proto-when>{o.until}</td><td class="proto-muted proto-small">{o.status}</td><td><form method="post" action="/overrides/delete" onsubmit="return confirm('Delete this keep override?')"><input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}"><input type="hidden" name="id" value="{o.id}"><button type="submit" data-tone="quiet">Delete</button></form></td></tr>
+{/for}
+</template>
+{/if}
+<script>{|
+(window.protoPage ||= []).push(() => {
+  const tpl = document.getElementById("proto-ov-rows");
+  if (!tpl || tpl.dataset.done) return;
+  tpl.dataset.done = 1;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  [...tpl.content.querySelectorAll("tr")].forEach((tr) => {
+    const s = tr.dataset.status;
+    let bucket = s === "Active" || s === "Unknown" ? "active" : "dead";
+    if (bucket === "active" && tr.dataset.until) {
+      const days = Math.round((new Date(tr.dataset.until) - today) / 864e5);
+      if (days <= 14) { bucket = "soon"; tr.querySelector("[data-proto-when]").textContent = `ends in ${days} day${days === 1 ? "" : "s"} (${tr.dataset.until})`; }
+    }
+    document.querySelector(`[data-proto-bucket='${bucket}'] tbody`).append(tr);
+  });
+  document.querySelectorAll("[data-proto-bucket]").forEach((sec) => {
+    const n = sec.querySelectorAll("tr").length;
+    sec.querySelector("[data-proto-n]").textContent = n;
+    sec.querySelector("[data-proto-empty]").hidden = n > 0;
+    const del = sec.querySelector("button[data-tone='danger']");
+    if (del) del.hidden = n === 0;
+  });
+});
+|}</script>

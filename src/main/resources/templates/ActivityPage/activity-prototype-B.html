@@ -1,0 +1,61 @@
+{! PROTOTYPE Activity B: a ledger. One table row per run, its removals folded under it; a small chart of space freed
+   per run above; the explanation paragraph moves into the column headers' tooltips. !}
+<h1>Activity</h1>
+<p class="proto-note">Prototype B: scan many runs at once. The paragraph that explains the counts becomes ⓘ tooltips on the
+headers; a run opens to its removals; the chart shows what each run freed.</p>
+{#if unavailable}<p role="alert">{unavailable}</p>
+{#else if runs.isEmpty}<p>No run has ended yet.</p>
+{#else}
+<div class="proto-card proto-chart" data-proto-chart aria-hidden="true"></div>
+<div class="proto-card proto-ledger">
+<table>
+<thead><tr>
+<th>Run <small class="proto-muted">({timeZone})</small></th><th>Status</th><th>Took</th>
+<th title="Torrents taken out of Transmission, and the verdict groups removed in full.">Removed ⓘ</th>
+<th title="Files and symlinks taken off the disk: only those no torrent that stays still uses.">Files deleted ⓘ</th>
+<th title="The size of the deleted files that were the last link to their data: a file still linked in the library, or a symlink, frees nothing." class="number">Space freed ⓘ</th>
+</tr></thead>
+{#for run in runs}
+<tbody data-quiet="{run.quiet}">
+<tr data-proto-run>
+<td>{#if !run.removals.isEmpty}<button type="button" data-tone="quiet" data-proto-toggle aria-expanded="false">▸</button>{/if} {#moment run.started /}</td>
+<td><span class="proto-pill" data-verdict="{#if run.status == 'Succeeded'}keep{#else}remove{/if}">{run.status}</span></td>
+<td>{#if !run.quiet}{run.took}{/if}</td>
+<td>{#if run.quiet}<span class="proto-muted">nothing to remove</span>{#else}{run.removed}{/if}</td>
+<td>{#if !run.quiet}{run.filesDeleted}{/if}</td>
+<td class="number" data-proto-freed>{#if !run.quiet}{run.spaceFreed}{#else}0 B{/if}</td>
+</tr>
+{#if run.error}<tr><td colspan="6" data-tone="danger">{run.error}</td></tr>{/if}
+{#for removal in run.removals}
+<tr class="proto-sub" hidden>
+<td colspan="3">{#for member in removal.members}<div>{member.name} <small class="proto-muted">{member.tracker}{#if member.message} · tracker said: {member.message}{/if}</small></div>{/for}</td>
+<td>{removal.reason}</td>
+<td>{removal.filesDeleted}{#if removal.filesNote}<br><small class="proto-muted">{removal.filesNote}</small>{/if}{#if removal.error}<br><small data-tone="danger">{removal.error}</small>{/if}</td>
+<td class="number">{removal.spaceFreed}</td>
+</tr>
+{/for}
+</tbody>
+{/for}
+</table>
+</div>
+{#if pages.several}<nav aria-label="Pages">{#if pages.newer}<a href="/activity?page={pages.page.minus(1)}">Newer</a>{/if} <span>Page {pages.page} of {pages.count}</span> {#if pages.older}<a href="/activity?page={pages.page.plus(1)}">Older</a>{/if}</nav>{/if}
+{/if}
+<script>{|
+(window.protoPage ||= []).push(() => {
+  const chart = document.querySelector("[data-proto-chart]");
+  if (!chart || chart.dataset.done) return;
+  chart.dataset.done = 1;
+  document.querySelectorAll("[data-proto-toggle]").forEach((b) => b.addEventListener("click", () => {
+    const open = b.getAttribute("aria-expanded") !== "true";
+    b.setAttribute("aria-expanded", open);
+    b.textContent = open ? "▾" : "▸";
+    b.closest("tbody").querySelectorAll(".proto-sub").forEach((r) => (r.hidden = !open));
+  }));
+  const bytes = (s) => { const m = /([\d.]+)\s*(B|KiB|MiB|GiB|TiB)/.exec(s); return m ? parseFloat(m[1]) * 1024 ** ["B", "KiB", "MiB", "GiB", "TiB"].indexOf(m[2]) : 0; };
+  const runs = [...document.querySelectorAll("[data-proto-run]")].reverse().map((r) => ({
+    when: r.querySelector("time")?.textContent.trim().slice(5, 16), freed: bytes(r.querySelector("[data-proto-freed]").textContent), label: r.querySelector("[data-proto-freed]").textContent.trim(),
+  }));
+  const max = Math.max(...runs.map((r) => r.freed), 1);
+  chart.innerHTML = `<p class="proto-muted proto-small">Space freed per run</p><div class="proto-bars">${runs.map((r) => `<div title="${r.when}: ${r.label}"><span style="height:${Math.max(2, (100 * r.freed) / max)}%"></span><small>${r.when}</small></div>`).join("")}</div>`;
+});
+|}</script>

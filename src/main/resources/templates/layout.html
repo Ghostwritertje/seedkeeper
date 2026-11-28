@@ -1,4 +1,5 @@
 {! Every page passes `current`: the code of its view, for the link to it in the header and the layout of <main>. !}
+{! PROTOTYPE: `nav` (?nav= or the proto-nav cookie) picks the header variant, `variant` (?variant=) the page variant. !}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,9 +8,63 @@
 <title>{#insert title}{/} · seedkeeper</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/seedkeeper.css">
+<link rel="stylesheet" href="/prototype/prototype.css">
 <script src="/htmx.min.js" defer></script>
+<script src="/prototype/prototype.js" defer></script>
 </head>
-<body>
+<body data-proto-nav="{nav}" data-proto-current="{current}" data-proto-variant="{variant}">
+{#if nav == 'B'}
+<aside class="proto-side">
+<a class="proto-brand" href="/">seedkeeper</a>
+<nav aria-label="Views">
+<p class="proto-side-heading">Day to day</p>
+<a href="/"{#if current == 'home'} aria-current="page"{/if}>Overview</a>
+<a href="/groups"{#if current == 'groups'} aria-current="page"{/if}>Groups <span class="proto-badge" data-proto-fill="leftAlone"></span></a>
+<a href="/activity"{#if current == 'activity'} aria-current="page"{/if}>Activity</a>
+<p class="proto-side-heading">Tools</p>
+<a href="/overrides"{#if current == 'overrides'} aria-current="page"{/if}>Keep overrides</a>
+<a href="/orphans"{#if current == 'orphans'} aria-current="page"{/if}>Orphans</a>
+<p class="proto-side-heading">Setup</p>
+<a href="/settings"{#if current == 'settings'} aria-current="page"{/if}>Settings</a>
+<a href="/system"{#if current == 'system'} aria-current="page"{/if}>System</a>
+</nav>
+<div class="proto-side-status">
+<p><span class="proto-dot" data-proto-fill-tone="transmission"></span> Transmission <strong data-proto-fill="transmission">…</strong></p>
+<p>Next run <strong data-proto-fill="nextRelative">…</strong></p>
+<p>Last run <strong data-proto-fill="lastRun">…</strong></p>
+</div>
+<form method="post" action="/logout">
+<input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<button type="submit" data-tone="quiet">Log out</button>
+</form>
+</aside>
+{#else if nav == 'C'}
+<header class="proto-slim">
+<a href="/"{#if current == 'home'} aria-current="page"{/if}>seedkeeper</a>
+<nav>
+<a href="/groups"{#if current == 'groups'} aria-current="page"{/if}>Groups <span class="proto-badge" data-proto-fill="leftAlone"></span></a>
+<a href="/activity"{#if current == 'activity'} aria-current="page"{/if}>Activity</a>
+<a href="/overrides"{#if current == 'overrides'} aria-current="page"{/if}>Overrides</a>
+<details class="proto-more"{#if current == 'orphans' || current == 'settings' || current == 'system'} data-current{/if}>
+<summary>More</summary>
+<div>
+<a href="/orphans"{#if current == 'orphans'} aria-current="page"{/if}>Orphans <small>files no torrent uses</small></a>
+<a href="/settings"{#if current == 'settings'} aria-current="page"{/if}>Settings <small>the config it runs with</small></a>
+<a href="/system"{#if current == 'system'} aria-current="page"{/if}>System <small>versions, Transmission</small></a>
+<hr>
+<form method="post" action="/logout">
+<input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<button type="submit" data-tone="quiet">Log out</button>
+</form>
+</div>
+</details>
+</nav>
+<a class="proto-runpill" href="/system">
+<span class="proto-dot" data-proto-fill-tone="transmission"></span>
+<span>Next run <strong data-proto-fill="nextRelative">…</strong> · would remove <strong data-proto-fill="removeCount">…</strong></span>
+</a>
+</header>
+{#else}
 <header>
 <a href="/"{#if current == 'home'} aria-current="page"{/if}>seedkeeper</a>
 <nav>
@@ -26,8 +81,22 @@
 <button type="submit" data-tone="quiet">Log out</button>
 </form>
 </header>
-<main data-page="{current}">
+{/if}
+<main data-page="{#if variant == 'A'}{current}{#else}proto-{current}{/if}">
 {#insert}{/}
 </main>
+<div class="proto-switcher" role="toolbar" aria-label="Prototype switcher">
+<div class="proto-switcher-row">
+<button type="button" data-proto-step="-1" aria-label="Previous variant">←</button>
+<span data-proto-label>…</span>
+<button type="button" data-proto-step="1" aria-label="Next variant">→</button>
+</div>
+<div class="proto-switcher-row proto-switcher-nav">
+<span>Nav</span>
+<button type="button" data-proto-nav="A">A tabs</button>
+<button type="button" data-proto-nav="B">B sidebar</button>
+<button type="button" data-proto-nav="C">C slim + More</button>
+</div>
+</div>
 </body>
 </html>

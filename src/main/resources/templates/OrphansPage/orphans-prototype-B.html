@@ -1,0 +1,71 @@
+{! PROTOTYPE Orphans B: one flat list, biggest first. The downloads root shows once, every path is relative to it;
+   chips filter by kind (files, dangling symlinks, system files); a bar shows each row's share of the space; a button
+   copies the full path, or every shown path as one rm command for a terminal. !}
+<h1>Orphans</h1>
+<p class="proto-note">Prototype B: no per-directory folding and no long absolute paths. Sort by what takes space, filter by
+kind, and copy what you want to delete by hand (seedkeeper still never deletes it).</p>
+{#if unavailable}<p role="alert">{unavailable}</p>
+{#else}
+<div class="proto-orph-head">
+<p>Under <code data-proto-root>…</code></p>
+<nav class="proto-chips" aria-label="Kind">
+<button type="button" data-kind="all" aria-pressed="true">All</button>
+<button type="button" data-kind="file"><span>{files.count}</span></button>
+<button type="button" data-kind="link"><span>{danglingSymlinks.count}</span></button>
+<button type="button" data-kind="system"><span>{systemFiles.count}</span></button>
+</nav>
+<button type="button" data-proto-copyall>Copy as rm command</button>
+</div>
+<div class="proto-card proto-orph">
+<table>
+<thead><tr><th>Path</th><th>Kind</th><th class="number">Size</th><th></th><th class="number">Age</th><th></th></tr></thead>
+<tbody>
+{#for g in files.groups}{#for r in g.rows}<tr data-kind="file" data-dir="{g.directory}" data-path="{r.path}"><td class="path"></td><td>file{#if r.libraryLink}<br><small class="proto-muted">{r.libraryLink}</small>{/if}</td><td class="number">{r.size}</td><td class="proto-orph-bar"></td><td class="number">{r.age}</td><td><button type="button" data-tone="quiet" data-copy>Copy</button></td></tr>
+{/for}{/for}
+{#for g in danglingSymlinks.groups}{#for r in g.rows}<tr data-kind="link" data-dir="{g.directory}" data-path="{r.path}"><td class="path"></td><td>symlink<br><small class="proto-muted" data-target="{r.target}">→ {r.target}</small></td><td class="number">{r.size}</td><td class="proto-orph-bar"></td><td class="number">{r.age}</td><td><button type="button" data-tone="quiet" data-copy>Copy</button></td></tr>
+{/for}{/for}
+{#for g in systemFiles.groups}{#for r in g.rows}<tr data-kind="system" data-dir="{g.directory}" data-path="{r.path}"><td class="path"></td><td>system</td><td class="number">{r.size}</td><td class="proto-orph-bar"></td><td class="number">{r.age}</td><td><button type="button" data-tone="quiet" data-copy>Copy</button></td></tr>
+{/for}{/for}
+</tbody>
+</table>
+</div>
+<p class="proto-muted proto-small" data-proto-total></p>
+{/if}
+<script>{|
+(window.protoPage ||= []).push(() => {
+  const tbody = document.querySelector(".proto-orph tbody");
+  if (!tbody || tbody.dataset.done) return;
+  tbody.dataset.done = 1;
+  const rows = [...tbody.rows];
+  const dirs = rows.map((r) => r.dataset.dir);
+  const root = dirs.reduce((a, d) => (d.length < a.length ? d : a), dirs[0] || "");
+  document.querySelector("[data-proto-root]").textContent = root;
+  const bytes = (s) => { const m = /([\d.]+)\s*(B|KiB|MiB|GiB|TiB)/.exec(s); return m ? parseFloat(m[1]) * 1024 ** ["B", "KiB", "MiB", "GiB", "TiB"].indexOf(m[2]) : 0; };
+  const human = (n) => { const u = ["B", "KiB", "MiB", "GiB", "TiB"]; let i = 0; while (n >= 1024 && i < 4) { n /= 1024; i++; } return n.toFixed(1) + " " + u[i]; };
+  rows.forEach((r) => {
+    r.full = r.dataset.dir + "/" + r.dataset.path;
+    r.querySelector("td.path").textContent = r.full.slice(root.length + 1);
+    const t = r.querySelector("[data-target]");
+    if (t && t.dataset.target.startsWith(root)) t.textContent = "→ " + t.dataset.target.slice(root.length + 1) + " (gone)";
+    r.bytes = bytes(r.cells[2].textContent);
+  });
+  rows.sort((a, b) => b.bytes - a.bytes).forEach((r) => tbody.append(r));
+  let kind = "all";
+  const apply = () => {
+    const shown = rows.filter((r) => (r.hidden = !(kind === "all" ? r.dataset.kind !== "system" : r.dataset.kind === kind), !r.hidden));
+    const max = Math.max(...shown.map((r) => r.bytes), 1);
+    shown.forEach((r) => (r.querySelector(".proto-orph-bar").innerHTML = `<div class="proto-bar" data-tone="danger"><span style="width:${(100 * r.bytes) / max}%"></span></div>`));
+    document.querySelector("[data-proto-total]").textContent = `${shown.length} shown, ${human(shown.reduce((a, r) => a + r.bytes, 0))}${kind === "all" ? " (system files hidden: pick the chip to see them)" : ""}.`;
+  };
+  document.querySelectorAll(".proto-chips button").forEach((b) => b.addEventListener("click", () => {
+    kind = b.dataset.kind;
+    document.querySelectorAll(".proto-chips button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+    apply();
+  }));
+  const copy = (text, btn) => navigator.clipboard?.writeText(text).then(() => { const o = btn.textContent; btn.textContent = "Copied"; setTimeout(() => (btn.textContent = o), 1200); });
+  rows.forEach((r) => r.querySelector("[data-copy]").addEventListener("click", (e) => copy(r.full, e.target)));
+  document.querySelector("[data-proto-copyall]").addEventListener("click", (e) =>
+    copy("rm -- " + rows.filter((r) => !r.hidden).map((r) => `'${r.full.replace(/'/g, "'\\''")}'`).join(" \\\n  "), e.target));
+  apply();
+});
+|}</script>

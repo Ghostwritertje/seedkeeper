@@ -1,0 +1,50 @@
+{! PROTOTYPE Overview C: one timeline. Past runs, now (what needs a person), the next run (what it removes), then each
+   kept group on the day it becomes removable. Runs come from the Activity view, groups from the Groups view (variant B
+   markup), both over fetch. !}
+<h1>Overview</h1>
+<p class="proto-note">Prototype C: the overview as a timeline, past → now → future, so "what happened", "what needs me" and
+"what happens next" read in one column with dates.</p>
+<ol class="proto-timeline" data-proto-timeline>
+<li class="proto-muted">Loading…</li>
+</ol>
+<template id="proto-tl-data" data-next-text="{#if nextRun}{nextRun.text}{/if}" data-next-rel="{#if nextRun}{nextRun.relative}{/if}"></template>
+<script>{|
+(window.protoPage ||= []).push(() => {
+  const ol = document.querySelector("[data-proto-timeline]");
+  if (!ol || ol.dataset.done) return;
+  ol.dataset.done = 1;
+  const meta = document.getElementById("proto-tl-data").dataset;
+  Promise.all([protoFetch("/activity"), protoFetch("/groups?variant=B&sort=forecast&dir=asc")]).then(([act, grp]) => {
+    const runs = [...act.querySelectorAll("main article")].slice(0, 4).reverse().map((a) => ({
+      when: a.querySelector("h2 time")?.textContent.trim() || "",
+      rel: a.querySelector("h2 span")?.textContent.trim() || "",
+      quiet: a.hasAttribute("data-quiet"),
+      removed: [...a.querySelectorAll("dt")].find((d) => d.textContent.trim() === "Removed")?.nextElementSibling.textContent.trim() || "nothing",
+      freed: [...a.querySelectorAll("dt")].find((d) => d.textContent.trim() === "Space freed")?.nextElementSibling.textContent.trim() || "",
+      failed: !!a.querySelector("[data-tone='danger']"),
+    }));
+    const g = [...grp.querySelectorAll(".proto-row")].map((r) => ({
+      verdict: r.dataset.verdict,
+      name: r.querySelector(".proto-row-name strong").textContent.trim(),
+      why: r.querySelector(".proto-row-why").childNodes[0].textContent.trim(),
+      hint: (r.querySelector(".proto-hint") || {}).textContent?.replace(/^ — /, "") || "",
+      seed: r.querySelector(".proto-row-seed small")?.textContent.trim() || "",
+      size: r.querySelector(".proto-row-size").textContent.trim(),
+    }));
+    const link = (x) => `/groups?variant=D&q=${encodeURIComponent(x.name)}`;
+    const items = [];
+    runs.forEach((r) => items.push(`<li data-kind="${r.failed ? "failed" : "past"}"><time>${r.when}<small>${r.rel}</small></time><div><strong>Run ${r.failed ? "failed" : "succeeded"}</strong> · ${r.quiet ? "nothing to remove" : `removed ${r.removed}, freed ${r.freed}`} <a href="/activity">details</a></div></li>`));
+    if (!runs.length) items.push(`<li data-kind="past"><time>—</time><div class="proto-muted">No run yet.</div></li>`);
+    const alone = g.filter((x) => x.verdict === "left-alone");
+    items.push(`<li data-kind="now"><time>Now</time><div><strong>${alone.length ? alone.length + " need you" : "Nothing needs you"}</strong>${alone.map((x) => `<p><a href="${link(x)}">${x.name}</a> — ${x.why}: <span class="proto-hint">${x.hint}</span></p>`).join("")}</div></li>`);
+    const remove = g.filter((x) => x.verdict === "remove");
+    items.push(`<li data-kind="next"><time>${meta.nextText || "Not scheduled"}<small>${meta.nextRel}</small></time><div><strong>Next run removes ${remove.length} group${remove.length === 1 ? "" : "s"}</strong>${remove.map((x) => `<p><a href="${link(x)}">${x.name}</a> <span class="proto-muted">${x.why} · ${x.size}</span></p>`).join("")}<p><a href="/system">Run now…</a></p></div></li>`);
+    g.filter((x) => x.verdict === "keep" && / · /.test(x.seed)).forEach((x) => {
+      const [pct, when] = x.seed.split(" · ");
+      const dated = /^met /.test(when);
+      items.push(`<li data-kind="future"><time>${dated ? when.replace(/^met /, "") : "Someday"}</time><div><a href="${link(x)}">${x.name}</a> ${dated ? "becomes removable" : "waits: " + when} <span class="proto-muted">(${pct} now · ${x.size})</span></div></li>`);
+    });
+    ol.innerHTML = items.join("");
+  });
+});
+|}</script>

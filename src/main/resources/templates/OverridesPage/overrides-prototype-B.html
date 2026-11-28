@@ -1,0 +1,98 @@
+{! PROTOTYPE Overrides B: by name, hashes hidden. Each override is a card titled by the torrents it keeps; the hashes and
+   id fold away. Adding one starts from a search of group names (read from the Groups view), not from info hashes;
+   the hash textarea stays, behind "By info hash". !}
+<h1>Keep overrides</h1>
+<p class="proto-note">Prototype B: an override reads as "what it keeps" first. Add one by searching a name; the info-hash form
+becomes the fallback. The file path moves to a footnote.</p>
+{#if done}<p role="status">{done}</p>{/if}
+{#if notice}<p role="alert">{notice}</p>{/if}
+{#if unavailable}<p role="alert">{unavailable}</p>
+{#else}
+<section class="proto-card proto-add">
+<h2>Keep a group</h2>
+<input type="search" placeholder="Search a torrent name…" aria-label="Search a torrent name" data-proto-search>
+<ul class="proto-search-results" data-proto-results></ul>
+<details><summary>By info hash</summary>
+<form method="post" action="/overrides">
+<input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<label>Info hashes <textarea name="hashes" required placeholder="One or more, separated by commas or spaces"></textarea></label>
+<label>Note <input type="text" name="note" placeholder="Why keep it?"></label>
+<label>Until (optional) <input type="date" name="until"></label>
+<button type="submit">Add</button>
+</form>
+</details>
+</section>
+{#if overrides.isEmpty}
+<p>Nothing is kept by hand: every group follows its verdict.</p>
+{#else}
+<div class="proto-ovcards">
+{#for o in overrides}
+<article class="proto-card proto-ovcard" data-status="{o.status}">
+<header>
+<span class="proto-pill" data-verdict="{#if o.status == 'Active'}keep{#else}left-alone{/if}">{o.status}</span>
+<span class="proto-muted proto-small">{#if o.untilDate}until {o.until}{#else}no end date{/if}</span>
+</header>
+{#if !o.known}<h3 class="proto-muted">Groups unknown right now</h3>
+{#else if o.groups.isEmpty}<h3 class="proto-muted">No torrent left <small>(stale: it keeps nothing)</small></h3>
+{#else}{#for g in o.groups}<h3>{g.get(0)}{#if g.size > 1} <small class="proto-muted">+{g.size.minus(1)} cross-seed{#if g.size > 2}s{/if}</small>{/if}</h3>{/for}{/if}
+{#if o.note}<p>“{o.note}”</p>{/if}
+<footer>
+<span class="proto-muted proto-small">{#if o.created}added {#stamp o.created /}{/if}</span>
+<details class="proto-menu"><summary aria-label="Edit {o.id}">Edit</summary><div>
+<form method="post" action="/overrides/edit">
+<input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<input type="hidden" name="id" value="{o.id}">
+<label>Note <input type="text" name="note" value="{o.note}"></label>
+<label>Until <input type="date" name="until" value="{o.untilDate}"></label>
+<button type="submit">Save</button>
+</form>
+<form method="post" action="/overrides/delete" onsubmit="return confirm('Delete this keep override?')">
+<input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+<input type="hidden" name="id" value="{o.id}">
+<button type="submit" data-tone="danger">Delete</button>
+</form>
+<p class="proto-muted proto-small">Hashes: <code>{o.hashes}</code><br>Id: <code>{o.id}</code></p>
+</div></details>
+</footer>
+</article>
+{/for}
+</div>
+{/if}
+<p class="proto-muted proto-small">Stored in <code>{file}</code>; a hand edit shows here without a restart.</p>
+{/if}
+<script>{|
+(window.protoPage ||= []).push(() => {
+  const input = document.querySelector("[data-proto-search]");
+  if (!input || input.dataset.done) return;
+  input.dataset.done = 1;
+  const out = document.querySelector("[data-proto-results]");
+  let timer;
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    const q = input.value.trim();
+    if (q.length < 2) { out.innerHTML = ""; return; }
+    timer = setTimeout(() => {
+      fetch(`/groups?variant=B&q=${encodeURIComponent(q)}`).then((r) => r.text()).then((html) => {
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const rows = [...doc.querySelectorAll(".proto-row")].slice(0, 8);
+        out.innerHTML = rows.length ? "" : `<li class="proto-muted">No group has a torrent named like that.</li>`;
+        rows.forEach((r) => {
+          const li = document.createElement("li");
+          const name = r.querySelector(".proto-row-name strong").textContent;
+          const verdict = r.querySelector(".proto-pill").outerHTML;
+          const why = r.querySelector(".proto-row-why").childNodes[0].textContent;
+          li.innerHTML = `<div>${verdict} <strong>${name}</strong> <span class="proto-muted proto-small">${why} · ${r.querySelector(".proto-row-size").textContent}</span></div>`;
+          const form = r.querySelector(".proto-menu form");
+          if (form) {
+            const d = document.createElement("details");
+            d.innerHTML = "<summary>Keep…</summary>";
+            d.append(document.importNode(form, true));
+            li.append(d);
+          }
+          out.append(li);
+        });
+      });
+    }, 250);
+  });
+});
+|}</script>

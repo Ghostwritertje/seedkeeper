@@ -1,5 +1,8 @@
 {#include layout.html current='orphans'}
 {#title}Orphans{/title}
+{! PROTOTYPE: the variants replace the whole view. !}
+{#if variant == 'B'}{#include OrphansPage/orphans-prototype-B /}
+{#else}
 <h1>Orphans</h1>
 {#if unavailable}
 <p role="alert">{unavailable}</p>
@@ -37,5 +40,6 @@ with its data. It takes no space. Once you are sure its target won't come back, 
 {#orphanGroups listing=danglingSymlinks label='Dangling symlinks' symlinks=true /}
 {/if}
 </section>
+{/if}
 {/if}
 {/include}
