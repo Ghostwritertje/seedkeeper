@@ -4,6 +4,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
@@ -78,15 +79,15 @@ class LoginTest {
     void rightUsernameAndPasswordLogIn() {
         post(TestSecrets.USERNAME, TestSecrets.PASSWORD)
                 .statusCode(302)
-                .header("Location", endsWith("/system"))
+                .header("Location", matchesPattern("https?://[^/]+/"))
                 .cookie(Authenticated.SESSION_COOKIE);
 
         Authenticated.asUser()
                 .when()
-                .get("/system")
+                .get("/")
                 .then()
                 .statusCode(200)
-                .body("html.head.title", is("System · seedkeeper"));
+                .body("html.head.title", is("Overview · seedkeeper"));
     }
 
     @Test
