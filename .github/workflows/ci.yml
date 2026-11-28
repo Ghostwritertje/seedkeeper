@@ -27,6 +27,8 @@ jobs:
           distribution: temurin
           java-version: 25
           cache: maven
+          # Verify (quality) writes the cache, see there.
+          cache-read-only: true
       - run: ./mvnw -B verify
 
   quality:
@@ -43,8 +45,13 @@ jobs:
         with:
           distribution: temurin
           java-version: 25
+          # The one job that writes the Maven cache; the other jobs and the agents only read it. setup-java saves the
+          # cache once per pom.xml hash, from whichever job finishes first, so before this the fast Verify (JVM) job
+          # saved a cache without the quality plugins and the agents downloaded them from Maven Central, which
+          # rate-limits the shared runner IPs with HTTP 429 (#134).
           cache: maven
-      - run: ./mvnw -B verify -Pquality
+      # Also resolves maven-dependency-plugin, which the agents' run-app skill uses, so the cache has it too.
+      - run: ./mvnw -B verify -Pquality dependency:build-classpath -Dmdep.outputFile="$RUNNER_TEMP/classpath.txt"
 
   native:
     name: Verify (native)
@@ -59,6 +66,8 @@ jobs:
           distribution: temurin
           java-version: 25
           cache: maven
+          # Verify (quality) writes the cache, see there.
+          cache-read-only: true
       # The native profile builds in the Mandrel builder container (pom.xml), so the runner
       # only needs a JDK and Docker. Runs the @QuarkusIntegrationTest classes against the executable.
       - run: ./mvnw -B verify -Dnative
@@ -94,6 +103,8 @@ jobs:
           distribution: temurin
           java-version: 25
           cache: maven
+          # Verify (quality) writes the cache, see there.
+          cache-read-only: true
       # The same pin as in implement-issue.yml and address-review.yml: bump the three together, by hand.
       - name: Install agent-browser and Chrome
         run: |
