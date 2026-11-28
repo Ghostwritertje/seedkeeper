@@ -79,11 +79,17 @@ class OverridesTest {
         awaitIds("7f3c", "9d2e", "1b5a");
     }
 
-    /** Other test classes run against the same application: leave them no overrides. */
+    /**
+     * Other test classes run against the same application: leave them no overrides and no overrides file. The file
+     * watcher may never see a file deleted before its next poll (on macOS the JDK's watch service polls), so first
+     * write one with no overrides, which it does see, and delete the file once the application has read it.
+     */
     @AfterEach
-    void noOverrides() throws IOException {
+    void noOverrides() throws IOException, InterruptedException {
         FakeTransmissionResource.fake().reset();
-        Files.deleteIfExists(file);
+        edit("overrides: []\n");
+        awaitIds();
+        Files.delete(file);
     }
 
     @Test

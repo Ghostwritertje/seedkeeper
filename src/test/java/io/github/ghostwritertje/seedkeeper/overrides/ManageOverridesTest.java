@@ -79,14 +79,42 @@ class ManageOverridesTest {
                                 torrent("3c3c17", "Manage.Show", downloads, "Manage.Show/show.mkv"))
                         + "]");
         file = FakeTransmissionResource.dataDir().resolve("overrides.yaml");
-        Files.deleteIfExists(file);
+        deleteOverrides();
     }
 
     /** Other test classes run against the same application: leave them no overrides. */
     @AfterEach
     void noOverrides() throws IOException {
         FakeTransmissionResource.fake().reset();
-        Files.deleteIfExists(file);
+        deleteOverrides();
+    }
+
+    /**
+     * Leaves the application no overrides and no overrides file. Deleting the file alone isn't enough: the application
+     * forgets its overrides only once its file watcher sees a change, and on macOS, where the JDK's watch service polls
+     * every few seconds, a file written and deleted between two polls is never seen at all. So this first writes a file
+     * with no overrides, which the watcher always sees, waits until the application has read it, and only then deletes
+     * it: whether the watcher sees that delete doesn't matter, as no file also means no overrides.
+     */
+    private void deleteOverrides() throws IOException {
+        Files.writeString(file, "overrides: []\n");
+        awaitNoOverrides();
+        Files.delete(file);
+    }
+
+    private static void awaitNoOverrides() {
+        long deadline = System.nanoTime() + 60_000_000_000L;
+        Response overrides;
+        do {
+            overrides = Authenticated.withApiKey().when().get("/api/v1/overrides");
+            if (overrides.statusCode() == 200
+                    && overrides.jsonPath().getList("$").isEmpty()) {
+                return;
+            }
+            pause();
+        } while (System.nanoTime() < deadline);
+        throw new AssertionError("The application never read the overrides file with no overrides; it still answers "
+                + overrides.statusCode() + " " + overrides.asString());
     }
 
     @Test
@@ -537,15 +565,20 @@ class ManageOverridesTest {
                     .equals(List.of(ids))) {
                 return page;
             }
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new AssertionError(e);
-            }
+            pause();
         } while (System.nanoTime() < deadline);
         throw new AssertionError(
                 "The Overrides view never showed the overrides " + List.of(ids) + ": " + page.asString());
+    }
+
+    /** The pause between two polls of the application. */
+    private static void pause() {
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError(e);
+        }
     }
 
     /** A logged-in user, who reads pages and posts their forms. */
