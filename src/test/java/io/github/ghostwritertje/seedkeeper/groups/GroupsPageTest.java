@@ -20,7 +20,7 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
-/** How the Groups view writes a group: its header row, its member rows, and where a long name may break. */
+/** How the Groups view writes its lanes and a group's card: its lines, its members, and where a long name may break. */
 class GroupsPageTest {
 
     private static final Tracker TRACKER_A = new Tracker("tracker-a", Duration.ofDays(30));
@@ -78,17 +78,122 @@ class GroupsPageTest {
     }
 
     @Test
-    void aSortableColumnLinksToItsOrderAndSaysWhetherTheViewIsSortedByIt() {
-        GroupsPage.Columns columns = GroupsPage.Columns.of(GroupsPage.Query.of(null, null, null, "size", "desc", "3"));
-
-        assertEquals(new GroupsPage.Column("/groups?sort=size&dir=asc", "descending"), columns.size());
-        assertEquals(new GroupsPage.Column("/groups?sort=name&dir=asc", ""), columns.name());
-        // The verdict, the usual way, is the default order: no sort in the URL.
-        assertEquals(new GroupsPage.Column("/groups", ""), columns.verdict());
+    void theSortOffersTheLaneOrderThenEachColumnAndSelectsTheOneChosen() {
         assertEquals(
-                new GroupsPage.Column("/groups?sort=verdict&dir=desc", "ascending"),
-                GroupsPage.Columns.of(GroupsPage.Query.of(null, null, null, null, null, null))
-                        .verdict());
+                List.of(
+                        new GroupsPage.SortOption("", "Lane order", false),
+                        new GroupsPage.SortOption("name", "Name", false),
+                        new GroupsPage.SortOption("seeding", "Seed time toward the minimum", false),
+                        new GroupsPage.SortOption("forecast", "Forecast", false),
+                        new GroupsPage.SortOption("size", "Size", true)),
+                GroupsPage.sorts(GroupsOrder.parse("size", "desc")));
+        assertEquals(
+                List.of(true, false, false, false, false),
+                GroupsPage.sorts(GroupsOrder.DEFAULT).stream()
+                        .map(GroupsPage.SortOption::selected)
+                        .toList());
+    }
+
+    @Test
+    void theLanesAreKeepLeftAloneRemoveEachWithItsCountAndExplanation() {
+        List<GroupVerdict> matching = List.of(
+                verdict("1111", Verdict.REMOVE, Reason.ALL_MET),
+                verdict("2222", Verdict.KEEP, Reason.MINIMUM_NOT_REACHED),
+                verdict("3333", Verdict.REMOVE, Reason.ALL_MET));
+
+        List<GroupsPage.Lane> lanes =
+                lanes(matching, GroupsFilter.NONE, GroupsPage.Query.of(null, null, null, null, null, null));
+
+        assertEquals(
+                List.of("keep", "left-alone", "remove"),
+                lanes.stream().map(GroupsPage.Lane::code).toList());
+        assertEquals(
+                List.of("Keep", "Left alone", "Remove"),
+                lanes.stream().map(GroupsPage.Lane::label).toList());
+        assertEquals(
+                List.of("waiting, soonest first", "a person should look", "the next run removes these"),
+                lanes.stream().map(GroupsPage.Lane::explanation).toList());
+        assertEquals(
+                List.of(1L, 0L, 2L), lanes.stream().map(GroupsPage.Lane::count).toList());
+        // In the order given, which is the order chosen.
+        assertEquals(
+                List.of("1111", "3333"),
+                lanes.get(2).groups().stream().map(GroupsPage.Group::label).toList());
+        assertEquals(
+                List.of("", "", ""),
+                lanes.stream().map(GroupsPage.Lane::showAll).toList());
+        // Sorted another way, the Keep lane is no longer soonest first.
+        assertEquals(
+                "waiting",
+                lanes(matching, GroupsFilter.NONE, GroupsPage.Query.of(null, null, null, "name", null, null))
+                        .getFirst()
+                        .explanation());
+    }
+
+    @Test
+    void aLaneShowsItsFirstFiftyGroupsAndLinksToItselfAloneForTheRest() {
+        List<GroupVerdict> matching = IntStream.rangeClosed(1, 51)
+                .mapToObj(i -> verdict("%04d".formatted(i), Verdict.REMOVE, Reason.ALL_MET))
+                .toList();
+        GroupsPage.Query query = GroupsPage.Query.of(null, "all-met", "0", "size", "desc", null);
+
+        GroupsPage.Lane remove =
+                lanes(matching, GroupsFilter.parse(null, "all-met", "0"), query).get(2);
+
+        assertEquals(51, remove.count());
+        assertEquals(50, remove.groups().size());
+        assertEquals("0001", remove.groups().getFirst().label());
+        assertEquals("/groups?verdict=remove&reason=all-met&q=0&sort=size&dir=desc", remove.showAll());
+        // Exactly fifty: all of them, no link.
+        assertEquals(
+                "",
+                lanes(matching.subList(0, 50), GroupsFilter.NONE, query).get(2).showAll());
+    }
+
+    @Test
+    void theLaneOfTheVerdictChosenIsAloneAndShowsItsPage() {
+        List<GroupVerdict> matching = IntStream.rangeClosed(1, 51)
+                .mapToObj(i -> verdict("%04d".formatted(i), Verdict.KEEP, Reason.MINIMUM_NOT_REACHED))
+                .toList();
+        GroupsPage.Query query = GroupsPage.Query.of("keep", null, null, null, null, "2");
+
+        List<GroupsPage.Lane> lanes = lanes(matching, GroupsFilter.parse("keep", null), query);
+
+        assertEquals(List.of("keep"), lanes.stream().map(GroupsPage.Lane::code).toList());
+        assertEquals(51, lanes.getFirst().count());
+        assertEquals(
+                List.of("0051"),
+                lanes.getFirst().groups().stream().map(GroupsPage.Group::label).toList());
+        assertEquals("", lanes.getFirst().showAll());
+    }
+
+    @Test
+    void aGroupKeptByAKeepOverrideHasNoFormToSetOne() {
+        assertEquals(
+                false,
+                GroupsPage.group(verdict("1111", Verdict.KEEP, Reason.KEEP_OVERRIDE))
+                        .keepable());
+        assertEquals(
+                true,
+                GroupsPage.group(verdict("1111", Verdict.KEEP, Reason.LIBRARY_LINK))
+                        .keepable());
+        assertEquals(
+                true,
+                GroupsPage.group(verdict("1111", Verdict.REMOVE, Reason.ALL_MET))
+                        .keepable());
+    }
+
+    private static List<GroupsPage.Lane> lanes(
+            List<GroupVerdict> matching, GroupsFilter filter, GroupsPage.Query query) {
+        return GroupsPage.lanes(
+                matching,
+                filter,
+                GroupsPage.Pages.of(query, filter.verdict().isPresent() ? matching.size() : 0),
+                query);
+    }
+
+    private static GroupVerdict verdict(String hash, Verdict verdict, Reason reason) {
+        return new GroupVerdict(List.of(member(hash, hash, Optional.empty())), verdict, reason, 0, 1, Optional.empty());
     }
 
     @Test
@@ -124,7 +229,6 @@ class GroupsPageTest {
         // The library links are in the summary; the reason doesn't count them again.
         assertEquals("Library link, Minimum not reached", group.secondaryReasons());
         assertEquals(List.of(), group.members());
-        assertEquals(1, group.rows());
         assertEquals(List.of("1111"), group.hashes());
     }
 
@@ -148,7 +252,6 @@ class GroupsPageTest {
         assertEquals("until 2027-03-01", group.forecast());
         // An end date has no time of day: no <time> for it.
         assertNull(group.forecastDate());
-        assertEquals(3, group.rows());
         GroupsPage.SeedProgress progress = new GroupsPage.SeedProgress("warn", 3, "3%", "1d of 30d · 29d to go");
         assertEquals(
                 List.of(

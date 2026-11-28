@@ -3,6 +3,8 @@ package io.github.ghostwritertje.seedkeeper.overrides;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.endsWith;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 
@@ -34,6 +36,10 @@ import org.junit.jupiter.api.Timeout;
 class OverridesTest {
 
     private static final long DAY = 86_400;
+
+    /** The card of the first group in the Keep lane of the Groups view. */
+    private static final String KEPT_CARD = "html.body.main.div.find { it.@id == 'lanes' }.section"
+            + ".find { it.@'data-verdict' == 'keep' }.article[0]";
 
     private static final String THREE_OVERRIDES = """
             overrides:
@@ -134,10 +140,9 @@ class OverridesTest {
                 .get("/groups")
                 .then()
                 .statusCode(200)
-                // The header row of the kept group, after the two to remove: seed time, verdict, reason, forecast.
-                .body("html.body.main.div.table.tbody[2].tr[0].td[1]", is("Keep"))
-                .body("html.body.main.div.table.tbody[2].tr[0].td[2]", is("Keep override"))
-                .body("html.body.main.div.table.tbody[2].tr[0].td[3]", is("until 2999-12-31"));
+                // The card of the kept group, in the Keep lane: its reason, then its forecast, the end date.
+                .body(KEPT_CARD + ".p[1].strong", is("Keep override"))
+                .body(KEPT_CARD + ".p.collect { it.text() }", hasItem(endsWith("until 2999-12-31")));
     }
 
     /**

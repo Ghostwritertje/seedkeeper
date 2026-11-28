@@ -58,11 +58,6 @@ record GroupsFilter(Optional<Verdict> verdict, Optional<Reason> reason, String n
                                 member -> member.name().toLowerCase(Locale.ROOT).contains(text));
     }
 
-    /** The same filter for any verdict: the one the counts of the verdicts are taken under. */
-    public GroupsFilter anyVerdict() {
-        return new GroupsFilter(Optional.empty(), reason, name);
-    }
-
     /** The same filter for any reason: the one the counts of the reasons are taken under. */
     public GroupsFilter anyReason() {
         return new GroupsFilter(verdict, Optional.empty(), name);

@@ -4,16 +4,12 @@
 {#if unknownFilter}
 <p role="alert">{unknownFilter}</p>
 {/if}
-{#if !tally.isEmpty}
-{! The verdict is chosen here alone: the form keeps it when the reason changes. !}
-<nav aria-label="Groups by verdict">
-{#for t in tally}
-<a href="{t.href}"{#if t.selected} aria-current="page"{/if}>{#if t.code}<mark data-verdict="{t.code}">{t.count}</mark>{#else}<mark>{t.count}</mark>{/if} {t.label}</a>
-{/for}
-</nav>
+{#if !unavailable}
 {!
-  A change of reason or name applies at once (htmx swaps in the new view and its URL), and so does Enter in the name
-  field; without scripts, the button does it. The order the view is in carries over; a new filter starts at page 1.
+  A change of reason, name or sort applies at once (htmx swaps in the new view and its URL), and so does Enter in the
+  name field; without scripts, the button does it. The verdict is chosen by a lane's "Show all" link alone: the form
+  keeps it. A new filter or order starts at page 1. The order applies within every lane; "Reverse" turns it round, and
+  has nothing to turn in the lane order.
 !}
 <form method="get" action="/groups" hx-get="/groups" hx-trigger="change, submit" hx-select="main" hx-target="main" hx-swap="outerHTML" hx-push-url="true">
 <input type="hidden" name="verdict" value="{filter.verdictCode}">
@@ -24,9 +20,14 @@
 {/for}
 </select></label>
 <label>Name <input type="search" name="q" value="{filter.name}" placeholder="Name contains…"></label>
-{#if filter.sort}<input type="hidden" name="sort" value="{filter.sort}">
-<input type="hidden" name="dir" value="{filter.dir}">
-{/if}<noscript><button type="submit">Filter</button></noscript>
+<label>Sort <select name="sort" id="sort">
+{#for sort in filter.sorts}
+<option value="{sort.code}"{#if sort.selected} selected="selected"{/if}>{sort.label}</option>
+{/for}
+</select></label>
+<label><input type="checkbox" name="dir" value="desc"{#if filter.descending} checked="checked"{/if}{#if !filter.sort} disabled="disabled"{/if}> Reverse</label>
+<noscript><button type="submit">Filter</button></noscript>
+{#if filter.allLanes}<a href="{filter.allLanes}">Every verdict</a>{/if}
 {#if filter.active}<a href="{filter.clear}">Clear filter</a>{/if}
 </form>
 {/if}
@@ -38,49 +39,65 @@
 {/if}
 {#if unavailable}
 <p role="alert">{unavailable}</p>
-{#else if groups.isEmpty && filter.name}
+{#else if found == 0 && filter.name}
 <p>No group matches the filter.</p>
-{#else if groups.isEmpty && filter.active}
+{#else if found == 0 && filter.active}
 <p>No group has this verdict and reason.</p>
-{#else if groups.isEmpty}
+{#else if found == 0}
 <p>Transmission has no torrents.</p>
 {#else}
 <details>
 <summary>How verdicts are decided</summary>
-<p>What the next run would do, decided right now: it removes the groups marked Remove. Torrents that share files (cross-seeds) are one
+<p>What the next run would do, decided right now: it removes the groups in the Remove lane. Torrents that share files (cross-seeds) are one
 group, with one verdict. A torrent of a managed tracker that its tracker has deleted (unregistered) leaves its group and is removed on its own;
 any other tracker message is only shown. The reason is the first rule that holds; the secondary reasons are the others that hold too.
 The forecast is when a group kept for its minimum seed time is expected to have met it, if it keeps seeding.
 The size is the data on disk of the group's wanted files, a file its members share counted once. It is not the space a removal frees:
 a file with a library link stays on disk.</p>
-<p>The groups are in the order of their verdict: Remove first, then Left alone, then Keep, each by soonest forecast. Click the header
-of a column to sort by it instead, and again to turn the order round.</p>
+<p>Each lane has its own order: Keep by soonest forecast, Left alone by reason, Remove largest first. Choose a sort to put every lane in
+that order instead. A lane shows its first 50 groups; "Show all" shows that lane alone, in pages.</p>
 <p>Set a keep override to stop a group from being removed (it never causes a removal): it gets the info hash of every member, and the
 members the group gains later are added to it. It shows in the Overrides view, where it can be edited or deleted.</p>
 </details>
-<div role="region" aria-label="Groups" tabindex="0">
-<table>
-<thead>
 {!
-  A sortable column's header is a link to the view sorted by it, or turned round when it already is; the one the view
-  is sorted by says so with aria-sort, which the CSS shows as an arrow.
+  One lane per verdict, Keep, Left alone, Remove from left to right; small screens stack them in the same order. The
+  heading says the verdict in words, the colour only repeats it. Each group is a card: its name (a long name may break
+  after a dot or a dash, <wbr>, not inside a word), what it is and its size, the reason with the secondary reasons,
+  what to do about it, the tracker message, the progress toward the minimum seed time while below it, and the members
+  that cause the reason. The members of a group of more than one open on demand.
 !}
-<tr><th{#if columns.name.sort} aria-sort="{columns.name.sort}"{/if}><a href="{columns.name.href}">Name</a></th><th{#if columns.seeding.sort} aria-sort="{columns.seeding.sort}"{/if}><a href="{columns.seeding.href}">Minimum seed time</a></th><th{#if columns.verdict.sort} aria-sort="{columns.verdict.sort}"{/if}><a href="{columns.verdict.href}">Verdict</a></th><th>Reason</th>{#if forecasts}<th{#if columns.forecast.sort} aria-sort="{columns.forecast.sort}"{/if}><a href="{columns.forecast.href}">Forecast</a></th>{/if}<th{#if columns.size.sort} aria-sort="{columns.size.sort}"{/if}><a href="{columns.size.href}">Size</a></th><th>Keep override</th></tr>
-</thead>
-{!
-  One tbody per group, so its members read as one: a header row for the group, whose cells after the seed time span
-  the rows of its members under it. A group of one is its header row alone. A member row that makes the group's
-  reason hold is highlighted, with a badge that names the reason; the hint under the reason says what to do about it. A long name may break after a dot or a
-  dash (<wbr>), not inside a word.
-  The verdict and reason also sit under the name, in a <p>: small screens hide their columns (and the forecast and
-  size) and show this instead, so the verdict is in sight without scrolling sideways; wide screens hide it.
-  The progress toward the minimum seed time always says its state in text ("33%", "Met ✓", "—"); its detail, the exact
-  durations, is in the cell for screen readers and opens on hover and on focus: the cell is focusable, so a tap or
-  the keyboard reaches it too.
-!}
-{#for group in groups}
-<tbody data-verdict="{group.verdictCode}">
-<tr><th scope="rowgroup"><strong>{#each group.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</strong><small>{group.summary}</small>{#if group.trackerMessage}<small data-tone="danger">{group.trackerMessage}</small>{/if}<p><mark data-verdict="{group.verdictCode}">{group.verdict}</mark> {group.reason}</p></th><td data-tone="{group.progress.tone}" tabindex="0">{#if group.progress.below}<meter min="0" max="100" value="{group.progress.percent}"></meter>{/if}{group.progress.text}<small>{group.progress.detail}</small></td><td rowspan="{group.rows}" data-verdict="{group.verdictCode}">{group.verdict}</td><td rowspan="{group.rows}">{group.reason}{#if group.hint}<small data-hint="true">{group.hint}</small>{/if}{#if group.secondaryReasons}<small>also: {group.secondaryReasons}</small>{/if}</td>{#if forecasts}<td rowspan="{group.rows}">{#if group.forecastDate}{#stamp group.forecastDate /}{#else}{group.forecast}{/if}</td>{/if}<td rowspan="{group.rows}">{group.size}</td><td rowspan="{group.rows}"><form id="keep-{group.hashes.get(0)}" method="post" action="/groups/keep">
+<div id="lanes">
+{#for lane in lanes}
+<section data-verdict="{lane.code}" aria-labelledby="lane-{lane.code}">
+<h2 id="lane-{lane.code}"><mark data-verdict="{lane.code}">{lane.count}</mark> {lane.label}</h2>
+<p>{lane.explanation}</p>
+{#for group in lane.groups}
+<article data-verdict="{group.verdictCode}">
+<h3>{#each group.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</h3>
+<p>{group.summary} · <span>{group.size}</span></p>
+<p><strong>{group.reason}</strong>{#if group.secondaryReasons} <small>also: {group.secondaryReasons}</small>{/if}</p>
+{#if group.hint}<p data-hint="true">{group.hint}</p>{/if}
+{#if group.trackerMessage}<p data-tone="danger">{group.trackerMessage}</p>{/if}
+{#if group.progress.below}
+<p data-tone="warn"><meter min="0" max="100" value="{group.progress.percent}"></meter>{group.progress.percent}% of minimum{#if group.forecastDate} · removable {#stamp group.forecastDate /}{#else if group.forecast} · {group.forecast}{/if}<small>{group.progress.detail}</small></p>
+{#else if group.forecast}
+<p>{group.forecast}</p>
+{/if}
+{#for member in group.members}{#if member.cause}
+<p data-cause="true"><mark data-tone="warn">{member.cause}</mark> {#each member.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</p>
+{/if}{/for}
+{#if group.members}
+<details>
+<summary>{group.members.size} torrents</summary>
+<ul>
+{#for member in group.members}
+<li{#if member.cause} data-cause="true"{/if}><span>{#each member.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</span>{#if member.cause} <mark data-tone="warn">{member.cause}</mark>{/if}<small>{member.tracker} · {member.status} · {member.size}</small>{#if member.trackerMessage}<small data-tone="danger">{member.trackerMessage}</small>{/if}<small data-tone="{member.progress.tone}">{member.progress.text} · {member.progress.detail}</small></li>
+{/for}
+</ul>
+</details>
+{/if}
+{#if group.keepable}
+<form id="keep-{group.hashes.get(0)}" method="post" action="/groups/keep">
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
 <input type="hidden" name="verdict" value="{filter.verdictCode}">
 <input type="hidden" name="reason" value="{filter.reasonCode}">
@@ -94,13 +111,16 @@ members the group gains later are added to it. It shows in the Overrides view, w
 <label>Until (optional) <input type="date" name="until" aria-label="Until for {group.label}"></label>
 <button type="submit" aria-label="Set a keep override for {group.label}">Set a keep override</button>
 </div></details>
-</form></td></tr>
-{#for member in group.members}
-<tr{#if member.cause} data-cause="true"{/if}><td><span>{#each member.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</span>{#if member.cause} <mark data-tone="warn">{member.cause}</mark>{/if}<small>{member.tracker} · {member.status} · {member.size}</small>{#if member.trackerMessage}<small data-tone="danger">{member.trackerMessage}</small>{/if}</td><td data-tone="{member.progress.tone}" tabindex="0">{#if member.progress.below}<meter min="0" max="100" value="{member.progress.percent}"></meter>{/if}{member.progress.text}<small>{member.progress.detail}</small></td></tr>
+</form>
+{/if}
+</article>
 {/for}
-</tbody>
+{#if lane.groups.isEmpty}
+<p>{#if filter.active}No group of this verdict matches the filter.{#else}No group has this verdict.{/if}</p>
+{/if}
+{#if lane.showAll}<a href="{lane.showAll}">Show all {lane.count} in {lane.label}</a>{/if}
+</section>
 {/for}
-</table>
 </div>
 {#if pages.several}
 <nav aria-label="Pages">

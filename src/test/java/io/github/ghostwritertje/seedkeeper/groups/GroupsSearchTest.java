@@ -44,10 +44,9 @@ class GroupsSearchTest {
     }
 
     @Test
-    void theCountsOfTheVerdictsAndOfTheReasonsEachLeaveOutTheirOwnSideAndKeepTheRest() {
+    void theCountsOfTheReasonsLeaveOutTheReasonAndKeepTheRest() {
         GroupsFilter filter = GroupsFilter.parse("remove", "all-met", "repack");
 
-        assertEquals(new GroupsFilter(Optional.empty(), Optional.of(Reason.ALL_MET), "repack"), filter.anyVerdict());
         assertEquals(new GroupsFilter(Optional.of(Verdict.REMOVE), Optional.empty(), "repack"), filter.anyReason());
     }
 
