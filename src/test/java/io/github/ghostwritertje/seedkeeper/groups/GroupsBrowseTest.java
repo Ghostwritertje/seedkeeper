@@ -16,16 +16,21 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** Searching the Groups view by name, sorting it by a column, and its pages of 50 groups, end to end. */
+/**
+ * Searching the Groups view by name, sorting its lanes, and the first 50 groups of each lane, or one lane alone in pages
+ * of 50, end to end.
+ */
 @QuarkusTest
 @WithTestResource(FakeTransmissionResource.class)
 class GroupsBrowseTest {
 
     private static final long DAY = 86_400;
     private static final String TRACKER_A = "https://tracker-a.example/key/announce";
-    private static final String TALLY = "html.body.main.nav.find { it.@'aria-label' == 'Groups by verdict' }";
     private static final String PAGES = "html.body.main.nav.find { it.@'aria-label' == 'Pages' }";
     private static final String SEARCH = "html.body.main.form.'**'.find { it.name() == 'input' && it.@name == 'q' }";
+    private static final String SORT = "html.body.main.form.'**'.find { it.name() == 'select' && it.@name == 'sort' }";
+    private static final String REVERSE =
+            "html.body.main.form.'**'.find { it.name() == 'input' && it.@name == 'dir' }";
 
     @BeforeEach
     void torrents() throws IOException {
@@ -49,67 +54,77 @@ class GroupsBrowseTest {
     }
 
     @Test
-    void byDefaultRemoveComesFirstThenLeftAloneThenKeepBySoonestForecast() {
+    void byDefaultEachLaneIsInItsOwnOrder() {
         Authenticated.asUser()
                 .when()
                 .get("/groups")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.NAMES, contains("Alpha.Movie", "Delta.Unknown", "beta.show", "Gamma.Movie"))
-                // The default order is the verdict's: its header says so.
-                .body(sortOf("Verdict"), is("ascending"))
-                .body(sorted(), is("Verdict"));
+                .body(GroupsLanes.names("keep"), contains("beta.show", "Gamma.Movie"))
+                .body(GroupsLanes.names("left-alone"), is("Delta.Unknown"))
+                .body(GroupsLanes.names("remove"), is("Alpha.Movie"))
+                // The order of the lanes is chosen, and there is nothing to turn round.
+                .body(selectedSort(), is(""))
+                .body(REVERSE + ".@disabled", is("disabled"));
     }
 
     @Test
-    void theHeadersOfTheSortableColumnsLinkToTheirOrder() {
+    void theSortOffersEveryColumnButTheVerdictWhichIsTheLane() {
         Authenticated.asUser()
                 .when()
                 .get("/groups")
                 .then()
                 .statusCode(200)
+                .body(SORT + ".option.@value", contains("", "name", "seeding", "forecast", "size"))
                 .body(
-                        GroupsTable.HEADINGS + ".collect { it.a.@href.toString() }",
-                        contains(
-                                "/groups?sort=name&dir=asc",
-                                "/groups?sort=seeding&dir=asc",
-                                // The order shown: a click turns it round.
-                                "/groups?sort=verdict&dir=desc",
-                                "",
-                                "/groups?sort=forecast&dir=asc",
-                                "/groups?sort=size&dir=asc",
-                                ""));
+                        SORT + ".option.collect { it.text() }",
+                        contains("Lane order", "Name", "Seed time toward the minimum", "Forecast", "Size"));
     }
 
     @Test
-    void pageSortsByTheColumnChosenEitherWay() {
+    void theSortChosenAppliesWithinEveryLaneEitherWay() throws IOException {
+        file(FakeTransmissionResource.downloads().resolve("Epsilon.Movie/movie.mkv"));
+        FakeTransmissionResource.fake()
+                .torrents("["
+                        + String.join(
+                                ",",
+                                torrent("1111", "Alpha.Movie", 400 * DAY, TRACKER_A, 40),
+                                torrent("2222", "beta.show", 20 * DAY, TRACKER_A, 10),
+                                torrent("3333", "Gamma.Movie", 5 * DAY, TRACKER_A, 30),
+                                torrent("4444", "Delta.Unknown", 50 * DAY, "https://elsewhere.example/announce", 20),
+                                // Met: removed, and smaller than Alpha.Movie.
+                                torrent("5555", "Epsilon.Movie", 400 * DAY, TRACKER_A, 5))
+                        + "]");
+
         Authenticated.asUser()
                 .when()
-                .get("/groups?sort=name")
+                .get("/groups")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.NAMES, contains("Alpha.Movie", "beta.show", "Delta.Unknown", "Gamma.Movie"))
-                .body(sortOf("Name"), is("ascending"))
-                .body(sorted(), is("Name"));
+                // Remove largest first.
+                .body(GroupsLanes.names("remove"), contains("Alpha.Movie", "Epsilon.Movie"));
         Authenticated.asUser()
                 .when()
-                .get("/groups?sort=size&dir=desc")
+                .get("/groups?sort=name&dir=desc")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.NAMES, contains("Alpha.Movie", "Gamma.Movie", "Delta.Unknown", "beta.show"))
-                .body(sortOf("Size"), is("descending"))
-                .body(GroupsTable.HEADINGS + ".find { it.text() == 'Size' }.a.@href", is("/groups?sort=size&dir=asc"))
-                // Filtering keeps the order.
-                .body(TALLY + ".a[1].@href", is("/groups?verdict=remove&sort=size&dir=desc"))
+                .body(GroupsLanes.names("keep"), contains("Gamma.Movie", "beta.show"))
+                .body(GroupsLanes.names("remove"), contains("Epsilon.Movie", "Alpha.Movie"))
+                .body(selectedSort(), is("name"))
+                .body(REVERSE + ".@checked.text()", is("checked"))
+                .body(REVERSE + ".@disabled.text()", is(""));
+        Authenticated.asUser()
+                .when()
+                .get("/groups?sort=size")
+                .then()
+                .statusCode(200)
+                .body(GroupsLanes.names("keep"), contains("beta.show", "Gamma.Movie"))
+                .body(GroupsLanes.names("remove"), contains("Epsilon.Movie", "Alpha.Movie"))
+                .body(selectedSort(), is("size"))
+                .body(REVERSE + ".@checked.text()", is(""))
+                // The keep form keeps the order.
                 .body(hidden("sort"), is("size"))
-                .body(hidden("dir"), is("desc"));
-        Authenticated.asUser()
-                .when()
-                .get("/groups?sort=seeding")
-                .then()
-                .statusCode(200)
-                // The unmanaged group has no minimum to go toward: it comes last.
-                .body(GroupsTable.NAMES, contains("Gamma.Movie", "beta.show", "Alpha.Movie", "Delta.Unknown"));
+                .body(hidden("dir"), is("asc"));
     }
 
     @Test
@@ -119,15 +134,12 @@ class GroupsBrowseTest {
                 .get("/groups?q=MOVIE")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.NAMES, contains("Alpha.Movie", "Gamma.Movie"))
+                .body(GroupsLanes.names("keep"), is("Gamma.Movie"))
+                .body(GroupsLanes.names("remove"), is("Alpha.Movie"))
                 .body(SEARCH + ".@value", is("MOVIE"))
                 .body(SEARCH + ".@type", is("search"))
                 // The counts are of the groups the search finds.
-                .body(TALLY + ".a.collect { it.text() }", contains("2 All", "1 Remove", "0 Left alone", "1 Keep"))
-                .body(TALLY + ".a[3].@href", is("/groups?verdict=keep&q=MOVIE"))
-                .body(
-                        GroupsTable.HEADINGS + ".find { it.text() == 'Name' }.a.@href",
-                        is("/groups?q=MOVIE&sort=name&dir=asc"))
+                .body(GroupsLanes.HEADINGS, contains("1 Keep", "0 Left alone", "1 Remove"))
                 .body("html.body.main.form.a.@href", is("/groups"))
                 .body("html.body.main.form.a", is("Clear filter"));
         Authenticated.asUser()
@@ -135,18 +147,19 @@ class GroupsBrowseTest {
                 .get("/groups?verdict=keep&q=movie")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.NAMES, is("Gamma.Movie"));
+                .body(GroupsLanes.HEADINGS, is("1 Keep"))
+                .body(GroupsLanes.names("keep"), is("Gamma.Movie"));
         Authenticated.asUser()
                 .when()
                 .get("/groups?q=nothing.like.it")
                 .then()
                 .statusCode(200)
-                .body("html.body.main.'**'.findAll { it.name() == 'table' }.size()", is(0))
+                .body("html.body.main.'**'.findAll { it.@id == 'lanes' }.size()", is(0))
                 .body("html.body.main.p", is("No group matches the filter."));
     }
 
     @Test
-    void pageShowsFiftyGroupsAPage() throws IOException {
+    void aLaneShowsItsFirstFiftyGroupsAndShowsAllOfThemAloneInPages() throws IOException {
         List<String> names = IntStream.rangeClosed(1, 120)
                 .mapToObj(i -> "Bulk.%03d".formatted(i))
                 .toList();
@@ -162,36 +175,43 @@ class GroupsBrowseTest {
 
         Authenticated.asUser()
                 .when()
-                .get("/groups")
-                .then()
-                .statusCode(200)
-                .body(GroupsTable.GROUPS + ".size()", is(50))
-                .body(GroupsTable.NAMES + "[0]", is("Bulk.001"))
-                .body(PAGES + ".p", is("Page 1 of 3 · 120 groups"))
-                .body(PAGES + ".a.size()", is(1))
-                .body(PAGES + ".a", is("Next"))
-                .body(PAGES + ".a.@href", is("/groups?page=2"));
-        Authenticated.asUser()
-                .when()
                 .get("/groups?sort=name&page=2")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.GROUPS + ".size()", is(50))
-                .body(GroupsTable.NAMES + "[0]", is("Bulk.051"))
+                .body(GroupsLanes.HEADINGS, contains("0 Keep", "0 Left alone", "120 Remove"))
+                .body(GroupsLanes.lane("remove") + ".article.size()", is(50))
+                .body(GroupsLanes.names("remove") + "[0]", is("Bulk.001"))
+                .body(GroupsLanes.lane("remove") + ".a.text()", is("Show all 120 in Remove"))
+                .body(GroupsLanes.lane("remove") + ".a.@href", is("/groups?verdict=remove&sort=name&dir=asc"))
+                // Every lane at once has no pages.
+                .body("html.body.main.nav.findAll { it.@'aria-label' == 'Pages' }.size()", is(0))
+                // A page asked for with every lane is the first.
+                .body(hidden("page"), is(""));
+        Authenticated.asUser()
+                .when()
+                .get("/groups?verdict=remove&sort=name&page=2")
+                .then()
+                .statusCode(200)
+                .body(GroupsLanes.HEADINGS, is("120 Remove"))
+                .body(GroupsLanes.lane("remove") + ".article.size()", is(50))
+                .body(GroupsLanes.names("remove") + "[0]", is("Bulk.051"))
+                .body(GroupsLanes.lane("remove") + ".a.size()", is(0))
                 .body(PAGES + ".p", is("Page 2 of 3 · 120 groups"))
                 .body(PAGES + ".a.collect { it.text() }", contains("Previous", "Next"))
-                // The pages keep the order; sorting starts again on the first page.
-                .body(PAGES + ".a.@href", contains("/groups?sort=name&dir=asc", "/groups?sort=name&dir=asc&page=3"))
-                .body(GroupsTable.HEADINGS + ".find { it.text() == 'Name' }.a.@href", is("/groups?sort=name&dir=desc"))
+                // The pages keep the filter and the order.
+                .body(
+                        PAGES + ".a.@href",
+                        contains(
+                                "/groups?verdict=remove&sort=name&dir=asc",
+                                "/groups?verdict=remove&sort=name&dir=asc&page=3"))
                 .body(hidden("page"), is("2"));
         // Beyond the last page is the last page.
         Authenticated.asUser()
                 .when()
-                .get("/groups?page=99")
+                .get("/groups?verdict=remove&page=99")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.GROUPS + ".size()", is(20))
-                .body(GroupsTable.NAMES + "[0]", is("Bulk.101"))
+                .body(GroupsLanes.lane("remove") + ".article.size()", is(20))
                 .body(PAGES + ".a.size()", is(1))
                 .body(PAGES + ".a", is("Previous"));
     }
@@ -200,25 +220,21 @@ class GroupsBrowseTest {
     void aFewGroupsAreOnePageWithNoLinksBetweenPages() {
         Authenticated.asUser()
                 .when()
-                .get("/groups")
+                .get("/groups?verdict=keep")
                 .then()
                 .statusCode(200)
-                .body("html.body.main.nav.findAll { it.@'aria-label' == 'Pages' }.size()", is(0));
+                .body("html.body.main.nav.findAll { it.@'aria-label' == 'Pages' }.size()", is(0))
+                .body(GroupsLanes.lane("keep") + ".a.size()", is(0));
     }
 
-    /** The {@code aria-sort} of the column header with this text; empty when it has none. */
-    private static String sortOf(String header) {
-        return GroupsTable.HEADINGS + ".find { it.text() == '" + header + "' }.@'aria-sort'";
+    /** The value of the selected option of the Sort field; empty for the order of the lanes. */
+    private static String selectedSort() {
+        return SORT + ".option.find { it.@selected == 'selected' }.@value";
     }
 
-    /** The text of every column header that has an {@code aria-sort}, joined: only one ever has. */
-    private static String sorted() {
-        return GroupsTable.HEADINGS + ".findAll { it.@'aria-sort' != '' }.collect { it.text() }.join(',')";
-    }
-
-    /** The value of a hidden field of the keep form of the first group. */
+    /** The value of a hidden field of the keep form of the first group of the view. */
     private static String hidden(String name) {
-        return GroupsTable.GROUPS + "[0].'**'.find { it.name() == 'input' && it.@name == '" + name + "' }.@value";
+        return GroupsLanes.CARDS + "[0].'**'.find { it.name() == 'input' && it.@name == '" + name + "' }.@value";
     }
 
     /** One private, seeding torrent with one wanted file, {@code <name>/movie.mkv}, in Transmission's field names. */

@@ -27,8 +27,10 @@ import org.junit.jupiter.api.Test;
 class GroupsFilterTest {
 
     private static final long DAY = 86_400;
-    private static final String TALLY = "html.body.main.nav";
-    /** The verdict the filter form keeps when the reason changes: the chips choose it, the form has no control for it. */
+    /**
+     * The verdict the filter form keeps when the reason changes: a lane's "Show all" link chooses it, the form has no
+     * control for it.
+     */
     private static final String VERDICT =
             "html.body.main.form.'**'.find { it.name() == 'input' && it.@name == 'verdict' }.@value";
 
@@ -192,23 +194,24 @@ class GroupsFilterTest {
                 .get("/groups")
                 .then()
                 .statusCode(200)
-                .body(
-                        GroupsTable.HEADINGS,
-                        contains("Name", "Minimum seed time", "Verdict", "Reason", "Size", "Keep override"))
-                // Remove first, then Left alone, then Keep.
-                .body(
-                        GroupsTable.NAMES,
-                        contains("Done.Movie", "Half.Gone", "Broken.Movie", "Checking.Movie", "Kept.Movie", "Not.Yet"))
-                .body(GroupsTable.heading(1), contains("Half.Gone", "tracker-a · Seeding · 0 of 2 files linked"))
+                .body(GroupsLanes.names("keep"), contains("Checking.Movie", "Kept.Movie", "Not.Yet"))
+                // Left alone by reason, in the order of precedence.
+                .body(GroupsLanes.names("left-alone"), contains("Half.Gone", "Broken.Movie"))
+                .body(GroupsLanes.names("remove"), is("Done.Movie"))
                 // The file that is gone still counts: the size is what Transmission says the data is.
-                .body(GroupsTable.cells(1), contains("Met ✓", "Left alone", "Missing data (1 of 2 files)", "8 B"))
-                .body(GroupsTable.underReason(1), is(""))
-                .body(GroupsTable.cells(2), contains("3%", "Left alone", "Local error", "4 B"))
-                .body(GroupsTable.underReason(2), is("also: Minimum not reached"))
-                .body(GroupsTable.heading(3), contains("Checking.Movie", "tracker-a · Verifying · 0 of 1 files linked"))
-                .body(GroupsTable.cells(3), contains("Met ✓", "Keep", "Verifying", "4 B"))
-                .body(GroupsTable.cells(5), contains("0%", "Keep", "Not finished", "4 B"))
-                .body(GroupsTable.underReason(5), is("also: Minimum not reached"));
+                .body(GroupsLanes.summary("left-alone", 0), is("tracker-a · Seeding · 0 of 2 files linked · 8 B"))
+                .body(GroupsLanes.reason("left-alone", 0), is("Missing data (1 of 2 files)"))
+                .body(
+                        GroupsLanes.hint("left-alone", 0),
+                        is("files are gone from disk: re-verify or remove in Transmission"))
+                .body(GroupsLanes.secondaryReasons("left-alone", 0), is(""))
+                .body(GroupsLanes.reason("left-alone", 1), is("Local error"))
+                .body(GroupsLanes.secondaryReasons("left-alone", 1), is("also: Minimum not reached"))
+                .body(GroupsLanes.progress("left-alone", 1), is("3% of minimum"))
+                .body(GroupsLanes.summary("keep", 0), is("tracker-a · Verifying · 0 of 1 files linked · 4 B"))
+                .body(GroupsLanes.reason("keep", 0), is("Verifying"))
+                .body(GroupsLanes.reason("keep", 2), is("Not finished"))
+                .body(GroupsLanes.secondaryReasons("keep", 2), is("also: Minimum not reached"));
     }
 
     @Test
@@ -221,9 +224,11 @@ class GroupsFilterTest {
                 .when()
                 .get("/groups")
                 .then()
-                .body(GroupsTable.heading(0), contains("Kept.Movie", "tracker-a · Verifying · 1 of 1 files linked"))
-                .body(GroupsTable.cells(0), contains("0%", "Left alone", "Local error", "4 B"))
-                .body(GroupsTable.underReason(0), is("also: Verifying, Library link, Minimum not reached"));
+                .body(GroupsLanes.summary("left-alone", 0), is("tracker-a · Verifying · 1 of 1 files linked · 4 B"))
+                .body(GroupsLanes.reason("left-alone", 0), is("Local error"))
+                .body(
+                        GroupsLanes.secondaryReasons("left-alone", 0),
+                        is("also: Verifying, Library link, Minimum not reached"));
     }
 
     @Test
@@ -233,21 +238,34 @@ class GroupsFilterTest {
                 .get("/groups?verdict=keep")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.NAMES, contains("Checking.Movie", "Kept.Movie", "Not.Yet"))
+                .body(GroupsLanes.HEADINGS, is("3 Keep"))
+                .body(GroupsLanes.names("keep"), contains("Checking.Movie", "Kept.Movie", "Not.Yet"))
                 .body(VERDICT, is("keep"))
                 .body(selected("reason"), is(""));
         Authenticated.asUser()
                 .when()
                 .get("/groups?verdict=left-alone&reason=missing-data")
                 .then()
-                .body(GroupsTable.GROUPS + ".size()", is(1))
-                .body(GroupsTable.NAMES, is("Half.Gone"))
+                .body(GroupsLanes.CARDS + ".size()", is(1))
+                .body(GroupsLanes.names("left-alone"), is("Half.Gone"))
                 .body(VERDICT, is("left-alone"))
                 .body(selected("reason"), is("missing-data"));
     }
 
     @Test
-    void theVerdictIsChosenOnlyByTheChips() {
+    void theReasonNarrowsEveryLane() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups?reason=missing-data")
+                .then()
+                .statusCode(200)
+                .body(GroupsLanes.HEADINGS, contains("0 Keep", "1 Left alone", "0 Remove"))
+                .body(GroupsLanes.names("left-alone"), is("Half.Gone"))
+                .body(GroupsLanes.lane("keep") + ".a.size()", is(0));
+    }
+
+    @Test
+    void theVerdictIsChosenOnlyByTheLanes() {
         Authenticated.asUser()
                 .when()
                 .get("/groups?verdict=keep")
@@ -321,38 +339,14 @@ class GroupsFilterTest {
     }
 
     @Test
-    void pageCountsTheGroupsOfEveryVerdictAndLinksToThem() {
+    void theVerdictChipsAreGoneTheLaneHeadingsCountTheVerdicts() {
         Authenticated.asUser()
                 .when()
-                .get("/groups?verdict=keep")
+                .get("/groups")
                 .then()
                 .statusCode(200)
-                .body(TALLY + ".a.collect { it.text() }", contains("6 All", "1 Remove", "2 Left alone", "3 Keep"))
-                .body(
-                        TALLY + ".a.@href",
-                        contains(
-                                "/groups",
-                                "/groups?verdict=remove",
-                                "/groups?verdict=left-alone",
-                                "/groups?verdict=keep"))
-                .body(TALLY + ".a.findAll { it.@'aria-current' == 'page' }.@href", is("/groups?verdict=keep"))
-                .body(TALLY + ".a.mark.@data-verdict", contains("remove", "left-alone", "keep"))
-                .body("html.body.main.div.table.tbody.@data-verdict", contains("keep", "keep", "keep"))
-                .body(
-                        GroupsTable.GROUPS + ".collect { it.tr[0].td[1].@'data-verdict'.text() }",
-                        contains("keep", "keep", "keep"));
-    }
-
-    @Test
-    void theCountsOfTheVerdictsKeepTheReasonOfTheFilter() {
-        Authenticated.asUser()
-                .when()
-                .get("/groups?reason=missing-data")
-                .then()
-                .statusCode(200)
-                .body(TALLY + ".a.collect { it.text() }", contains("1 All", "0 Remove", "1 Left alone", "0 Keep"))
-                .body(TALLY + ".a[2].@href", is("/groups?verdict=left-alone&reason=missing-data"))
-                .body(TALLY + ".a.findAll { it.@'aria-current' == 'page' }.@href", is("/groups?reason=missing-data"));
+                .body("html.body.main.nav.findAll { it.@'aria-label' == 'Groups by verdict' }.size()", is(0))
+                .body(GroupsLanes.HEADINGS, contains("3 Keep", "2 Left alone", "1 Remove"));
     }
 
     @Test
@@ -402,7 +396,7 @@ class GroupsFilterTest {
                 .get("/groups?verdict=remove&reason=library-link")
                 .then()
                 .statusCode(200)
-                .body("html.body.main.'**'.findAll { it.name() == 'table' }.size()", is(0))
+                .body("html.body.main.'**'.findAll { it.@id == 'lanes' }.size()", is(0))
                 .body("html.body.main.p.size()", is(1))
                 .body("html.body.main.p", is("No group has this verdict and reason."))
                 .body(selected("reason"), is("library-link"));
@@ -418,9 +412,8 @@ class GroupsFilterTest {
                 .body(
                         "html.body.main.p.find { it.@role == 'alert' }",
                         is("Unknown verdict 'delete': use remove, left-alone or keep"))
-                .body(TALLY + ".a.collect { it.text() }", contains("6 All", "1 Remove", "2 Left alone", "3 Keep"))
-                .body(TALLY + ".a.findAll { it.@'aria-current' == 'page' }.@href", is("/groups"))
-                .body(GroupsTable.GROUPS + ".size()", is(6))
+                .body(GroupsLanes.HEADINGS, contains("3 Keep", "2 Left alone", "1 Remove"))
+                .body(GroupsLanes.CARDS + ".size()", is(6))
                 .body(VERDICT, is(""))
                 .body(selected("reason"), is(""));
     }
@@ -436,12 +429,11 @@ class GroupsFilterTest {
                         "html.body.main.p.find { it.@role == 'alert' }.text()",
                         startsWith("Unknown reason 'libary-link': use unregistered,"))
                 // The whole view, by name the other way round: the name searched for goes with the unknown reason.
-                .body(GroupsTable.GROUPS + ".size()", is(6))
-                .body(TALLY + ".a[3].@href", is("/groups?verdict=keep&sort=name&dir=desc"))
-                .body(TALLY + ".a.findAll { it.@'aria-current' == 'page' }.@href", is("/groups?sort=name&dir=desc"))
+                .body(GroupsLanes.CARDS + ".size()", is(6))
+                .body(GroupsLanes.names("keep"), contains("Not.Yet", "Kept.Movie", "Checking.Movie"))
                 .body("html.body.main.form.'**'.find { it.@name == 'q' }.@value", is(""))
-                .body("html.body.main.form.'**'.find { it.@name == 'sort' }.@value", is("name"))
-                .body("html.body.main.form.'**'.find { it.@name == 'dir' }.@value", is("desc"));
+                .body(selected("sort"), is("name"))
+                .body("html.body.main.form.'**'.find { it.@name == 'dir' }.@checked.text()", is("checked"));
     }
 
     @Test
@@ -465,7 +457,9 @@ class GroupsFilterTest {
                                 "Library link (1)",
                                 "Minimum not reached (0)",
                                 "All met (0)"))
-                .body("html.body.main.form.'**'.find { it.name() == 'a' }.@href", is("/groups?sort=size&dir=desc"));
+                .body(
+                        "html.body.main.form.'**'.find { it.name() == 'a' && it.text() == 'Clear filter' }.@href",
+                        is("/groups?sort=size&dir=desc"));
     }
 
     @Test
@@ -478,8 +472,8 @@ class GroupsFilterTest {
                 .body(
                         "html.body.main.p.find { it.@role == 'alert' }.text()",
                         startsWith("Unknown reason 'libary-link': use unregistered,"))
-                .body(TALLY + ".a.collect { it.text() }", contains("6 All", "1 Remove", "2 Left alone", "3 Keep"))
-                .body(GroupsTable.GROUPS + ".size()", is(6))
+                .body(GroupsLanes.HEADINGS, contains("3 Keep", "2 Left alone", "1 Remove"))
+                .body(GroupsLanes.CARDS + ".size()", is(6))
                 .body(VERDICT, is(""))
                 .body(selected("reason"), is(""));
     }

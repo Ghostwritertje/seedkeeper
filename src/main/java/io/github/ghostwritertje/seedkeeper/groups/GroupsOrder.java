@@ -2,6 +2,7 @@ package io.github.ghostwritertje.seedkeeper.groups;
 
 import io.github.ghostwritertje.seedkeeper.decide.Forecast;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
+import io.github.ghostwritertje.seedkeeper.decide.Verdict;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.Comparator;
@@ -20,7 +21,10 @@ import org.jspecify.annotations.Nullable;
  */
 record GroupsOrder(Column column, boolean descending) {
 
-    /** The order with no sort chosen: Remove, then Left alone, then Keep, each by soonest forecast. */
+    /**
+     * The order with no sort chosen, the order of the lanes: Remove largest first, then Left alone by reason, then
+     * Keep by soonest forecast.
+     */
     static final GroupsOrder DEFAULT = new GroupsOrder(Column.VERDICT, false);
 
     /** The value of {@code dir} that turns the order round. */
@@ -35,7 +39,7 @@ record GroupsOrder(Column column, boolean descending) {
          * A group with no managed member comes last either way.
          */
         SEEDING("seeding"),
-        /** The verdict, Remove first, then each by soonest forecast; the other way round, all of it is reversed. */
+        /** The verdict, Remove first, then each in its lane's order; the other way round, all of it is reversed. */
         VERDICT("verdict"),
         /** The forecast date, then a stopped clock, then no forecast: either way, only the dates turn round. */
         FORECAST("forecast"),
@@ -87,18 +91,24 @@ record GroupsOrder(Column column, boolean descending) {
                 .toList();
     }
 
-    /** The order a click on the header of a column gives: by it the usual way, or this one turned round. */
-    GroupsOrder by(Column clicked) {
-        return clicked == column ? new GroupsOrder(column, !descending) : new GroupsOrder(clicked, false);
-    }
-
     /** The code of the direction, for {@code dir}. */
     String dir() {
         return descending ? DESCENDING : "asc";
     }
 
+    /** By verdict, then in the order of its lane: Remove largest first, Left alone by reason, Keep by forecast. */
     private static Comparator<GroupVerdict> verdict() {
-        return Comparator.comparing(GroupVerdict::verdict).thenComparing(forecast(false));
+        return Comparator.comparing(GroupVerdict::verdict)
+                .thenComparing((a, b) -> lane(a.verdict()).compare(a, b));
+    }
+
+    /** The order within the lane of a verdict; the groups left alone with the same reason by soonest forecast too. */
+    private static Comparator<GroupVerdict> lane(Verdict verdict) {
+        return switch (verdict) {
+            case REMOVE -> Comparator.comparingLong(GroupVerdict::size).reversed();
+            case LEFT_ALONE -> Comparator.comparing(GroupVerdict::reason).thenComparing(forecast(false));
+            case KEEP -> forecast(false);
+        };
     }
 
     private static Comparator<GroupVerdict> forecast(boolean descending) {

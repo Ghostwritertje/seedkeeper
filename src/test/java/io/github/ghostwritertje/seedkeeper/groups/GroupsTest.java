@@ -310,9 +310,7 @@ class GroupsTest {
     }
 
     @Test
-    void pageShowsEveryGroupWithItsMembersVerdictReasonAndForecast() {
-        Instant before = Instant.now();
-
+    void pageShowsALaneForEachVerdictKeepLeftAloneRemoveWithItsCountAndWhatItHolds() {
         Authenticated.asUser()
                 .when()
                 .get("/groups")
@@ -320,111 +318,182 @@ class GroupsTest {
                 .statusCode(200)
                 .contentType(containsString("text/html"))
                 .body("html.head.title", is("Groups · seedkeeper"))
-                .body(ScrollRegions.TABLE_PARENTS, ScrollRegions.regions("Groups"))
+                // The lanes are no table: nothing scrolls sideways.
+                .body(ScrollRegions.TABLE_PARENTS, is(""))
+                // The heading says the verdict in words; the colour only repeats it.
+                .body(GroupsLanes.HEADINGS, contains("5 Keep", "1 Left alone", "2 Remove"))
                 .body(
-                        GroupsTable.HEADINGS,
-                        contains("Name", "Minimum seed time", "Verdict", "Reason", "Forecast", "Size", "Keep override"))
-                // Remove first, then Left alone, then Keep, each by soonest forecast: a stopped clock after every
-                // date, no forecast last.
+                        GroupsLanes.LANES + ".collect { it.p[0].text() }",
+                        contains("waiting, soonest first", "a person should look", "the next run removes these"))
+                .body(GroupsLanes.LANES + ".@'data-verdict'", contains("keep", "left-alone", "remove"))
+                .body(GroupsLanes.LANES + ".h2.mark.@'data-verdict'", contains("keep", "left-alone", "remove"))
+                .body(GroupsLanes.LANES + ".collect { it.@'aria-labelledby'.text() }", contains("lane-keep", "lane-left-alone", "lane-remove"))
+                // Keep by soonest forecast: a stopped clock after every date, no forecast last.
                 .body(
-                        GroupsTable.NAMES,
-                        contains(
-                                "Old.Movie",
-                                "ubuntu.iso",
-                                "Unknown.Tracker",
-                                "Cross.Seed",
-                                "Fresh.Movie",
-                                "Paused.Movie",
-                                "Linked.Show",
-                                "Downloading"))
-                // One header row per group; member rows only under the cross-seed group of two.
-                .body(GroupsTable.ROWS, contains(1, 1, 1, 3, 1, 1, 1, 1))
-                .body(GroupsTable.heading(6), contains("Linked.Show", "tracker-a · Seeding · 1 of 2 files linked"))
-                // The library links show once: under the name, not again in the reason. Every file is 4 bytes.
-                .body(GroupsTable.cells(6), contains("Met ✓", "Keep", "Library link", "", "8 B"))
-                .body(GroupsTable.progressDetail(6), is("40d of 30d · met 10d ago"))
-                .body(GroupsTable.heading(4), contains("Fresh.Movie", "tracker-b · Seeding · 0 of 1 files linked"))
+                        GroupsLanes.names("keep"),
+                        contains("Cross.Seed", "Fresh.Movie", "Paused.Movie", "Linked.Show", "Downloading"))
+                .body(GroupsLanes.names("left-alone"), is("Unknown.Tracker"))
+                // Remove largest first; the two are as large, so they keep the snapshot order.
+                .body(GroupsLanes.names("remove"), contains("Old.Movie", "ubuntu.iso"))
+                // Each card carries the verdict of its lane.
                 .body(
-                        GroupsTable.cells(4),
-                        contains(
-                                is("18%"),
-                                is("Keep"),
-                                is("Minimum not reached"),
-                                minuteIn(before, Duration.ofDays(11).plusHours(12)),
-                                is("4 B")))
-                // The forecast is a <time>, in ISO with the offset, and the time zone in its tooltip.
-                .body(
-                        GroupsTable.GROUPS + "[4].tr[0].td[3].time.@datetime",
-                        dateIn(before, Duration.ofDays(11).plusHours(12)))
-                .body(
-                        GroupsTable.GROUPS + "[4].tr[0].td[3].time.@title",
-                        matchesPattern("\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d Asia/Kolkata"))
-                .body(GroupsTable.heading(0), contains("Old.Movie", "tracker-b · Stopped · 0 of 1 files linked"))
-                // Below the minimum: a meter for screen readers, the time to go as detail.
-                .body(GroupsTable.progressCell(4) + ".meter.@value", is("18"))
-                .body(GroupsTable.progressDetail(4), is("2d 12h of 14d · 11d 12h to go"))
-                // Its sample is not wanted: it counts nowhere.
-                .body(GroupsTable.cells(0), contains("Met ✓", "Remove", "All met", "", "4 B"))
-                .body(GroupsTable.progressDetail(0), is("14d of 14d · met just now"))
-                .body(GroupsTable.progressCell(0) + ".meter.size()", is(0))
-                .body(
-                        GroupsTable.heading(2),
-                        contains("Unknown.Tracker", "Unmanaged (elsewhere.example) · Seeding · 0 of 1 files linked"))
-                .body(GroupsTable.cells(2), contains("—", "Left alone", "Unmanaged", "", "4 B"))
-                // What to do about it, under the reason.
-                .body(
-                        GroupsTable.hint(2),
-                        is("a member is on a tracker not in the config: add it under trackers to manage it"))
-                .body(GroupsTable.progressDetail(2), is("400d · no minimum"))
-                .body(GroupsTable.heading(7), contains("Downloading", "tracker-a · Downloading · 0 of 1 files linked"))
-                .body(GroupsTable.cells(7), contains("0%", "Keep", "Not finished", "", "4 B"))
-                .body(GroupsTable.underReason(7), is("also: Minimum not reached"))
-                .body(GroupsTable.underReason(6), is(""))
-                .body(GroupsTable.heading(1), contains("ubuntu.iso", "public · Seeding · 0 of 1 files linked"))
-                .body(GroupsTable.cells(1), contains("Met ✓", "Remove", "All met", "", "4 B"))
-                // The cross-seed group: a header row for the group, whose cells span the rows of its members.
-                .body(GroupsTable.heading(3), contains("Cross.Seed", "2 torrents · 0 of 1 files linked"))
-                // Its header shows its slowest member, the one that sets the forecast: 10 days to go.
-                .body(
-                        GroupsTable.cells(3),
-                        contains(
-                                is("67%"),
-                                is("Keep"),
-                                is("Minimum not reached"),
-                                minuteIn(before, Duration.ofDays(10)),
-                                // Its members share their one file: the group counts it once.
-                                is("4 B")))
-                .body(GroupsTable.progressDetail(3), is("slowest: 20d of 30d · 10d to go"))
-                .body(
-                        GroupsTable.GROUPS + "[3].tr[0].td.collect { it.@rowspan.toString() }",
-                        contains("1", "3", "3", "3", "3", "3"))
-                .body(GroupsTable.member(3, 0), contains("Cross.Seed", "tracker-a · Seeding · 4 B", "67%"))
-                .body(GroupsTable.member(3, 1), contains("Cross.Seed.Elsewhere", "tracker-b · Stopped · 4 B", "93%"))
-                // The keep form's controls name the group by its first member, so they can be told apart.
-                .body(
-                        "**.find { it.name() == 'form' && it.@id == 'keep-7777' }.'**'.findAll { it.@'aria-label' != '' }"
-                                + ".collect { it.@'aria-label'.toString() }",
-                        contains("Note for Cross.Seed", "Until for Cross.Seed", "Set a keep override for Cross.Seed"))
-                .body(GroupsTable.heading(5), contains("Paused.Movie", "tracker-a · Stopped · 0 of 1 files linked"))
-                .body(
-                        GroupsTable.cells(5),
-                        contains("97%", "Keep", "Minimum not reached", "clock stopped (paused)", "4 B"))
-                // A stopped clock has no moment: no <time>.
-                .body(GroupsTable.GROUPS + "[5].tr[0].td[3].time.size()", is(0));
+                        GroupsLanes.CARDS + ".@'data-verdict'",
+                        contains("keep", "keep", "keep", "keep", "keep", "left-alone", "remove", "remove"));
     }
 
     @Test
-    void pageShowsEachVerdictAndReasonUnderTheGroupName() {
-        // Small screens hide the verdict and reason columns: the verdict stays in sight under the name.
+    void aCardShowsTheGroupItsReasonAndItsProgressWithTheForecastBelowTheMinimum() {
+        Instant before = Instant.now();
+
         Authenticated.asUser()
                 .when()
                 .get("/groups")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.verdictUnderName(4), contains("keep", "Keep", "Minimum not reached"))
-                .body(GroupsTable.verdictUnderName(0), contains("remove", "Remove", "All met"))
-                .body(GroupsTable.verdictUnderName(2), contains("left-alone", "Left alone", "Unmanaged"))
-                .body(GroupsTable.verdictUnderName(3), contains("keep", "Keep", "Minimum not reached"));
+                // The library links show once: in the summary, not again in the reason. Every file is 4 bytes.
+                .body(GroupsLanes.summary("keep", 3), is("tracker-a · Seeding · 1 of 2 files linked · 8 B"))
+                .body(GroupsLanes.reason("keep", 3), is("Library link"))
+                .body(GroupsLanes.secondaryReasons("keep", 3), is(""))
+                // Met: no progress to show.
+                .body(GroupsLanes.progressLine("keep", 3) + ".size()", is(0))
+                .body(GroupsLanes.summary("keep", 1), is("tracker-b · Seeding · 0 of 1 files linked · 4 B"))
+                .body(GroupsLanes.reason("keep", 1), is("Minimum not reached"))
+                // Below the minimum: a meter, the percent and when it becomes removable, and the exact durations.
+                .body(
+                        GroupsLanes.progress("keep", 1),
+                        endsInMinute("18% of minimum · removable ", before, Duration.ofDays(11).plusHours(12)))
+                .body(GroupsLanes.progressLine("keep", 1) + ".meter.@value", is("18"))
+                .body(
+                        GroupsLanes.progressLine("keep", 1) + ".meter.collect { [it.@min, it.@max] }.flatten()",
+                        contains("0", "100"))
+                .body(GroupsLanes.progressDetail("keep", 1), is("2d 12h of 14d · 11d 12h to go"))
+                // The forecast is a <time>, in ISO with the offset, and the time zone in its tooltip.
+                .body(
+                        GroupsLanes.progressLine("keep", 1) + ".time.@datetime",
+                        dateIn(before, Duration.ofDays(11).plusHours(12)))
+                .body(
+                        GroupsLanes.progressLine("keep", 1) + ".time.@title",
+                        matchesPattern("\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d Asia/Kolkata"))
+                // Its sample is not wanted: it counts nowhere.
+                .body(GroupsLanes.summary("remove", 0), is("tracker-b · Stopped · 0 of 1 files linked · 4 B"))
+                .body(GroupsLanes.reason("remove", 0), is("All met"))
+                .body(GroupsLanes.progressLine("remove", 0) + ".size()", is(0))
+                .body(
+                        GroupsLanes.summary("left-alone", 0),
+                        is("Unmanaged (elsewhere.example) · Seeding · 0 of 1 files linked · 4 B"))
+                .body(GroupsLanes.reason("left-alone", 0), is("Unmanaged"))
+                // What to do about it, under the reason.
+                .body(
+                        GroupsLanes.hint("left-alone", 0),
+                        is("a member is on a tracker not in the config: add it under trackers to manage it"))
+                .body(GroupsLanes.hint("keep", 1), is(""))
+                .body(GroupsLanes.summary("keep", 4), is("tracker-a · Downloading · 0 of 1 files linked · 4 B"))
+                .body(GroupsLanes.reason("keep", 4), is("Not finished"))
+                .body(GroupsLanes.secondaryReasons("keep", 4), is("also: Minimum not reached"))
+                // No forecast: the progress alone.
+                .body(GroupsLanes.progress("keep", 4), is("0% of minimum"))
+                .body(GroupsLanes.summary("remove", 1), is("public · Seeding · 0 of 1 files linked · 4 B"))
+                .body(GroupsLanes.summary("keep", 2), is("tracker-a · Stopped · 0 of 1 files linked · 4 B"))
+                // A stopped clock has no moment: no <time>.
+                .body(GroupsLanes.progress("keep", 2), is("97% of minimum · clock stopped (paused)"))
+                .body(GroupsLanes.progressLine("keep", 2) + ".time.size()", is(0));
+    }
+
+    @Test
+    void aCardOfACrossSeedGroupShowsItsSlowestMemberAndOpensItsMembersOnDemand() {
+        Instant before = Instant.now();
+
+        Authenticated.asUser()
+                .when()
+                .get("/groups")
+                .then()
+                .statusCode(200)
+                // Its members share their one file: the group counts it once.
+                .body(GroupsLanes.summary("keep", 0), is("2 torrents · 0 of 1 files linked · 4 B"))
+                // Its slowest member sets the forecast: 10 days to go.
+                .body(
+                        GroupsLanes.progress("keep", 0),
+                        endsInMinute("67% of minimum · removable ", before, Duration.ofDays(10)))
+                .body(GroupsLanes.progressDetail("keep", 0), is("slowest: 20d of 30d · 10d to go"))
+                .body(GroupsLanes.card("keep", 0) + ".details.summary.text()", is("2 torrents"))
+                .body(GroupsLanes.card("keep", 0) + ".details.@open.text()", is(""))
+                .body(
+                        GroupsLanes.member("keep", 0, 0),
+                        contains("Cross.Seed", "tracker-a · Seeding · 4 B", "67% · 20d of 30d · 10d to go"))
+                .body(
+                        GroupsLanes.member("keep", 0, 1),
+                        contains("Cross.Seed.Elsewhere", "tracker-b · Stopped · 4 B", "93% · 13d of 14d · 1d to go"))
+                .body(GroupsLanes.card("keep", 0) + ".details.ul.li[1].small[1].@'data-tone'", is("warn"))
+                // A group of one has no members to open: its card shows it whole.
+                .body(GroupsLanes.card("keep", 1) + ".details.size()", is(0));
+    }
+
+    @Test
+    void aCardOffersAKeepOverrideWhoseControlsNameTheGroup() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups")
+                .then()
+                .statusCode(200)
+                .body(GroupsLanes.card("keep", 0) + ".form.@id", is("keep-7777"))
+                .body(GroupsLanes.card("keep", 0) + ".form.details.summary", is("Keep…"))
+                .body(GroupsLanes.card("remove", 0) + ".form.@action", is("/groups/keep"))
+                // Every card: none of these is kept by a keep override.
+                .body(GroupsLanes.CARDS + ".collect { it.form.size() }", contains(1, 1, 1, 1, 1, 1, 1, 1))
+                // The controls name the group by its first member, so they can be told apart.
+                .body(
+                        "**.find { it.name() == 'form' && it.@id == 'keep-7777' }.'**'.findAll { it.@'aria-label' != '' }"
+                                + ".collect { it.@'aria-label'.toString() }",
+                        contains("Note for Cross.Seed", "Until for Cross.Seed", "Set a keep override for Cross.Seed"));
+    }
+
+    @Test
+    void theLaneOfOneVerdictIsShownAloneAndLinksBackToEveryLane() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups?verdict=remove&q=o")
+                .then()
+                .statusCode(200)
+                .body(GroupsLanes.HEADINGS, is("2 Remove"))
+                .body(GroupsLanes.names("remove"), contains("Old.Movie", "ubuntu.iso"))
+                .body("html.body.main.form.a.find { it.text() == 'Every verdict' }.@href", is("/groups?q=o"));
+        Authenticated.asUser()
+                .when()
+                .get("/groups")
+                .then()
+                .statusCode(200)
+                .body("html.body.main.form.a.findAll { it.text() == 'Every verdict' }.size()", is(0));
+    }
+
+    @Test
+    void anEmptyLaneSaysSo() {
+        Authenticated.asUser()
+                .when()
+                .get("/groups?q=Movie")
+                .then()
+                .statusCode(200)
+                .body(GroupsLanes.HEADINGS, contains("2 Keep", "0 Left alone", "1 Remove"))
+                .body(GroupsLanes.lane("left-alone") + ".article.size()", is(0))
+                .body(GroupsLanes.lane("left-alone") + ".p[1].text()", is("No group of this verdict matches the filter."));
+        FakeTransmissionResource.fake()
+                .torrents("["
+                        + torrent(
+                                "6666",
+                                "ubuntu.iso",
+                                6,
+                                1,
+                                DAY,
+                                false,
+                                "udp://open.example:1337/announce",
+                                "ubuntu.iso:true")
+                        + "]");
+        Authenticated.asUser()
+                .when()
+                .get("/groups")
+                .then()
+                .statusCode(200)
+                .body(GroupsLanes.HEADINGS, contains("0 Keep", "0 Left alone", "1 Remove"))
+                .body(GroupsLanes.lane("keep") + ".p[1].text()", is("No group has this verdict."));
     }
 
     @Test
@@ -441,51 +510,15 @@ class GroupsTest {
     }
 
     @Test
-    void pageLetsTheProgressDetailBeReachedByKeyboardAndScreenReaders() {
-        Authenticated.asUser()
-                .when()
-                .get("/groups")
-                .then()
-                .statusCode(200)
-                // Focusable, so the detail opens on focus and tap as well as on hover.
-                .body(GroupsTable.progressCell(4) + ".@tabindex", is("0"))
-                // The text says the state; the colour only repeats it.
-                .body(GroupsTable.progressCell(4) + ".@data-tone", is("warn"))
-                .body(
-                        GroupsTable.progressCell(4) + ".meter.collect { [it.@min, it.@max] }.flatten()",
-                        contains("0", "100"))
-                .body(GroupsTable.progressCell(0) + ".@data-tone", is("ok"))
-                .body(GroupsTable.progressCell(2) + ".@data-tone", is("muted"))
-                // The whole cell, as a screen reader reads it: the state, then the exact durations.
-                .body(GroupsTable.progressCell(4) + ".text()", is("18%2d 12h of 14d · 11d 12h to go"))
-                .body(
-                        GroupsTable.GROUPS + "[3].tr[2].td[1].with { [it.@tabindex.toString(), it.small.text()] }",
-                        contains("0", "13d of 14d · 1d to go"));
-    }
-
-    @Test
     void pageMayBreakANameOnlyAfterADotOrADash() {
         Authenticated.asUser()
                 .when()
                 .get("/groups")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.GROUPS + "[1].tr[0].th.strong.wbr.size()", is(1))
-                .body(GroupsTable.GROUPS + "[3].tr[0].th.strong.wbr.size()", is(1))
-                .body(GroupsTable.GROUPS + "[3].tr[2].td[0].span.wbr.size()", is(2));
-    }
-
-    @Test
-    void pageLeavesOutTheForecastWhenNoGroupHasOne() {
-        Authenticated.asUser()
-                .when()
-                .get("/groups?verdict=remove")
-                .then()
-                .statusCode(200)
-                .body(
-                        GroupsTable.HEADINGS,
-                        contains("Name", "Minimum seed time", "Verdict", "Reason", "Size", "Keep override"))
-                .body(GroupsTable.cells(0), contains("Met ✓", "Remove", "All met", "4 B"));
+                .body(GroupsLanes.card("remove", 1) + ".h3.wbr.size()", is(1))
+                .body(GroupsLanes.card("keep", 0) + ".h3.wbr.size()", is(1))
+                .body(GroupsLanes.card("keep", 0) + ".details.ul.li[1].span.wbr.size()", is(2));
     }
 
     @Test
@@ -539,14 +572,13 @@ class GroupsTest {
                     .then()
                     .statusCode(200)
                     // Each is a group of one: its tracker shows in the line under the group's name.
+                    .body(GroupsLanes.names("left-alone"), contains("Two.Hosts", "No.Trackers"))
                     .body(
-                            GroupsTable.heading(0),
-                            contains(
-                                    "Two.Hosts",
-                                    "Unmanaged (elsewhere.example, tracker-a.example) · Seeding · 0 of 1 files linked"))
+                            GroupsLanes.summary("left-alone", 0),
+                            is("Unmanaged (elsewhere.example, tracker-a.example) · Seeding · 0 of 1 files linked · 4 B"))
                     .body(
-                            GroupsTable.heading(1),
-                            contains("No.Trackers", "Unmanaged (no trackers) · Seeding · 0 of 1 files linked"))
+                            GroupsLanes.summary("left-alone", 1),
+                            is("Unmanaged (no trackers) · Seeding · 0 of 1 files linked · 4 B"))
                     .extract()
                     .asString();
             String api = Authenticated.withApiKey()
@@ -601,19 +633,26 @@ class GroupsTest {
                 .get("/groups")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.cells(0), contains("Met ✓", "Left alone", "Unmanaged", "4 B"))
+                .body(GroupsLanes.names("left-alone"), is("Cross.Seed"))
+                .body(GroupsLanes.reason("left-alone", 0), is("Unmanaged"))
                 .body(
-                        GroupsTable.hint(0),
+                        GroupsLanes.hint("left-alone", 0),
                         is("a member is on a tracker not in the config: add it under trackers to manage it"))
-                .body(GroupsTable.member(0, 0), contains("Cross.Seed", "tracker-a · Seeding · 4 B", "Met ✓"))
+                // On the card itself, without opening the members.
+                .body(GroupsLanes.causes("left-alone", 0), is("causes \"Unmanaged\" Cross.Seed.Elsewhere"))
                 .body(
-                        GroupsTable.member(0, 1),
+                        GroupsLanes.member("left-alone", 0, 0),
+                        contains("Cross.Seed", "tracker-a · Seeding · 4 B", "Met ✓ · 40d of 30d · met 10d ago"))
+                .body(
+                        GroupsLanes.member("left-alone", 0, 1),
                         contains(
                                 "Cross.Seed.Elsewhere",
                                 "causes \"Unmanaged\"",
                                 "Unmanaged (elsewhere.example) · Seeding · 4 B",
-                                "—"))
-                .body(GroupsTable.GROUPS + "[0].tr[2].@data-cause", is("true"));
+                                "— · 40d · no minimum"))
+                .body(
+                        GroupsLanes.card("left-alone", 0) + ".details.ul.li.collect { it.@'data-cause'.text() }",
+                        contains("", "true"));
     }
 
     @Test
@@ -628,7 +667,8 @@ class GroupsTest {
                 .body(
                         "html.body.main.p.find { it.@role == 'alert' }",
                         containsString("refused session_get: Method not found"))
-                .body("html.body.main.'**'.findAll { it.name() == 'table' }.size()", is(0));
+                .body("html.body.main.'**'.findAll { it.@id == 'lanes' }.size()", is(0))
+                .body("html.body.main.form.size()", is(0));
     }
 
     @Test
@@ -730,20 +770,24 @@ class GroupsTest {
         };
     }
 
-    /** The same moment as the page writes it: to the minute, in the application's time zone. */
-    private static Matcher<String> minuteIn(Instant before, Duration remaining) {
+    /**
+     * A text that ends in the same moment as the page writes it: to the minute, in the application's time zone,
+     * {@code remaining} after the moment the application decided.
+     */
+    private static Matcher<String> endsInMinute(String start, Instant before, Duration remaining) {
         DateTimeFormatter format =
                 DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(FakeTransmissionResource.TIME_ZONE);
         return new TypeSafeMatcher<>() {
             @Override
             protected boolean matchesSafely(String text) {
-                return text.equals(format.format(before.plus(remaining)))
-                        || text.equals(format.format(Instant.now().plus(remaining)));
+                return text.equals(start + format.format(before.plus(remaining)))
+                        || text.equals(start + format.format(Instant.now().plus(remaining)));
             }
 
             @Override
             public void describeTo(Description description) {
-                description.appendText("the minute " + format.format(before.plus(remaining)) + " or the next");
+                description.appendText(
+                        "'" + start + "' and the minute " + format.format(before.plus(remaining)) + " or the next");
             }
         };
     }

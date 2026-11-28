@@ -55,13 +55,13 @@ class GroupsOrderTest {
             List.of(KEPT_LONG, LINKED, REMOVED_B, UNMANAGED, PAUSED, KEPT_SOON, OVERRIDDEN, REMOVED_A);
 
     @Test
-    void byDefaultRemoveComesFirstThenLeftAloneThenKeepEachBySoonestForecast() {
-        // A keep override's end date is inclusive: it ends as that day does. A stopped clock has no date, so it comes
-        // after every date; a group with no forecast comes last, in snapshot order.
+    void byDefaultEachLaneHasItsOwnOrderRemoveLargestFirstKeepBySoonestForecast() {
+        // Remove, largest first. Keep: a keep override's end date is inclusive: it ends as that day does. A stopped
+        // clock has no date, so it comes after every date; a group with no forecast comes last, in snapshot order.
         assertEquals(
                 List.of(
-                        "Removed.B",
                         "Removed.A",
+                        "Removed.B",
                         "Unmanaged",
                         "Kept.Soon",
                         "Overridden",
@@ -86,6 +86,30 @@ class GroupsOrderTest {
                         "Removed.B",
                         "Removed.A"),
                 names(GroupsOrder.parse("verdict", "desc")));
+    }
+
+    @Test
+    void byDefaultTheGroupsLeftAloneAreByReasonThenSoonestForecast() {
+        GroupVerdict broken = leftAlone("Broken", Reason.LOCAL_ERROR);
+        GroupVerdict missing = leftAlone("Missing", Reason.MISSING_DATA);
+        GroupVerdict unmanaged = leftAlone("Unmanaged", Reason.UNMANAGED);
+
+        // In the order of precedence of the reasons.
+        assertEquals(
+                List.of("Unmanaged", "Missing", "Broken"),
+                GroupsOrder.DEFAULT.sort(List.of(broken, missing, unmanaged)).stream()
+                        .map(group -> group.members().getFirst().name())
+                        .toList());
+    }
+
+    private static GroupVerdict leftAlone(String name, Reason reason) {
+        return new GroupVerdict(
+                List.of(new GroupVerdict.Member(name, name, Optional.empty(), Duration.ZERO, Torrent.Status.SEEDING)),
+                Verdict.LEFT_ALONE,
+                reason,
+                0,
+                1,
+                Optional.empty());
     }
 
     @Test
@@ -168,15 +192,15 @@ class GroupsOrderTest {
 
     @Test
     void byForecastWithAStoppedClockThenNoForecastLastEitherWay() {
-        // The groups with no forecast keep the default order among themselves.
+        // The groups with no forecast keep the default order among themselves: Remove largest first.
         assertEquals(
                 List.of(
                         "Kept.Soon",
                         "Overridden",
                         "Kept.Long",
                         "Paused",
-                        "Removed.B",
                         "Removed.A",
+                        "Removed.B",
                         "Unmanaged",
                         "linked.show"),
                 names(GroupsOrder.parse("forecast", "asc")));
@@ -186,8 +210,8 @@ class GroupsOrderTest {
                         "Overridden",
                         "Kept.Soon",
                         "Paused",
-                        "Removed.B",
                         "Removed.A",
+                        "Removed.B",
                         "Unmanaged",
                         "linked.show"),
                 names(GroupsOrder.parse("forecast", "desc")));
@@ -198,17 +222,6 @@ class GroupsOrderTest {
         assertEquals(GroupsOrder.DEFAULT, GroupsOrder.parse("tracker", "desc"));
         assertEquals(GroupsOrder.parse("name", "asc"), GroupsOrder.parse(" name ", "sideways"));
         assertEquals(GroupsOrder.parse("name", "desc"), GroupsOrder.parse("name", " desc "));
-    }
-
-    @Test
-    void aClickOnAColumnSortsByItAndASecondClickTurnsItRound() {
-        GroupsOrder byName = GroupsOrder.parse("name", null);
-
-        assertEquals(byName, GroupsOrder.DEFAULT.by(GroupsOrder.Column.NAME));
-        assertEquals(GroupsOrder.parse("name", "desc"), byName.by(GroupsOrder.Column.NAME));
-        assertEquals(byName, GroupsOrder.parse("name", "desc").by(GroupsOrder.Column.NAME));
-        assertEquals(GroupsOrder.parse("verdict", "desc"), GroupsOrder.DEFAULT.by(GroupsOrder.Column.VERDICT));
-        assertEquals(GroupsOrder.DEFAULT, byName.by(GroupsOrder.Column.VERDICT));
     }
 
     private static List<String> names(GroupsOrder order) {

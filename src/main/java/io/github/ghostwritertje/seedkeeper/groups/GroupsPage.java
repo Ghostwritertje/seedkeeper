@@ -30,6 +30,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -45,13 +46,11 @@ class GroupsPage {
     static class Templates {
 
         /**
-         * @param groups        the groups of this page, of those that match the filter, in the order chosen
-         * @param forecasts     true when one of the groups that match has a forecast: else the Forecast column would
-         *                      be empty
-         * @param tally         how many groups have each verdict, among those with the reason and the name of the
-         *                      filter; empty when there are no verdicts
-         * @param columns       the headers of the columns that sort the view
-         * @param pages         which page this is, out of how many
+         * @param lanes         one per verdict, Keep, Left alone, Remove from left to right; only the lane of the
+         *                      verdict of the filter when it names one; empty when there are no verdicts
+         * @param found         how many groups match the filter, in every lane
+         * @param pages         which page of the lane of the verdict of the filter this is, out of how many; one page
+         *                      when the filter names no verdict, as each lane then shows its first groups
          * @param unknownFilter what is wrong with the filter, which is then ignored: the view shows every group; null
          *                      when the filter is known
          * @param unavailable   why there are no verdicts right now; null when all is well
@@ -59,11 +58,9 @@ class GroupsPage {
          * @param kept        true right after a keep override was set from this view
          */
         static native TemplateInstance groups(
-                List<Group> groups,
-                boolean forecasts,
-                List<Tally> tally,
+                List<Lane> lanes,
+                int found,
                 Filter filter,
-                Columns columns,
                 Pages pages,
                 @Nullable String unknownFilter,
                 @Nullable String unavailable,
@@ -71,8 +68,18 @@ class GroupsPage {
                 boolean kept);
     }
 
-    /** How many groups one page of the Groups view shows at most. */
+    /** How many groups a lane shows at most: of each lane, or of one page of the lane of the verdict chosen. */
     static final int PAGE_SIZE = 50;
+
+    /** The verdicts of the lanes, from left to right. */
+    private static final List<Verdict> LANES = List.of(Verdict.KEEP, Verdict.LEFT_ALONE, Verdict.REMOVE);
+
+    /** The columns the view can be sorted by, with their labels: the verdict is the lane, so it is not one of them. */
+    private static final List<Map.Entry<GroupsOrder.Column, String>> SORTS = List.of(
+            Map.entry(GroupsOrder.Column.NAME, "Name"),
+            Map.entry(GroupsOrder.Column.SEEDING, "Seed time toward the minimum"),
+            Map.entry(GroupsOrder.Column.FORECAST, "Forecast"),
+            Map.entry(GroupsOrder.Column.SIZE, "Size"));
 
     /**
      * What a request to the Groups view asks for, to write it back into links and forms: the filter, the order and the
@@ -119,10 +126,6 @@ class GroupsPage {
             return new Query(code, reason, name, order, 1);
         }
 
-        Query order(GroupsOrder chosen) {
-            return new Query(verdict, reason, name, chosen, 1);
-        }
-
         Query page(int number) {
             return new Query(verdict, reason, name, order, number);
         }
@@ -144,36 +147,25 @@ class GroupsPage {
     }
 
     /**
-     * The headers of the columns that sort the view.
+     * The lane of one verdict: its count, what it holds, and a card for each of its groups.
      *
-     * @param seeding the Minimum seed time column, which sorts by the seed time toward it
+     * @param code        the kebab-case code of the verdict, "left-alone"
+     * @param label       the verdict, "Left alone": the lane's heading says it, not only its colour
+     * @param explanation what the lane holds, in one line: "a person should look"
+     * @param count       how many groups of this verdict match the filter, on every page
+     * @param groups      the groups it shows, in the order chosen: at most {@link #PAGE_SIZE}
+     * @param showAll     the URL of this lane alone, which pages, when it holds more groups than it shows here; else
+     *                    empty
      */
-    public record Columns(Column name, Column seeding, Column verdict, Column forecast, Column size) {
-
-        static Columns of(Query query) {
-            return new Columns(
-                    Column.of(query, GroupsOrder.Column.NAME),
-                    Column.of(query, GroupsOrder.Column.SEEDING),
-                    Column.of(query, GroupsOrder.Column.VERDICT),
-                    Column.of(query, GroupsOrder.Column.FORECAST),
-                    Column.of(query, GroupsOrder.Column.SIZE));
-        }
-    }
+    public record Lane(
+            String code, String label, String explanation, long count, List<Group> groups, String showAll) {}
 
     /**
-     * The header of a column that sorts the view.
+     * One way to sort the view, in the Sort field: the order applies within every lane.
      *
-     * @param href what a click on it shows: the view sorted by it, or turned round when it already is
-     * @param sort its {@code aria-sort}, "ascending" or "descending" when the view is sorted by it; else empty
+     * @param code the code {@code sort} names it by; empty for the order of the lanes
      */
-    public record Column(String href, String sort) {
-
-        static Column of(Query query, GroupsOrder.Column column) {
-            GroupsOrder order = query.order();
-            String sort = order.column() != column ? "" : order.descending() ? "descending" : "ascending";
-            return new Column(query.order(order.by(column)).href(), sort);
-        }
-    }
+    public record SortOption(String code, String label, boolean selected) {}
 
     /**
      * The page of groups the view shows, and how many pages there are.
@@ -228,7 +220,8 @@ class GroupsPage {
     private static final Pattern NAME_BREAKS = Pattern.compile("(?<=[.-])(?=.)");
 
     /**
-     * One group, as text ready to show: a header row, then its members when it has more than one.
+     * One group, as text ready to show: a card in the lane of its verdict, its members on it when it has more than
+     * one.
      *
      * @param name             the name of its first member, in the parts a line may break between
      * @param label            the name of its first member, whole, to name the group's controls
@@ -247,9 +240,9 @@ class GroupsPage {
      *                         end date of a keep override), or empty
      * @param forecastDate     the forecast when it is a moment, for a {@code <time>}; null when it is anything else
      * @param size             "3.2 GiB": the data of its wanted files, a file its members share counted once
-     * @param members          its members, each on a row of its own; empty for a group of one, which its header row
-     *                         shows whole
+     * @param members          its members, which open on demand; empty for a group of one, which its card shows whole
      * @param hashes           the info hashes of the members, for the form that sets a keep override
+     * @param keepable         false when a keep override already keeps it: its card has no form to set one
      */
     public record Group(
             List<String> name,
@@ -266,17 +259,12 @@ class GroupsPage {
             @Nullable Stamp forecastDate,
             String size,
             List<Member> members,
-            List<String> hashes) {
-
-        /** The rows of the group, which its cells after the seed time span: the header row and the member rows. */
-        public int rows() {
-            return 1 + members.size();
-        }
-    }
+            List<String> hashes,
+            boolean keepable) {}
 
     /**
-     * The filter: the chosen verdict, which the tally chooses, every reason with how many groups of that verdict it
-     * decided, and the name searched for.
+     * The filter and the order: the chosen verdict, which a lane's "Show all" link chooses, every reason with how many
+     * groups of that verdict it decided, the name searched for, and the ways to sort the lanes.
      *
      * @param verdictCode the code of the chosen verdict, to keep it in the filter form and the keep form; empty when
      *                    none is chosen
@@ -284,11 +272,14 @@ class GroupsPage {
      * @param any         how many groups have the chosen verdict and the name, whatever their reason
      * @param name        the text a member's name contains, as it was searched for; empty for any
      * @param active      true when a verdict, a reason or a name is chosen
+     * @param sorts       the ways to sort, the order of the lanes first; the chosen one selected
      * @param sort        the code of the column the view is sorted by, for the forms to keep it; empty for the
      *                    default order
      * @param dir         "asc" or "desc", the way the view is sorted; empty for the default order
      * @param page        the page shown, for the keep form to come back to; empty for the first
      * @param clear       the URL of the view with no filter, in the same order
+     * @param allLanes    the URL of every lane, the rest of the filter and the order kept, when a verdict is chosen;
+     *                    else empty
      */
     public record Filter(
             String verdictCode,
@@ -296,16 +287,23 @@ class GroupsPage {
             long any,
             String name,
             boolean active,
+            List<SortOption> sorts,
             String sort,
             String dir,
             String page,
-            String clear) {
+            String clear,
+            String allLanes) {
+
+        /** True when the order chosen is turned round. */
+        public boolean descending() {
+            return GroupsOrder.DESCENDING.equals(dir);
+        }
 
         public boolean anyReason() {
             return reasons.stream().noneMatch(Option::selected);
         }
 
-        /** The code of the chosen reason, to keep it in the links of the tally; empty when none is chosen. */
+        /** The code of the chosen reason, to keep it in the keep form; empty when none is chosen. */
         public String reasonCode() {
             return reasons.stream()
                     .filter(Option::selected)
@@ -314,14 +312,6 @@ class GroupsPage {
                     .orElse("");
         }
     }
-
-    /**
-     * How many groups have one verdict, or any verdict when the code is empty.
-     *
-     * @param href     the view with this verdict, the rest of the filter and the order kept
-     * @param selected true when this is the verdict the filter shows
-     */
-    public record Tally(String code, String label, long count, String href, boolean selected) {}
 
     /**
      * One reason to filter on: the code that goes in the URL, the label to show and how many groups it decided.
@@ -486,23 +476,25 @@ class GroupsPage {
         try {
             filter = GroupsFilter.parse(query.verdict(), query.reason(), query.name());
         } catch (UnknownFilter e) {
-            // Said above the whole view, so the tally and the form are there to choose a filter that exists: the
+            // Said above the whole view, so the lanes and the form are there to choose a filter that exists: the
             // links and the forms leave the unknown filter out, and keep the order.
             filter = GroupsFilter.NONE;
             unknownFilter = e.getMessage();
             shown = query.cleared();
         }
+        if (filter.verdict().isEmpty()) {
+            // Every lane shows its first groups and links to itself alone for the rest: there are no pages.
+            shown = shown.page(1);
+        }
         try {
             List<GroupVerdict> all = groups.groups();
             List<GroupVerdict> matching =
                     shown.order().sort(all.stream().filter(filter::matches).toList());
-            Pages pages = Pages.of(shown, matching.size());
+            Pages pages = Pages.of(shown, filter.verdict().isPresent() ? matching.size() : 0);
             return Templates.groups(
-                    pages.of(matching).stream().map(GroupsPage::group).toList(),
-                    matching.stream().anyMatch(g -> g.forecast().isPresent()),
-                    tally(all, filter, shown),
+                    lanes(matching, filter, pages, shown),
+                    matching.size(),
                     filter(all, filter, shown),
-                    Columns.of(shown),
                     pages,
                     unknownFilter,
                     null,
@@ -511,10 +503,8 @@ class GroupsPage {
         } catch (GroupsUnavailable e) {
             return Templates.groups(
                     List.of(),
-                    false,
-                    List.of(),
+                    0,
                     filter(List.of(), filter, shown),
-                    Columns.of(shown),
                     Pages.of(shown, 0),
                     unknownFilter,
                     e.getMessage(),
@@ -524,29 +514,36 @@ class GroupsPage {
     }
 
     /**
-     * The count of every verdict among the groups with the reason and the name of the filter, after the count of them
-     * all.
+     * The lanes of the groups that match the filter, in the order chosen: every lane, or that of the verdict of the
+     * filter alone. Every lane shows its first {@link #PAGE_SIZE} groups; the lane of the verdict of the filter shows
+     * those of its page.
      */
-    private static List<Tally> tally(List<GroupVerdict> all, GroupsFilter filter, Query query) {
-        List<GroupVerdict> anyVerdict =
-                all.stream().filter(filter.anyVerdict()::matches).toList();
-        return Stream.concat(
-                        Stream.of(new Tally(
-                                "",
-                                "All",
-                                anyVerdict.size(),
-                                query.verdict("").href(),
-                                filter.verdict().isEmpty())),
-                        Stream.of(Verdict.values())
-                                .map(v -> new Tally(
-                                        v.code(),
-                                        v.label(),
-                                        anyVerdict.stream()
-                                                .filter(g -> g.verdict() == v)
-                                                .count(),
-                                        query.verdict(v.code()).href(),
-                                        filter.verdict().filter(v::equals).isPresent())))
+    static List<Lane> lanes(List<GroupVerdict> matching, GroupsFilter filter, Pages pages, Query query) {
+        return LANES.stream()
+                .filter(v -> filter.verdict().map(v::equals).orElse(true))
+                .map(v -> {
+                    List<GroupVerdict> of =
+                            matching.stream().filter(g -> g.verdict() == v).toList();
+                    boolean alone = filter.verdict().isPresent();
+                    List<GroupVerdict> shown = alone ? pages.of(of) : of.subList(0, Math.min(PAGE_SIZE, of.size()));
+                    return new Lane(
+                            v.code(),
+                            v.label(),
+                            explanation(v),
+                            of.size(),
+                            shown.stream().map(GroupsPage::group).toList(),
+                            alone || of.size() <= PAGE_SIZE ? "" : query.verdict(v.code()).href());
+                })
                 .toList();
+    }
+
+    /** What a lane holds, in one line. */
+    private static String explanation(Verdict verdict) {
+        return switch (verdict) {
+            case KEEP -> "waiting, soonest first";
+            case LEFT_ALONE -> "a person should look";
+            case REMOVE -> "the next run removes these";
+        };
     }
 
     /** The filter with the count of every reason among the groups with the verdict and the name of the filter. */
@@ -566,10 +563,25 @@ class GroupsPage {
                 anyReason.size(),
                 query.name(),
                 filter.active(),
+                sorts(query.order()),
                 ordered ? query.order().column().code() : "",
                 ordered ? query.order().dir() : "",
                 query.page() > 1 ? String.valueOf(query.page()) : "",
-                query.cleared().href());
+                query.cleared().href(),
+                filter.verdict().isPresent() ? query.verdict("").href() : "");
+    }
+
+    /** The order of the lanes, then each column the view can be sorted by; the order chosen selected. */
+    static List<SortOption> sorts(GroupsOrder order) {
+        boolean ordered = !order.equals(GroupsOrder.DEFAULT);
+        return Stream.concat(
+                        Stream.of(new SortOption("", "Lane order", !ordered)),
+                        SORTS.stream()
+                                .map(sort -> new SortOption(
+                                        sort.getKey().code(),
+                                        sort.getValue(),
+                                        ordered && order.column() == sort.getKey())))
+                .toList();
     }
 
     static Group group(GroupVerdict group) {
@@ -607,7 +619,8 @@ class GroupsPage {
                 forecastDate,
                 StatusText.size(group.size()),
                 one ? List.of() : members,
-                group.members().stream().map(GroupVerdict.Member::hash).toList());
+                group.members().stream().map(GroupVerdict.Member::hash).toList(),
+                group.reason() != Reason.KEEP_OVERRIDE);
     }
 
     /** The label of a reason, with its count of the group's missing files when it has one. */

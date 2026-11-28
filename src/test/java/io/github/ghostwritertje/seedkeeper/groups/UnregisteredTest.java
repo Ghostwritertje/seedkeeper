@@ -167,49 +167,32 @@ class UnregisteredTest {
                 .get("/groups")
                 .then()
                 .statusCode(200)
-                // No group here has a forecast, so there is no Forecast column.
+                // Every one is as large: they keep the snapshot order.
                 .body(
-                        GroupsTable.HEADINGS,
-                        contains("Name", "Minimum seed time", "Verdict", "Reason", "Size", "Keep override"))
-                .body(
-                        GroupsTable.heading(0),
-                        contains(
-                                "Gone.Movie",
-                                "tracker-a · Seeding · 1 of 1 files linked",
-                                "Unregistered: Unregistered torrent"))
-                .body(GroupsTable.cells(0), contains("3%", "Remove", "Unregistered", "4 B"))
-                .body(GroupsTable.underReason(0), is("also: Library link, Minimum not reached"))
+                        GroupsLanes.names("remove"),
+                        contains("Gone.Movie", "Cross.Seed", "Cross.Seed.Elsewhere", "Passkey.Movie", "Warned.Movie"))
+                .body(GroupsLanes.summary("remove", 0), is("tracker-a · Seeding · 1 of 1 files linked · 4 B"))
+                .body(GroupsLanes.trackerMessage("remove", 0), is("Unregistered: Unregistered torrent"))
+                .body(GroupsLanes.reason("remove", 0), is("Unregistered"))
+                .body(GroupsLanes.secondaryReasons("remove", 0), is("also: Library link, Minimum not reached"))
+                .body(GroupsLanes.progress("remove", 0), is("3% of minimum"))
                 // No tracker message, no line for it.
-                .body(GroupsTable.heading(1), contains("Cross.Seed", "tracker-a · Seeding · 0 of 1 files linked"))
-                .body(GroupsTable.cells(1), contains("Met ✓", "Remove", "All met", "4 B"))
+                .body(GroupsLanes.summary("remove", 1), is("tracker-a · Seeding · 0 of 1 files linked · 4 B"))
+                .body(GroupsLanes.trackerMessage("remove", 1), is(""))
+                .body(GroupsLanes.reason("remove", 1), is("All met"))
                 .body(
-                        GroupsTable.heading(2),
-                        contains(
-                                "Cross.Seed.Elsewhere",
-                                "tracker-b · Seeding · 0 of 1 files linked",
-                                "Unregistered: Torrent not registered with this tracker."))
-                .body(GroupsTable.cells(2), contains("14%", "Remove", "Unregistered", "4 B"))
-                .body(GroupsTable.underReason(2), is("also: Minimum not reached"))
-                .body(
-                        GroupsTable.heading(3),
-                        contains(
-                                "Passkey.Movie",
-                                "tracker-a · Seeding · 0 of 1 files linked",
-                                "Tracker error: Passkey does not exist!"))
-                .body(GroupsTable.cells(3), contains("Met ✓", "Remove", "All met", "4 B"))
-                .body(
-                        GroupsTable.heading(4),
-                        contains(
-                                "Warned.Movie",
-                                "tracker-a · Seeding · 0 of 1 files linked",
-                                "Tracker warning: Slow down"))
-                .body(
-                        GroupsTable.heading(5),
-                        contains(
-                                "Checking.Gone",
-                                "tracker-a · Verifying · 0 of 1 files linked",
-                                "Unregistered: Unregistered torrent"))
-                .body(GroupsTable.cells(5), contains("Met ✓", "Keep", "Verifying", "4 B"));
+                        GroupsLanes.trackerMessage("remove", 2),
+                        is("Unregistered: Torrent not registered with this tracker."))
+                .body(GroupsLanes.reason("remove", 2), is("Unregistered"))
+                .body(GroupsLanes.secondaryReasons("remove", 2), is("also: Minimum not reached"))
+                .body(GroupsLanes.progress("remove", 2), is("14% of minimum"))
+                .body(GroupsLanes.trackerMessage("remove", 3), is("Tracker error: Passkey does not exist!"))
+                .body(GroupsLanes.reason("remove", 3), is("All met"))
+                .body(GroupsLanes.trackerMessage("remove", 4), is("Tracker warning: Slow down"))
+                .body(GroupsLanes.names("keep"), is("Checking.Gone"))
+                .body(GroupsLanes.summary("keep", 0), is("tracker-a · Verifying · 0 of 1 files linked · 4 B"))
+                .body(GroupsLanes.trackerMessage("keep", 0), is("Unregistered: Unregistered torrent"))
+                .body(GroupsLanes.reason("keep", 0), is("Verifying"));
     }
 
     @Test
@@ -233,15 +216,19 @@ class UnregisteredTest {
                 .get("/groups")
                 .then()
                 .statusCode(200)
-                .body(GroupsTable.heading(0), contains("Cross.Seed", "2 torrents · 0 of 1 files linked"))
-                .body(GroupsTable.member(0, 0), contains("Cross.Seed", "tracker-a · Seeding · 4 B", "Met ✓"))
+                .body(GroupsLanes.summary("keep", 0), is("2 torrents · 0 of 1 files linked · 4 B"))
+                // A group of more has no tracker message of its own: each member shows its own.
+                .body(GroupsLanes.trackerMessage("keep", 0), is(""))
                 .body(
-                        GroupsTable.member(0, 1),
+                        GroupsLanes.member("keep", 0, 0),
+                        contains("Cross.Seed", "tracker-a · Seeding · 4 B", "Met ✓ · 400d of 30d · met 370d ago"))
+                .body(
+                        GroupsLanes.member("keep", 0, 1),
                         contains(
                                 "Cross.Seed.Elsewhere",
                                 "tracker-b · Seeding · 4 B",
                                 "Tracker warning: Slow down",
-                                "14%"));
+                                "14% · 2d of 14d · 12d to go"));
     }
 
     @Test
@@ -251,7 +238,7 @@ class UnregisteredTest {
                 .get("/groups?reason=unregistered")
                 .then()
                 .statusCode(200)
-                .body("html.body.main.div.table.tbody.tr.size()", is(2))
+                .body(GroupsLanes.CARDS + ".h3.collect { it.text() }", contains("Gone.Movie", "Cross.Seed.Elsewhere"))
                 .body(
                         "html.body.main.form.'**'.find { it.name() == 'select' && it.@name == 'reason' }"
                                 + ".option.find { it.@selected == 'selected' }.@value",
