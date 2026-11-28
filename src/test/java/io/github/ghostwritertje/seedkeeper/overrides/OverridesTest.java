@@ -8,11 +8,13 @@ import static org.hamcrest.Matchers.nullValue;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
 import io.github.ghostwritertje.seedkeeper.ScrollRegions;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideStore;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmission.Behaviour;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmissionResource;
 import io.quarkus.test.common.WithTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
+import jakarta.inject.Inject;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -50,6 +52,9 @@ class OverridesTest {
                 hashes: [0d0d16, 0e0e16]
             """;
 
+    @Inject
+    OverrideStore store;
+
     private Path file;
 
     @BeforeEach
@@ -79,11 +84,16 @@ class OverridesTest {
         awaitIds("7f3c", "9d2e", "1b5a");
     }
 
-    /** Other test classes run against the same application: leave them no overrides. */
+    /**
+     * Other test classes run against the same application: leave them no overrides. The application reads the file
+     * now rather than when its watcher sees the delete, which on macOS, where the JDK's watch service polls, can be
+     * after the next test class started.
+     */
     @AfterEach
     void noOverrides() throws IOException {
         FakeTransmissionResource.fake().reset();
         Files.deleteIfExists(file);
+        store.reload();
     }
 
     @Test

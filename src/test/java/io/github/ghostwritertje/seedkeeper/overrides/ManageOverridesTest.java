@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
 import io.github.ghostwritertje.seedkeeper.TestSecrets;
+import io.github.ghostwritertje.seedkeeper.keep.OverrideStore;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmission;
 import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmissionResource;
 import io.quarkus.test.common.WithTestResource;
@@ -20,6 +21,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.Cookie;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
+import jakarta.inject.Inject;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
@@ -53,6 +55,9 @@ class ManageOverridesTest {
     private static final String SELECTED_VERDICT =
             "html.body.main.form.'**'.find { it.name() == 'input' && it.@name == 'verdict' }.@value";
 
+    @Inject
+    OverrideStore store;
+
     private Path file;
 
     @BeforeEach
@@ -79,14 +84,23 @@ class ManageOverridesTest {
                                 torrent("3c3c17", "Manage.Show", downloads, "Manage.Show/show.mkv"))
                         + "]");
         file = FakeTransmissionResource.dataDir().resolve("overrides.yaml");
-        Files.deleteIfExists(file);
+        deleteOverrides();
     }
 
     /** Other test classes run against the same application: leave them no overrides. */
     @AfterEach
     void noOverrides() throws IOException {
         FakeTransmissionResource.fake().reset();
+        deleteOverrides();
+    }
+
+    /**
+     * Deletes the overrides file and has the application read it now, so that it has no overrides when this returns.
+     * The file watcher sees the delete too, but late on macOS, where the JDK's watch service polls.
+     */
+    private void deleteOverrides() throws IOException {
         Files.deleteIfExists(file);
+        store.reload();
     }
 
     @Test
