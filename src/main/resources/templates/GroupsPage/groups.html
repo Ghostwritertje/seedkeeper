@@ -1,32 +1,35 @@
 {#include layout.html current='groups'}
 {#title}Groups{/title}
 <h1>Groups</h1>
+{#if unknownFilter}
+<p role="alert">{unknownFilter}</p>
+{/if}
 {#if !tally.isEmpty}
+{! The verdict is chosen here alone: the form keeps it when the reason changes. !}
 <nav aria-label="Groups by verdict">
 {#for t in tally}
 <a href="{t.href}"{#if t.selected} aria-current="page"{/if}>{#if t.code}<mark data-verdict="{t.code}">{t.count}</mark>{#else}<mark>{t.count}</mark>{/if} {t.label}</a>
 {/for}
 </nav>
-{/if}
-<form method="get" action="/groups">
-<label>Verdict <select name="verdict">
-<option value=""{#if filter.anyVerdict} selected="selected"{/if}>Any verdict</option>
-{#for option in filter.verdicts}
-<option value="{option.code}"{#if option.selected} selected="selected"{/if}>{option.label}</option>
-{/for}
-</select></label>
-<label>Reason <select name="reason">
-<option value=""{#if filter.anyReason} selected="selected"{/if}>Any reason</option>
+{!
+  A change of reason or name applies at once (htmx swaps in the new view and its URL), and so does Enter in the name
+  field; without scripts, the button does it. The order the view is in carries over; a new filter starts at page 1.
+!}
+<form method="get" action="/groups" hx-get="/groups" hx-trigger="change, submit"hx-select="main" hx-target="main" hx-swap="outerHTML" hx-push-url="true">
+<input type="hidden" name="verdict" value="{filter.verdictCode}">
+<label>Reason <select name="reason" id="reason">
+<option value=""{#if filter.anyReason} selected="selected"{/if}>Any reason ({filter.any})</option>
 {#for option in filter.reasons}
-<option value="{option.code}"{#if option.selected} selected="selected"{/if}>{option.label}</option>
+<option value="{option.code}"{#if option.selected} selected="selected"{/if}{#if option.disabled} disabled="disabled"{/if}>{option.label} ({option.count})</option>
 {/for}
 </select></label>
 <label>Name <input type="search" name="q" value="{filter.name}" placeholder="Name contains…"></label>
 {#if filter.sort}<input type="hidden" name="sort" value="{filter.sort}">
 <input type="hidden" name="dir" value="{filter.dir}">
-{/if}<button type="submit">Filter</button>
+{/if}<noscript><button type="submit">Filter</button></noscript>
 {#if filter.active}<a href="{filter.clear}">Clear filter</a>{/if}
 </form>
+{/if}
 {#if kept}
 <p role="status" id="done">Keep override set. It shows in the <a href="/overrides">Overrides view</a>.</p>
 {/if}
@@ -69,13 +72,15 @@ members the group gains later are added to it. It shows in the Overrides view, w
   the rows of its members under it. A group of one is its header row alone. A member row that makes the group's
   reason hold is highlighted, with a badge that names the reason; the hint under the reason says what to do about it. A long name may break after a dot or a
   dash (<wbr>), not inside a word.
+  The verdict and reason also sit under the name, in a <p>: small screens hide their columns (and the forecast and
+  size) and show this instead, so the verdict is in sight without scrolling sideways; wide screens hide it.
   The progress toward the minimum seed time always says its state in text ("33%", "Met ✓", "—"); its detail, the exact
   durations, is in the cell for screen readers and opens on hover and on focus: the cell is focusable, so a tap or
   the keyboard reaches it too.
 !}
 {#for group in groups}
 <tbody data-verdict="{group.verdictCode}">
-<tr><th scope="rowgroup"><strong>{#each group.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</strong><small>{group.summary}</small>{#if group.trackerMessage}<small data-tone="danger">{group.trackerMessage}</small>{/if}</th><td data-tone="{group.progress.tone}" tabindex="0">{#if group.progress.below}<meter min="0" max="100" value="{group.progress.percent}"></meter>{/if}{group.progress.text}<small>{group.progress.detail}</small></td><td rowspan="{group.rows}" data-verdict="{group.verdictCode}">{group.verdict}</td><td rowspan="{group.rows}">{group.reason}{#if group.hint}<small data-hint="true">{group.hint}</small>{/if}{#if group.secondaryReasons}<small>also: {group.secondaryReasons}</small>{/if}</td>{#if forecasts}<td rowspan="{group.rows}">{group.forecast}</td>{/if}<td rowspan="{group.rows}">{group.size}</td><td rowspan="{group.rows}"><form id="keep-{group.hashes.get(0)}" method="post" action="/groups/keep">
+<tr><th scope="rowgroup"><strong>{#each group.name}{it}{#if it_hasNext}<wbr>{/if}{/each}</strong><small>{group.summary}</small>{#if group.trackerMessage}<small data-tone="danger">{group.trackerMessage}</small>{/if}<p><mark data-verdict="{group.verdictCode}">{group.verdict}</mark> {group.reason}</p></th><td data-tone="{group.progress.tone}" tabindex="0">{#if group.progress.below}<meter min="0" max="100" value="{group.progress.percent}"></meter>{/if}{group.progress.text}<small>{group.progress.detail}</small></td><td rowspan="{group.rows}" data-verdict="{group.verdictCode}">{group.verdict}</td><td rowspan="{group.rows}">{group.reason}{#if group.hint}<small data-hint="true">{group.hint}</small>{/if}{#if group.secondaryReasons}<small>also: {group.secondaryReasons}</small>{/if}</td>{#if forecasts}<td rowspan="{group.rows}">{#if group.forecastDate}{#stamp group.forecastDate /}{#else}{group.forecast}{/if}</td>{/if}<td rowspan="{group.rows}">{group.size}</td><td rowspan="{group.rows}"><form id="keep-{group.hashes.get(0)}" method="post" action="/groups/keep">
 <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
 <input type="hidden" name="verdict" value="{filter.verdictCode}">
 <input type="hidden" name="reason" value="{filter.reasonCode}">

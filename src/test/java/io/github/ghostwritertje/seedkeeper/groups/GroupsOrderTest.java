@@ -22,8 +22,8 @@ class GroupsOrderTest {
     private static final Tracker TRACKER_A = new Tracker("tracker-a", Duration.ofDays(10));
     private static final ZonedDateTime NOW = ZonedDateTime.of(2026, 11, 20, 12, 0, 0, 0, ZoneOffset.UTC);
 
-    private static final GroupVerdict KEPT_LONG = group(
-            "Kept.Long", Verdict.KEEP, Optional.of(dated(NOW.plusDays(9))), Optional.of(TRACKER_A), 1, 300);
+    private static final GroupVerdict KEPT_LONG =
+            group("Kept.Long", Verdict.KEEP, Optional.of(dated(NOW.plusDays(9))), Optional.of(TRACKER_A), 1, 300);
     private static final GroupVerdict LINKED =
             group("linked.show", Verdict.KEEP, Optional.empty(), Optional.of(TRACKER_A), 20, 100);
     private static final GroupVerdict REMOVED_B =
@@ -37,8 +37,8 @@ class GroupsOrderTest {
             Optional.of(TRACKER_A),
             9,
             200);
-    private static final GroupVerdict KEPT_SOON = group(
-            "Kept.Soon", Verdict.KEEP, Optional.of(dated(NOW.plusDays(2))), Optional.of(TRACKER_A), 8, 10);
+    private static final GroupVerdict KEPT_SOON =
+            group("Kept.Soon", Verdict.KEEP, Optional.of(dated(NOW.plusDays(2))), Optional.of(TRACKER_A), 8, 10);
     private static final GroupVerdict OVERRIDDEN = group(
             "Overridden",
             Verdict.KEEP,

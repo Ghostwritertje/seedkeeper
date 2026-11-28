@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.groups;
 
+import io.github.ghostwritertje.seedkeeper.decide.Forecast;
 import io.github.ghostwritertje.seedkeeper.decide.GroupVerdict;
 import io.github.ghostwritertje.seedkeeper.decide.Reason;
 import io.github.ghostwritertje.seedkeeper.decide.Tracker;
@@ -11,6 +12,7 @@ import io.github.ghostwritertje.seedkeeper.keep.OverrideChanges;
 import io.github.ghostwritertje.seedkeeper.keep.OverridesException;
 import io.github.ghostwritertje.seedkeeper.keep.OverridesException.Problem;
 import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText.Stamp;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.common.annotation.RunOnVirtualThread;
@@ -26,7 +28,6 @@ import jakarta.ws.rs.core.UriBuilder;
 import java.math.BigInteger;
 import java.net.URI;
 import java.time.Duration;
-import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -44,15 +45,16 @@ class GroupsPage {
     static class Templates {
 
         /**
-         * @param groups      the groups of this page, of those that match the filter, in the order chosen
-         * @param forecasts   true when one of the groups that match has a forecast: else the Forecast column would be
-         *                    empty
-         * @param tally       how many groups have each verdict, among those with the reason and the name of the
-         *                    filter; empty when there are no verdicts
-         * @param columns     the headers of the columns that sort the view
-         * @param pages       which page this is, out of how many
-         * @param unavailable why there are no verdicts right now, or what is wrong with the filter; null when all
-         *                    is well
+         * @param groups        the groups of this page, of those that match the filter, in the order chosen
+         * @param forecasts     true when one of the groups that match has a forecast: else the Forecast column would
+         *                      be empty
+         * @param tally         how many groups have each verdict, among those with the reason and the name of the
+         *                      filter; empty when there are no verdicts
+         * @param columns       the headers of the columns that sort the view
+         * @param pages         which page this is, out of how many
+         * @param unknownFilter what is wrong with the filter, which is then ignored: the view shows every group; null
+         *                      when the filter is known
+         * @param unavailable   why there are no verdicts right now; null when all is well
          * @param notice      why the keep override that was just set was not; null when there is nothing to tell
          * @param kept        true right after a keep override was set from this view
          */
@@ -63,6 +65,7 @@ class GroupsPage {
                 Filter filter,
                 Columns columns,
                 Pages pages,
+                @Nullable String unknownFilter,
                 @Nullable String unavailable,
                 @Nullable String notice,
                 boolean kept);
@@ -221,8 +224,6 @@ class GroupsPage {
     /** The value of {@code done} that says a keep override was just set. */
     private static final String KEPT = "kept";
 
-    private static final DateTimeFormatter FORECAST_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-
     /** Where a long release name may break: after a dot or a dash that something follows. */
     private static final Pattern NAME_BREAKS = Pattern.compile("(?<=[.-])(?=.)");
 
@@ -244,6 +245,7 @@ class GroupsPage {
      * @param secondaryReasons every other reason that holds, written like the reason and separated by commas
      * @param forecast         "2026-11-25 10:00" in the configured time zone, "clock stopped (paused)", "until 2027-03-01" (the
      *                         end date of a keep override), or empty
+     * @param forecastDate     the forecast when it is a moment, for a {@code <time>}; null when it is anything else
      * @param size             "3.2 GiB": the data of its wanted files, a file its members share counted once
      * @param members          its members, each on a row of its own; empty for a group of one, which its header row
      *                         shows whole
@@ -261,6 +263,7 @@ class GroupsPage {
             String hint,
             String secondaryReasons,
             String forecast,
+            @Nullable Stamp forecastDate,
             String size,
             List<Member> members,
             List<String> hashes) {
@@ -272,19 +275,25 @@ class GroupsPage {
     }
 
     /**
-     * The filter form: every verdict and every reason, with the chosen ones selected, and the name searched for.
+     * The filter: the chosen verdict, which the tally chooses, every reason with how many groups of that verdict it
+     * decided, and the name searched for.
      *
-     * @param name   the text a member's name contains, as it was searched for; empty for any
-     * @param active true when a verdict, a reason or a name is chosen
-     * @param sort   the code of the column the view is sorted by, for the forms to keep it; empty for the default
-     *               order
-     * @param dir    "asc" or "desc", the way the view is sorted; empty for the default order
-     * @param page   the page shown, for the keep form to come back to; empty for the first
-     * @param clear  the URL of the view with no filter, in the same order
+     * @param verdictCode the code of the chosen verdict, to keep it in the filter form and the keep form; empty when
+     *                    none is chosen
+     * @param reasons     every reason, the chosen one selected
+     * @param any         how many groups have the chosen verdict and the name, whatever their reason
+     * @param name        the text a member's name contains, as it was searched for; empty for any
+     * @param active      true when a verdict, a reason or a name is chosen
+     * @param sort        the code of the column the view is sorted by, for the forms to keep it; empty for the
+     *                    default order
+     * @param dir         "asc" or "desc", the way the view is sorted; empty for the default order
+     * @param page        the page shown, for the keep form to come back to; empty for the first
+     * @param clear       the URL of the view with no filter, in the same order
      */
     public record Filter(
-            List<Option> verdicts,
+            String verdictCode,
             List<Option> reasons,
+            long any,
             String name,
             boolean active,
             String sort,
@@ -292,26 +301,13 @@ class GroupsPage {
             String page,
             String clear) {
 
-        public boolean anyVerdict() {
-            return verdicts.stream().noneMatch(Option::selected);
-        }
-
         public boolean anyReason() {
             return reasons.stream().noneMatch(Option::selected);
         }
 
-        /** The code of the chosen verdict, to keep it in the keep form; empty when none is chosen. */
-        public String verdictCode() {
-            return selectedCode(verdicts);
-        }
-
         /** The code of the chosen reason, to keep it in the links of the tally; empty when none is chosen. */
         public String reasonCode() {
-            return selectedCode(reasons);
-        }
-
-        private static String selectedCode(List<Option> options) {
-            return options.stream()
+            return reasons.stream()
                     .filter(Option::selected)
                     .map(Option::code)
                     .findFirst()
@@ -327,8 +323,18 @@ class GroupsPage {
      */
     public record Tally(String code, String label, long count, String href, boolean selected) {}
 
-    /** One choice of a filter: the code that goes in the URL and the label to show. */
-    public record Option(String code, String label, boolean selected) {}
+    /**
+     * One reason to filter on: the code that goes in the URL, the label to show and how many groups it decided.
+     *
+     * @param count how many groups of the chosen verdict it decided
+     */
+    public record Option(String code, String label, long count, boolean selected) {
+
+        /** True when choosing it would show no group; the chosen one never is, so the form still says what it shows. */
+        public boolean disabled() {
+            return count == 0 && !selected;
+        }
+    }
 
     /**
      * One torrent of a group, as text ready to show.
@@ -475,32 +481,30 @@ class GroupsPage {
 
     private TemplateInstance page(Query query, @Nullable String notice, boolean kept) {
         GroupsFilter filter;
+        String unknownFilter = null;
+        Query shown = query;
         try {
             filter = GroupsFilter.parse(query.verdict(), query.reason(), query.name());
         } catch (UnknownFilter e) {
-            return Templates.groups(
-                    List.of(),
-                    false,
-                    List.of(),
-                    filter(GroupsFilter.NONE, query),
-                    Columns.of(query),
-                    Pages.of(query, 0),
-                    e.getMessage(),
-                    notice,
-                    kept);
+            // Said above the whole view, so the tally and the form are there to choose a filter that exists: the
+            // links and the forms leave the unknown filter out, and keep the order.
+            filter = GroupsFilter.NONE;
+            unknownFilter = e.getMessage();
+            shown = query.cleared();
         }
         try {
             List<GroupVerdict> all = groups.groups();
             List<GroupVerdict> matching =
-                    query.order().sort(all.stream().filter(filter::matches).toList());
-            Pages pages = Pages.of(query, matching.size());
+                    shown.order().sort(all.stream().filter(filter::matches).toList());
+            Pages pages = Pages.of(shown, matching.size());
             return Templates.groups(
                     pages.of(matching).stream().map(GroupsPage::group).toList(),
                     matching.stream().anyMatch(g -> g.forecast().isPresent()),
-                    tally(all, filter, query),
-                    filter(filter, query),
-                    Columns.of(query),
+                    tally(all, filter, shown),
+                    filter(all, filter, shown),
+                    Columns.of(shown),
                     pages,
+                    unknownFilter,
                     null,
                     notice,
                     kept);
@@ -509,9 +513,10 @@ class GroupsPage {
                     List.of(),
                     false,
                     List.of(),
-                    filter(filter, query),
-                    Columns.of(query),
-                    Pages.of(query, 0),
+                    filter(List.of(), filter, shown),
+                    Columns.of(shown),
+                    Pages.of(shown, 0),
+                    unknownFilter,
                     e.getMessage(),
                     notice,
                     kept);
@@ -544,21 +549,21 @@ class GroupsPage {
                 .toList();
     }
 
-    private static Filter filter(GroupsFilter filter, Query query) {
+    /** The filter with the count of every reason among the groups with the verdict and the name of the filter. */
+    private static Filter filter(List<GroupVerdict> all, GroupsFilter filter, Query query) {
         boolean ordered = !query.order().equals(GroupsOrder.DEFAULT);
+        List<GroupVerdict> anyReason =
+                all.stream().filter(filter.anyReason()::matches).toList();
         return new Filter(
-                Stream.of(Verdict.values())
-                        .map(v -> new Option(
-                                v.code(),
-                                v.label(),
-                                filter.verdict().filter(v::equals).isPresent()))
-                        .toList(),
+                filter.verdict().map(Verdict::code).orElse(""),
                 Stream.of(Reason.values())
                         .map(r -> new Option(
                                 r.code(),
                                 r.label(),
+                                anyReason.stream().filter(g -> g.reason() == r).count(),
                                 filter.reason().filter(r::equals).isPresent()))
                         .toList(),
+                anyReason.size(),
                 query.name(),
                 filter.active(),
                 ordered ? query.order().column().code() : "",
@@ -569,10 +574,16 @@ class GroupsPage {
 
     static Group group(GroupVerdict group) {
         String libraryLinks = group.libraryLinks() + " of " + group.files() + " files linked";
+        @Nullable
+        Stamp forecastDate = group.forecast()
+                .filter(f -> f.until().isEmpty())
+                .flatMap(Forecast::date)
+                .map(StatusText::stamp)
+                .orElse(null);
         String forecast = group.forecast()
                 .map(f -> f.until()
                         .map(endDate -> "until " + endDate)
-                        .orElseGet(() -> f.date().map(FORECAST_DATE::format).orElse("clock stopped (paused)")))
+                        .orElseGet(() -> forecastDate == null ? "clock stopped (paused)" : forecastDate.text()))
                 .orElse("");
         List<Member> members = group.members().stream()
                 .map(member -> member(member, group.reason()))
@@ -593,6 +604,7 @@ class GroupsPage {
                 hint(group.reason()),
                 group.secondaryReasons().stream().map(r -> reason(r, group)).collect(Collectors.joining(", ")),
                 forecast,
+                forecastDate,
                 StatusText.size(group.size()),
                 one ? List.of() : members,
                 group.members().stream().map(GroupVerdict.Member::hash).toList());

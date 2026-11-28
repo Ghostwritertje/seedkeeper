@@ -36,7 +36,9 @@ class SettingsTest {
                 // 06:00 on 1 January has no plain words: the cron expression alone.
                 .body(section("run") + ".dl.dd[0]", is("0 0 6 1 1 ?"))
                 .body(section("run") + ".dl.dd[1]", is("Asia/Kolkata"))
-                .body(section("run") + ".dl.dd[2]", matchesPattern("\\d{4}-01-01 06:00:00"))
+                .body(section("run") + ".dl.dd[2].time", matchesPattern("\\d{4}-01-01 06:00:00"))
+                .body(section("run") + ".dl.dd[2].time.@datetime", matchesPattern("\\d{4}-01-01T06:00:00\\+05:30"))
+                .body(section("run") + ".dl.dd[2].span", matchesPattern("in \\d+d( \\d+h)?"))
                 .body(section("transmission") + ".dl.dt", is("URL"))
                 .body(
                         section("transmission") + ".dl.dd",

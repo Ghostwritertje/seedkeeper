@@ -4,6 +4,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -351,6 +352,13 @@ class GroupsTest {
                                 is("Minimum not reached"),
                                 minuteIn(before, Duration.ofDays(11).plusHours(12)),
                                 is("4 B")))
+                // The forecast is a <time>, in ISO with the offset, and the time zone in its tooltip.
+                .body(
+                        GroupsTable.GROUPS + "[4].tr[0].td[3].time.@datetime",
+                        dateIn(before, Duration.ofDays(11).plusHours(12)))
+                .body(
+                        GroupsTable.GROUPS + "[4].tr[0].td[3].time.@title",
+                        matchesPattern("\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d Asia/Kolkata"))
                 .body(GroupsTable.heading(0), contains("Old.Movie", "tracker-b · Stopped · 0 of 1 files linked"))
                 // Below the minimum: a meter for screen readers, the time to go as detail.
                 .body(GroupsTable.progressCell(4) + ".meter.@value", is("18"))
@@ -400,7 +408,23 @@ class GroupsTest {
                 .body(GroupsTable.heading(5), contains("Paused.Movie", "tracker-a · Stopped · 0 of 1 files linked"))
                 .body(
                         GroupsTable.cells(5),
-                        contains("97%", "Keep", "Minimum not reached", "clock stopped (paused)", "4 B"));
+                        contains("97%", "Keep", "Minimum not reached", "clock stopped (paused)", "4 B"))
+                // A stopped clock has no moment: no <time>.
+                .body(GroupsTable.GROUPS + "[5].tr[0].td[3].time.size()", is(0));
+    }
+
+    @Test
+    void pageShowsEachVerdictAndReasonUnderTheGroupName() {
+        // Small screens hide the verdict and reason columns: the verdict stays in sight under the name.
+        Authenticated.asUser()
+                .when()
+                .get("/groups")
+                .then()
+                .statusCode(200)
+                .body(GroupsTable.verdictUnderName(4), contains("keep", "Keep", "Minimum not reached"))
+                .body(GroupsTable.verdictUnderName(0), contains("remove", "Remove", "All met"))
+                .body(GroupsTable.verdictUnderName(2), contains("left-alone", "Left alone", "Unmanaged"))
+                .body(GroupsTable.verdictUnderName(3), contains("keep", "Keep", "Minimum not reached"));
     }
 
     @Test

@@ -67,7 +67,7 @@ class OrphanFinderTest {
         Instant modified = Instant.parse("2026-03-01T10:00:00Z");
         Files.setLastModifiedTime(leftover, FileTime.from(modified));
 
-        assertEquals(List.of(new Orphan(leftover, 7, modified, false)), find().files());
+        assertEquals(List.of(new Orphan(leftover, 7, modified, false, null)), find().files());
     }
 
     @Test
@@ -78,6 +78,47 @@ class OrphanFinderTest {
 
         assertEquals(List.of(dangling), paths(orphans.danglingSymlinks()));
         assertEquals(List.of(), orphans.files());
+    }
+
+    @Test
+    void aDanglingSymlinkHasTheTargetItLeadsToAndAFileHasNone() throws IOException {
+        symlink(downloads.resolve("cross-seed/movie.mkv"), Path.of("../gone/movie.mkv"));
+        file(downloads.resolve("leftover.mkv"));
+
+        Orphans orphans = find();
+
+        assertEquals(
+                List.of(Path.of("../gone/movie.mkv")),
+                orphans.danglingSymlinks().stream().map(Orphan::target).toList());
+        assertEquals(
+                java.util.Collections.singletonList(null),
+                orphans.files().stream().map(Orphan::target).toList());
+    }
+
+    @Test
+    void osAndNasMetadataIsMarkedAsASystemFile() throws IOException {
+        file(downloads.resolve("Show/.DS_Store"));
+        file(downloads.resolve("Show/@eaDir/episode.mkv@SynoEAStream"));
+        file(downloads.resolve("Show/._episode.mkv"));
+        file(downloads.resolve("Show/Thumbs.db"));
+        file(downloads.resolve("Show/episode.nfo"));
+        file(downloads.resolve("Show/eaDir.txt"));
+        file(downloads.resolve("Show/Thumbs.db.bak"));
+
+        Orphans orphans = find();
+
+        assertEquals(
+                List.of(
+                        "Show/.DS_Store true",
+                        "Show/._episode.mkv true",
+                        "Show/@eaDir/episode.mkv@SynoEAStream true",
+                        "Show/Thumbs.db true",
+                        "Show/Thumbs.db.bak false",
+                        "Show/eaDir.txt false",
+                        "Show/episode.nfo false"),
+                orphans.files().stream()
+                        .map(orphan -> downloads.relativize(orphan.path()) + " " + orphan.systemFile())
+                        .toList());
     }
 
     @Test

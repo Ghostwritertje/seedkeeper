@@ -151,11 +151,15 @@ jobs:
           gh api --paginate "repos/$GH_REPO/pulls/$PR/reviews" \
             | bash "$RUNNER_TEMP/review-round.sh" "$REVIEWER" "$AUTHOR" "$IMPLEMENTER" | tee -a "$GITHUB_OUTPUT"
 
-      # The allowlist is exact: read the code and the pull request, post inline comments, submit the summary
-      # review, add needs-decision, add ready-for-agent only while the round allows a handback, and approve and add
-      # auto-merge only on an implementer pull request.
+      # The allowlist is exact: read the code, the pull request and its checks, post inline comments, submit the
+      # summary review, add needs-decision, add ready-for-agent only while the round allows a handback, and approve
+      # and add auto-merge only on an implementer pull request. The checks need the App's checks: read.
       # --permission-mode default denies whatever it doesn't list, and the denies are on the command line so they
       # also bind the action's own git scripts. allowed_bots lets the implementer App's pushes start a review.
+      # Write reaches one file outside the checkout, /tmp/review-body.md, and the summary review is posted from it
+      # with --body-file: the Bash checker denies a quoted multi-line --body with a line starting with `#`, and the
+      # summary's headings do. Write is checked against Edit rules, and `//` marks an absolute path, so the rule is
+      # Edit(//tmp/review-body.md). The Edit and NotebookEdit tools stay denied, and so does Write to any other path.
       # No Agent: sub-agents run in the background, and a headless run ends when the agent ends its turn to wait for
       # them, so the review was never posted while the step still succeeded. The prompt has it review both axes
       # itself.
@@ -183,9 +187,9 @@ jobs:
             --max-turns 40
             --permission-mode default
             --allowedTools
-            "Read,Glob,Grep,Skill,mcp__github_inline_comment__create_inline_comment,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(gh pr view ${{ github.event.pull_request.number }}:*),Bash(gh pr diff ${{ github.event.pull_request.number }}:*),Bash(gh issue view:*),Bash(gh pr review ${{ github.event.pull_request.number }} --comment:*),Bash(gh pr edit ${{ github.event.pull_request.number }} --add-label needs-decision)${{ steps.round.outputs.handback == 'ready-for-agent' && format(',Bash(gh pr edit {0} --add-label ready-for-agent)', github.event.pull_request.number) || '' }}${{ env.AGENT_PULL_REQUEST == 'true' && format(',Bash(gh pr review {0} --approve:*),Bash(gh pr edit {0} --add-label auto-merge)', github.event.pull_request.number) || '' }}"
+            "Read,Glob,Grep,Skill,Edit(//tmp/review-body.md),mcp__github_inline_comment__create_inline_comment,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(gh pr view ${{ github.event.pull_request.number }}:*),Bash(gh pr diff ${{ github.event.pull_request.number }}:*),Bash(gh pr checks ${{ github.event.pull_request.number }}:*),Bash(gh issue view:*),Bash(gh pr review ${{ github.event.pull_request.number }} --comment:*),Bash(gh pr edit ${{ github.event.pull_request.number }} --add-label needs-decision)${{ steps.round.outputs.handback == 'ready-for-agent' && format(',Bash(gh pr edit {0} --add-label ready-for-agent)', github.event.pull_request.number) || '' }}${{ env.AGENT_PULL_REQUEST == 'true' && format(',Bash(gh pr review {0} --approve:*),Bash(gh pr edit {0} --add-label auto-merge)', github.event.pull_request.number) || '' }}"
             --disallowedTools
-            "Edit,Write,NotebookEdit,Bash(git push:*),Bash(git commit:*),Bash(git add:*),Bash(git merge:*),Bash(git rebase:*),Bash(git reset:*),Bash(gh pr merge:*),Bash(gh api:*)"
+            "Edit,NotebookEdit,Bash(git push:*),Bash(git commit:*),Bash(git add:*),Bash(git merge:*),Bash(git rebase:*),Bash(git reset:*),Bash(gh pr merge:*),Bash(gh api:*)"
 
       # The job log hides the session (show_full_output is off: the repo is public). This step prints its turns,
       # cost, permission denials and final message to the job log and the job summary, so a missing allowlist entry

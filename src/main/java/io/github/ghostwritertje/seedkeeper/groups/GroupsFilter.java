@@ -54,12 +54,18 @@ record GroupsFilter(Optional<Verdict> verdict, Optional<Reason> reason, String n
         return verdict.map(v -> v == group.verdict()).orElse(true)
                 && reason.map(r -> r == group.reason()).orElse(true)
                 && group.members().stream()
-                        .anyMatch(member -> member.name().toLowerCase(Locale.ROOT).contains(text));
+                        .anyMatch(
+                                member -> member.name().toLowerCase(Locale.ROOT).contains(text));
     }
 
     /** The same filter for any verdict: the one the counts of the verdicts are taken under. */
     public GroupsFilter anyVerdict() {
         return new GroupsFilter(Optional.empty(), reason, name);
+    }
+
+    /** The same filter for any reason: the one the counts of the reasons are taken under. */
+    public GroupsFilter anyReason() {
+        return new GroupsFilter(verdict, Optional.empty(), name);
     }
 
     public boolean active() {

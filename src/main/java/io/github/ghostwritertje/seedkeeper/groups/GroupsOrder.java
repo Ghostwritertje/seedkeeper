@@ -29,30 +29,39 @@ record GroupsOrder(Column column, boolean descending) {
     /** What the Groups view can be sorted by. */
     enum Column {
         /** The name of the first member, ignoring case. */
-        NAME("name", descending -> by(GroupsOrder::name, descending)),
+        NAME("name"),
         /**
          * The seed time toward the minimum: of the member for a group of one, of the slowest managed member for more.
          * A group with no managed member comes last either way.
          */
-        SEEDING("seeding", descending -> by(GroupsOrder::seeding, descending)),
+        SEEDING("seeding"),
         /** The verdict, Remove first, then each by soonest forecast; the other way round, all of it is reversed. */
-        VERDICT("verdict", descending -> descending ? verdict().reversed() : verdict()),
+        VERDICT("verdict"),
         /** The forecast date, then a stopped clock, then no forecast: either way, only the dates turn round. */
-        FORECAST("forecast", GroupsOrder::forecast),
+        FORECAST("forecast"),
         /** The bytes of the group's wanted files. */
-        SIZE("size", descending -> by(group -> Optional.of(group.size()), descending));
+        SIZE("size");
 
         private final String code;
-        private final Function<Boolean, Comparator<GroupVerdict>> order;
 
-        Column(String code, Function<Boolean, Comparator<GroupVerdict>> order) {
+        Column(String code) {
             this.code = code;
-            this.order = order;
         }
 
         /** The code {@code sort} names it by. */
         String code() {
             return code;
+        }
+
+        /** The groups by this column, the usual way or turned round. */
+        Comparator<GroupVerdict> order(boolean descending) {
+            return switch (this) {
+                case NAME -> by(GroupsOrder::name, descending);
+                case SEEDING -> by(GroupsOrder::seeding, descending);
+                case VERDICT -> descending ? verdict().reversed() : verdict();
+                case FORECAST -> forecast(descending);
+                case SIZE -> by(group -> Optional.of(group.size()), descending);
+            };
         }
     }
 
@@ -74,7 +83,7 @@ record GroupsOrder(Column column, boolean descending) {
     /** The groups in this order. */
     List<GroupVerdict> sort(List<GroupVerdict> groups) {
         return groups.stream()
-                .sorted(column.order.apply(descending).thenComparing(verdict()))
+                .sorted(column.order(descending).thenComparing(verdict()))
                 .toList();
     }
 

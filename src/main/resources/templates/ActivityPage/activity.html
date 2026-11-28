@@ -10,14 +10,21 @@
 Transmission, and the verdict groups removed in full. Files deleted counts the files and symlinks taken off the disk:
 only those no torrent that stays still uses. Space freed counts the size of the deleted files that were the last link
 to their data, so a file still linked in the library, or a symlink, frees nothing.</p>
+<p id="time-zone">Times are in {timeZone}.</p>
 {#for run in runs}
+{#if run.quiet}
+<article data-quiet>
+<h2>{#moment run.started /}</h2>
+<p><mark data-tone="ok">{run.status}</mark> · nothing to remove</p>
+</article>
+{#else}
 <article>
-<h2>{run.started}</h2>
+<h2>{#moment run.started /}</h2>
 <dl>
 <dt>Status</dt>
 <dd data-tone="{#if run.status == 'Succeeded'}ok{#else}danger{/if}">{run.status}</dd>
-<dt>Ended</dt>
-<dd>{run.ended}</dd>
+<dt>Took</dt>
+<dd>{run.took}</dd>
 <dt>Removed</dt>
 <dd>{run.removed}</dd>
 <dt>Files deleted</dt>
@@ -29,19 +36,19 @@ to their data, so a file still linked in the library, or a symlink, frees nothin
 <p role="alert">{run.error}</p>
 {/if}
 {#if !run.removals.isEmpty}
-<div role="region" aria-label="Removals of the run of {run.started}" tabindex="0">
+<div role="region" aria-label="Removals of the run of {run.started.text}" tabindex="0">
 <table>
 <thead>
-<tr><th>Removed</th><th>Reason</th><th>Files deleted</th><th>Space freed</th><th>Error</th></tr>
+<tr><th>Removed</th><th>Reason</th><th>Files deleted</th><th>Space freed</th>{#if run.removalErrors}<th>Error</th>{/if}</tr>
 </thead>
 <tbody>
 {#for removal in run.removals}
 <tr>
-<td><ul>{#for member in removal.members}<li>{member}</li>{/for}</ul></td>
+<td><ul>{#for member in removal.members}<li><span>{member.name}</span><small>{member.tracker}{#if member.notes} · {member.notes}{/if}</small>{#if member.message}<small>Tracker said: {member.message}</small>{/if}</li>{/for}</ul></td>
 <td>{removal.reason}</td>
 <td><span>{removal.filesDeleted}</span>{#if removal.filesNote}<small>{removal.filesNote}</small>{/if}</td>
 <td><span>{removal.spaceFreed}</span>{#if removal.spaceNote}<small>{removal.spaceNote}</small>{/if}</td>
-<td>{removal.error}</td>
+{#if run.removalErrors}<td>{removal.error}</td>{/if}
 </tr>
 {/for}
 </tbody>
@@ -49,6 +56,7 @@ to their data, so a file still linked in the library, or a symlink, frees nothin
 </div>
 {/if}
 </article>
+{/if}
 {/for}
 {#if pages.several}
 <nav aria-label="Pages">

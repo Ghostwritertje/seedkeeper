@@ -228,8 +228,7 @@ class GroupsBrowseTest {
                  "seconds_seeding": %d, "is_private": true, "download_dir": "%s",
                  "trackers": [{"announce": "%s"}], "files": [{"name": "%s/movie.mkv", "length": %d}],
                  "file_stats": [{"wanted": true}]}
-                """.formatted(
-                        hash, name, secondsSeeding, FakeTransmissionResource.downloads(), announce, name, length);
+                """.formatted(hash, name, secondsSeeding, FakeTransmissionResource.downloads(), announce, name, length);
     }
 
     private static Path file(Path path) throws IOException {

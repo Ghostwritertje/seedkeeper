@@ -146,6 +146,11 @@ An orphan that is a regular file. One with a library link is still an orphan, bu
 An orphan that is a symlink leading nowhere and that is no torrent's own path.
 _Avoid_: Broken link
 
+**System file**:
+An orphan file that is metadata the OS or the NAS writes next to the files: `.DS_Store`, `._*`, `Thumbs.db`, or anything
+in a Synology `@eaDir` directory. The Orphans view hides it behind a toggle; the API lists it, flagged.
+_Avoid_: Metadata file, junk
+
 ### Code
 
 **Module**:

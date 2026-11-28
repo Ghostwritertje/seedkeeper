@@ -235,10 +235,18 @@ public final class DemoTransmission {
                 "",
                 "Missing.Movie.2020.1080p/movie.mkv");
 
-        // Orphans: files no torrent references, and a dangling symlink.
+        // Orphans: files no torrent references, OS and NAS metadata, and dangling symlinks, a directory full of them.
         file("Leftover.Movie.2018/movie.mkv");
         file("random-notes.txt");
+        file("Leftover.Movie.2018/.DS_Store");
+        file("Leftover.Movie.2018/@eaDir/movie.mkv@SynoEAStream");
+        file("Thumbs.db");
         Files.createSymbolicLink(downloads.resolve("dangling.mkv"), downloads.resolve("nowhere.mkv"));
+        Path crossSeed = Files.createDirectories(downloads.resolve("cross-seed"));
+        for (int number = 1; number <= 12; number++) {
+            String name = "Gone.Show.S01E%02d.1080p.mkv".formatted(number);
+            Files.createSymbolicLink(crossSeed.resolve(name), Path.of("../Gone.Show.S01/" + name));
+        }
     }
 
     /** A file of a few KB to a few MB, its size fixed by its name. */

@@ -1,5 +1,6 @@
 package io.github.ghostwritertje.seedkeeper.groups;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -40,6 +41,14 @@ class GroupsSearchTest {
         assertFalse(GroupsFilter.parse("remove", null, "repack").matches(CROSS_SEED));
         assertFalse(GroupsFilter.parse(null, "all-met", "repack").matches(CROSS_SEED));
         assertFalse(GroupsFilter.parse("keep", null, "other").matches(CROSS_SEED));
+    }
+
+    @Test
+    void theCountsOfTheVerdictsAndOfTheReasonsEachLeaveOutTheirOwnSideAndKeepTheRest() {
+        GroupsFilter filter = GroupsFilter.parse("remove", "all-met", "repack");
+
+        assertEquals(new GroupsFilter(Optional.empty(), Optional.of(Reason.ALL_MET), "repack"), filter.anyVerdict());
+        assertEquals(new GroupsFilter(Optional.of(Verdict.REMOVE), Optional.empty(), "repack"), filter.anyReason());
     }
 
     private static GroupsFilter search(@Nullable String name) {

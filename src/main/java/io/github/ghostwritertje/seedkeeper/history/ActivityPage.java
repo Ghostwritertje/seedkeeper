@@ -7,6 +7,7 @@ import io.github.ghostwritertje.seedkeeper.history.History.RecordedMember;
 import io.github.ghostwritertje.seedkeeper.history.History.RecordedRemoval;
 import io.github.ghostwritertje.seedkeeper.history.History.RecordedRun;
 import io.github.ghostwritertje.seedkeeper.transmission.StatusText;
+import io.github.ghostwritertje.seedkeeper.transmission.StatusText.Moment;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.common.annotation.RunOnVirtualThread;
@@ -16,9 +17,10 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import java.math.BigInteger;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -29,42 +31,54 @@ import org.jspecify.annotations.Nullable;
 @Path("/activity")
 class ActivityPage {
 
-    private static final DateTimeFormatter MOMENT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
     @CheckedTemplate
     static class Templates {
 
         /**
          * @param runs        the runs of this page, the newest first
          * @param pages       which page this is, out of how many
+         * @param timeZone    the configured time zone, which every time on the page is in: "Europe/Brussels"
          * @param unavailable why the history can't be read; null when it can
          */
-        static native TemplateInstance activity(List<Run> runs, Pages pages, @Nullable String unavailable);
+        static native TemplateInstance activity(
+                List<Run> runs, Pages pages, String timeZone, @Nullable String unavailable);
     }
 
     /**
      * One run, as text ready to show.
      *
-     * @param started    "2026-11-20 06:00:00", in the configured time zone
+     * @param started    when it started, in the configured time zone
+     * @param took       how long it took: "4s"
      * @param status     "Succeeded" or "Failed"
      * @param error      the one reason of a failed run; null otherwise
      * @param removed    "2 torrents in 1 group"
      * @param spaceFreed "1.5 GiB"
      */
     public record Run(
-            String started,
-            String ended,
+            Moment started,
+            String took,
             String status,
             @Nullable String error,
             String removed,
             int filesDeleted,
             String spaceFreed,
-            List<Removal> removals) {}
+            List<Removal> removals) {
+
+        /** Whether the run succeeded and removed nothing, so the view shows it on one line. */
+        public boolean quiet() {
+            return status.equals("Succeeded") && error == null && removals.isEmpty();
+        }
+
+        /** Whether a removal of the run has an error, so the view gives the errors a column. */
+        public boolean removalErrors() {
+            return removals.stream().anyMatch(removal -> !removal.error().isEmpty());
+        }
+    }
 
     /**
      * One removal of the run, as text ready to show.
      *
-     * @param members "Some.Movie (tracker-a)", with everything else worth knowing about the torrent in the brackets
+     * @param members the removed torrents, and those of the verdict group that weren't
      * @param reason  the label of the reason, "All met"
      * @param filesNote why no file was deleted, when none was and neither the error nor a refused path says why;
      *                  empty otherwise
@@ -72,13 +86,23 @@ class ActivityPage {
      * @param error     what went wrong, as a sentence; empty when nothing did
      */
     public record Removal(
-            List<String> members,
+            List<Member> members,
             String reason,
             int filesDeleted,
             String filesNote,
             String spaceFreed,
             String spaceNote,
             String error) {}
+
+    /**
+     * One torrent of a removal, as text ready to show: its name, and under it the rest.
+     *
+     * @param name    "Some.Movie"
+     * @param tracker the tracker it belongs to, "public", or "unmanaged"
+     * @param notes   "not finished, not removed", or the one of them that holds; empty when neither does
+     * @param message what the tracker said about it, "Unregistered torrent"; empty when it said nothing
+     */
+    public record Member(String name, String tracker, String notes, String message) {}
 
     /**
      * A removal that deleted no file, with no error or refused path to say why: each wanted file of the removed
@@ -154,16 +178,21 @@ class ActivityPage {
         try {
             List<RecordedRun> runs = history.runs(Optional.empty());
             Pages pages = Pages.of(page, runs.size());
-            return Templates.activity(pages.of(runs).stream().map(this::run).toList(), pages, null);
+            Instant now = Instant.now();
+            return Templates.activity(
+                    pages.of(runs).stream().map(run -> run(run, now)).toList(), pages, timeZone.getId(), null);
         } catch (HistoryException e) {
-            return Templates.activity(List.of(), Pages.of(null, 0), e.getMessage());
+            return Templates.activity(List.of(), Pages.of(null, 0), timeZone.getId(), e.getMessage());
         }
     }
 
-    private Run run(RecordedRun run) {
+    private Run run(RecordedRun run, Instant now) {
         return new Run(
-                moment(run.started()),
-                moment(run.ended()),
+                StatusText.moment(run.started(), timeZone, now),
+                // Between the seconds shown, as the System view, which has only those, counts it too.
+                StatusText.elapsed(Duration.between(
+                        run.started().truncatedTo(ChronoUnit.SECONDS),
+                        run.ended().truncatedTo(ChronoUnit.SECONDS))),
                 run.status().equals("succeeded") ? "Succeeded" : "Failed",
                 run.error().orElse(null),
                 count(run.torrentsRemoved(), "torrent") + " in " + count(run.groupsRemoved(), "group"),
@@ -194,18 +223,19 @@ class ActivityPage {
                 String.join(" ", errors));
     }
 
-    /** "Some.Movie (tracker-a, not finished, tracker said: unregistered torrent, not removed)". */
-    private static String member(RecordedMember member) {
+    private static Member member(RecordedMember member) {
         List<String> notes = new ArrayList<>();
-        notes.add(member.tracker().orElse("unmanaged"));
         if (member.unfinished()) {
             notes.add("not finished");
         }
-        member.trackerMessage().ifPresent(message -> notes.add("tracker said: " + message));
         if (!member.removed()) {
             notes.add("not removed");
         }
-        return member.name() + " (" + String.join(", ", notes) + ")";
+        return new Member(
+                member.name(),
+                member.tracker().orElse("unmanaged"),
+                String.join(", ", notes),
+                member.trackerMessage().orElse(""));
     }
 
     /** The label of a reason; the code itself when another version recorded a reason this one doesn't know. */
@@ -215,10 +245,6 @@ class ActivityPage {
                 .map(Reason::label)
                 .findFirst()
                 .orElse(code);
-    }
-
-    private String moment(Instant moment) {
-        return MOMENT.format(moment.atZone(timeZone));
     }
 
     private static String count(int number, String what) {

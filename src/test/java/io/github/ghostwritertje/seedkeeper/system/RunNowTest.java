@@ -122,14 +122,19 @@ class RunNowTest {
                                 "Status",
                                 "Last run",
                                 "Started",
-                                "Ended",
+                                "Took",
                                 "Removed",
                                 "Files deleted",
                                 "Space freed",
                                 "Next run"))
                 .body(RUNS + ".dl.dd[0]", is("Idle"))
                 .body(RUNS + ".dl.dd[1]", is("Succeeded"))
-                .body(RUNS + ".dl.dd[2]", matchesPattern("\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"))
+                .body(
+                        RUNS + ".dl.dd[2].time.@datetime",
+                        matchesPattern("\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\+05:30"))
+                .body(RUNS + ".dl.dd[2].time", matchesPattern("\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"))
+                .body(RUNS + ".dl.dd[2].span", is("just now"))
+                .body(RUNS + ".dl.dd[3]", matchesPattern("\\d+s"))
                 .body(RUNS + ".dl.dd[4]", is("2 torrents in 1 group"))
                 .body(RUNS + ".dl.dd[5]", is("2"))
                 .body(RUNS + ".dl.dd[6]", is("4 B"));

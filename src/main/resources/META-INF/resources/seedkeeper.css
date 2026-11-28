@@ -6,6 +6,7 @@
  *   data-tone     ok, warn, danger or muted: the colour of a status (a <mark>, <dd> or <td>, or the <small> of a
  *                 tracker message);
  *                 danger or quiet: the look of a <button>
+ *   data-quiet    on an <article> of the Activity view: a run that succeeded and removed nothing, shown on one line
  */
 :root {
   color-scheme: light dark;
@@ -589,6 +590,25 @@ dd li + li {
   font-size: 0.8125rem;
 }
 
+/* How long ago or until a time, next to it; the time's tooltip names the time zone. */
+time + span {
+  margin-left: 0.35rem;
+  color: var(--muted);
+  font-size: 0.875em;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+time[title] {
+  cursor: help;
+}
+
+/* Which time zone the times of the page are in. */
+#time-zone {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
 /* Why a removal deleted no files or freed no space, under the number. */
 [data-page="activity"] tbody small {
   display: block;
@@ -597,6 +617,11 @@ dd li + li {
   color: var(--muted);
   font-size: 0.8125rem;
   white-space: normal;
+}
+
+/* The torrents of one removal, each a name with its tracker and the tracker's message under it. */
+[data-page="activity"] tbody li + li {
+  margin-top: 0.4rem;
 }
 
 [data-page="groups"] tbody small[data-tone="danger"] {
@@ -610,6 +635,17 @@ dd li + li {
 
 [data-page="groups"] tbody > tr[data-cause] mark {
   margin-left: 0.35rem;
+}
+
+/* The verdict and reason under the name: for small screens only, which hide their columns (see the end). */
+[data-page="groups"] tbody th > p {
+  display: none;
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+}
+
+[data-page="groups"] tbody th > p > mark {
+  margin-right: 0.35rem;
 }
 
 [data-page="groups"] tbody > tr > :nth-child(2) {
@@ -809,21 +845,43 @@ article table {
   box-shadow: none;
 }
 
-/* Orphans: sizes and ages line up on the right. */
+/* A run that succeeded and removed nothing: one line, its start and "Succeeded · nothing to remove". */
+article[data-quiet] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+  margin: 0.5rem 0;
+  padding-block: 0.6rem;
+  box-shadow: none;
+}
 
-[data-page="orphans"] td:nth-child(2),
-[data-page="orphans"] td:nth-child(3),
-[data-page="orphans"] tfoot td:nth-child(2) {
+article[data-quiet] > h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+article[data-quiet] > p {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* Orphans: a group per directory, its count in the muted text; sizes and ages line up on the right, paths in mono. */
+
+[data-page="orphans"] details.orphan-group > summary > span {
+  color: var(--muted);
+}
+
+[data-page="orphans"] details.orphan-group[open] {
+  margin-bottom: 0.75rem;
+}
+
+[data-page="orphans"] .number {
   text-align: right;
   white-space: nowrap;
 }
 
-[data-page="orphans"] th:nth-child(2),
-[data-page="orphans"] th:nth-child(3) {
-  text-align: right;
-}
-
-[data-page="orphans"] tbody td:first-child {
+[data-page="orphans"] td.path {
   font: 0.8125rem var(--mono);
   overflow-wrap: anywhere;
 }
@@ -838,6 +896,12 @@ article table {
   column-gap: 1rem;
 }
 
+/* A grid item is as wide as its content by default: a wide table would push its card, and the page, past the screen. */
+[data-page="settings"] > *,
+[data-page="system"] > * {
+  min-width: 0;
+}
+
 [data-page="settings"] > :not(section),
 [data-page="system"] > :not(section),
 [data-page="settings"] > #trackers,
@@ -846,8 +910,10 @@ article table {
   grid-column: 1 / -1;
 }
 
+/* A long variable name breaks anywhere rather than push the page past a small screen. */
 [data-page="settings"] #secrets dt {
   font: 0.8125rem var(--mono);
+  overflow-wrap: anywhere;
 }
 
 [data-page="settings"] > section,
@@ -927,5 +993,47 @@ article table {
     grid-template-columns: max-content 1fr;
     grid-template-rows: none;
     grid-auto-flow: row;
+  }
+}
+
+/*
+ * Phones. The header is two rows: the brand and log out, then the views in one row that scrolls sideways.
+ * The Groups table keeps the name, the progress toward the minimum and the keep override; the verdict and reason
+ * move under the name, and the columns of the verdict, reason, forecast and size are hidden.
+ */
+
+@media (max-width: 40rem) {
+  body > header {
+    gap: 0.25rem 1rem;
+    padding-block: 0.5rem 0.35rem;
+  }
+
+  body > header > form {
+    margin-left: auto;
+  }
+
+  body > header > nav {
+    order: 1;
+    flex: 1 0 100%;
+    flex-wrap: nowrap;
+    margin-right: 0;
+    overflow-x: auto;
+  }
+
+  body > header > nav a {
+    white-space: nowrap;
+  }
+
+  [data-page="groups"] thead th:nth-child(n + 3):not(:last-child),
+  [data-page="groups"] tbody > tr > td[rowspan]:not(:last-child) {
+    display: none;
+  }
+
+  [data-page="groups"] tbody th > p {
+    display: block;
+  }
+
+  [data-page="groups"] tbody > tr > :first-child {
+    min-width: 10rem;
   }
 }

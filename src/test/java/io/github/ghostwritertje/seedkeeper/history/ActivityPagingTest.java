@@ -4,6 +4,8 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.notNullValue;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
 import io.github.ghostwritertje.seedkeeper.TestSecrets;
@@ -79,12 +81,28 @@ class ActivityPagingTest {
                 .then()
                 .statusCode(200)
                 .body("html.body.main.article.size()", is(20))
-                .body("html.body.main.article[0].h2", is("2026-11-02 00:00:00"))
-                .body("html.body.main.article[19].h2", is("2026-11-01 05:00:00"))
+                .body("html.body.main.article[0].h2.time", is("2026-11-02 00:00:00"))
+                .body("html.body.main.article[19].h2.time", is("2026-11-01 05:00:00"))
                 .body(PAGES + ".a.size()", is(1))
                 .body(PAGES + ".a", is("Older runs"))
                 .body(PAGES + ".a.@href", is("/activity?page=2"))
                 .body(PAGES + ".p", is("Page 1 of 2"));
+    }
+
+    @Test
+    void aRunThatRemovedNothingIsOneLine() {
+        Authenticated.asUser()
+                .when()
+                .get("/activity")
+                .then()
+                .statusCode(200)
+                .body("html.body.main.article[0].@data-quiet", notNullValue())
+                .body("html.body.main.article[0].children().size()", is(2))
+                .body("html.body.main.article[0].h2.time", is("2026-11-02 00:00:00"))
+                .body("html.body.main.article[0].p.text()", matchesPattern("Succeeded\\s*·\\s*nothing to remove\\s*"))
+                .body("html.body.main.article[0].p.mark", is("Succeeded"))
+                .body("html.body.main.article[0].p.mark.@data-tone", is("ok"))
+                .body("html.body.main.article[0].dl.size()", is(0));
     }
 
     @Test
@@ -96,7 +114,7 @@ class ActivityPagingTest {
                 .then()
                 .statusCode(200)
                 .body(
-                        "html.body.main.article.h2.collect { it.text() }",
+                        "html.body.main.article.h2.time.collect { it.text() }",
                         contains(
                                 "2026-11-01 04:00:00",
                                 "2026-11-01 03:00:00",

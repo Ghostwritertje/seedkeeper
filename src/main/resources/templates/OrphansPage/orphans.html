@@ -4,52 +4,37 @@
 {#if unavailable}
 <p role="alert">{unavailable}</p>
 {#else}
-<p>What is under the downloads root that no torrent references. seedkeeper only shows it and never deletes it.</p>
+<p>What is under the downloads root that no torrent references, by the directory it is in. seedkeeper only shows it and never deletes it.</p>
 {#if unreadable}
 <p role="alert" id="unreadable">{unreadable}</p>
 {/if}
 <section id="files">
 <h2>Files</h2>
-{#if files.rows.isEmpty}
+{#if files.groups.isEmpty && systemFiles.groups.isEmpty}
 <p>No file is an orphan.</p>
 {#else}
-<div role="region" aria-label="Orphan files" tabindex="0">
-<table>
-<thead>
-<tr><th>Path</th><th>Size</th><th>Age</th><th>Library link</th></tr>
-</thead>
-<tbody>
-{#for row in files.rows}
-<tr><td>{row.path}</td><td>{row.size}</td><td>{row.age}</td><td>{row.libraryLink}</td></tr>
-{/for}
-</tbody>
-<tfoot>
-<tr><th>{files.total}</th><td>{files.totalSize}</td><td></td><td></td></tr>
-</tfoot>
-</table>
-</div>
+{#if files.groups.isEmpty}
+<p>No file is an orphan apart from the system files.</p>
+{/if}
+{#orphanGroups listing=files label='Files' symlinks=false /}
+{#if !systemFiles.groups.isEmpty}
+<details id="system-files">
+<summary>Show {systemFiles.count}</summary>
+<p>Metadata the OS or the NAS writes next to the files: <code>.DS_Store</code>, <code>._*</code>, <code>Thumbs.db</code> and
+anything in a Synology <code>@eaDir</code>.</p>
+{#orphanGroups listing=systemFiles label='System files' symlinks=false /}
+</details>
+{/if}
 {/if}
 </section>
 <section id="dangling-symlinks">
 <h2>Dangling symlinks</h2>
-{#if danglingSymlinks.rows.isEmpty}
+{#if danglingSymlinks.groups.isEmpty}
 <p>No dangling symlink is an orphan.</p>
 {#else}
-<div role="region" aria-label="Dangling symlinks" tabindex="0">
-<table>
-<thead>
-<tr><th>Path</th><th>Size</th><th>Age</th></tr>
-</thead>
-<tbody>
-{#for row in danglingSymlinks.rows}
-<tr><td>{row.path}</td><td>{row.size}</td><td>{row.age}</td></tr>
-{/for}
-</tbody>
-<tfoot>
-<tr><th>{danglingSymlinks.total}</th><td>{danglingSymlinks.totalSize}</td><td></td></tr>
-</tfoot>
-</table>
-</div>
+<p>A symlink dangles when the file it leads to is gone: most often a cross-seed link whose original torrent was removed
+with its data. It takes no space. Once you are sure its target won't come back, delete the link itself by hand.</p>
+{#orphanGroups listing=danglingSymlinks label='Dangling symlinks' symlinks=true /}
 {/if}
 </section>
 {/if}

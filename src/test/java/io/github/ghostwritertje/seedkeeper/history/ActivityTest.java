@@ -10,6 +10,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import io.github.ghostwritertje.seedkeeper.Authenticated;
@@ -19,6 +20,7 @@ import io.github.ghostwritertje.seedkeeper.transmission.FakeTransmissionResource
 import io.quarkus.test.common.WithTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.Cookie;
+import io.restassured.path.xml.XmlPath;
 import io.restassured.response.Response;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -249,10 +251,11 @@ class ActivityTest {
                 .then()
                 .statusCode(200)
                 .body("html.head.title", is("Activity · seedkeeper"))
-                .body(NEWEST_RUN + ".h2", matchesPattern("\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"))
+                .body(NEWEST_RUN + ".h2.time", matchesPattern("\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"))
+                .body(NEWEST_RUN + ".h2.span", is("just now"))
                 .body(
                         NEWEST_RUN + ".dl.dt.collect { it.text() }",
-                        contains("Status", "Ended", "Removed", "Files deleted", "Space freed"))
+                        contains("Status", "Took", "Removed", "Files deleted", "Space freed"))
                 .body(NEWEST_RUN + ".dl.dd[0]", is("Succeeded"))
                 .body(NEWEST_RUN + ".dl.dd[2]", is("2 torrents in 1 group"))
                 .body(NEWEST_RUN + ".dl.dd[3]", is("2"))
@@ -263,16 +266,19 @@ class ActivityTest {
                                 + " \\d\\d:\\d\\d:\\d\\d"))
                 .body(
                         NEWEST_RUN + ".div.table.thead.tr.th.collect { it.text() }",
-                        contains("Removed", "Reason", "Files deleted", "Space freed", "Error"))
+                        contains("Removed", "Reason", "Files deleted", "Space freed"))
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td.size()", is(4))
                 .body(
-                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.collect { it.text() }",
-                        contains("Activity.Due (tracker-a)", "Activity.Due.cross-seed (tracker-a)"))
+                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.span.collect { it.text() }",
+                        contains("Activity.Due", "Activity.Due.cross-seed"))
+                .body(
+                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.small.collect { it.text() }",
+                        contains("tracker-a", "tracker-a"))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[1]", is("All met"))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[2].span", is("2"))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[2].small.size()", is(0))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3].span", is("4 B"))
-                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3].small.size()", is(0))
-                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[4]", is(""));
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3].small.size()", is(0));
     }
 
     @Test
@@ -287,8 +293,14 @@ class ActivityTest {
                 .statusCode(200)
                 .body(NEWEST_RUN + ".dl.dd[2]", is("1 torrent in 0 groups"))
                 .body(
-                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.collect { it.text() }",
-                        contains("Activity.Due (tracker-a)", "Activity.Due.cross-seed (tracker-a, not removed)"))
+                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.span.collect { it.text() }",
+                        contains("Activity.Due", "Activity.Due.cross-seed"))
+                .body(
+                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.small.collect { it.text() }",
+                        contains("tracker-a", "tracker-a · not removed"))
+                .body(
+                        NEWEST_RUN + ".div.table.thead.tr.th.collect { it.text() }",
+                        contains("Removed", "Reason", "Files deleted", "Space freed", "Error"))
                 .body(
                         NEWEST_RUN + ".div.table.tbody.tr[0].td[4]",
                         matchesPattern("Transmission at .+ refused torrent_remove: torrent is busy\\. No files were"
@@ -337,9 +349,10 @@ class ActivityTest {
                                 containsString("Removed counts"),
                                 containsString("Files deleted counts"),
                                 containsString("Space freed counts")))
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.span", is("Activity.Fresh.unregistered"))
                 .body(
-                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li",
-                        is("Activity.Fresh.unregistered (tracker-a, tracker said: Unregistered torrent)"))
+                        NEWEST_RUN + ".div.table.tbody.tr[0].td[0].ul.li.small.collect { it.text() }",
+                        contains("tracker-a", "Tracker said: Unregistered torrent"))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[2].span", is("0"))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3].span", is("0 B"))
                 .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[3].small.size()", is(0))
@@ -347,7 +360,20 @@ class ActivityTest {
                         NEWEST_RUN + ".div.table.tbody.tr[0].td[2].small",
                         is("Data kept: every file is still used by a torrent that stays (a cross-seed), or was no"
                                 + " longer on disk."))
-                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td[4]", is(""));
+                .body(NEWEST_RUN + ".div.table.tbody.tr[0].td.size()", is(4));
+    }
+
+    @Test
+    void theActivityAndSystemViewsAgreeOnWhenTheLastRunStartedAndHowLongItTook() {
+        runNow();
+
+        String system = "html.body.main.section.find { it.@id == 'runs' }.dl";
+        XmlPath systemPage = Authenticated.asUser().when().get("/system").htmlPath();
+        XmlPath activityPage = Authenticated.asUser().when().get("/activity").htmlPath();
+        assertEquals(
+                systemPage.getString(system + ".dd[2].time.@datetime"),
+                activityPage.getString(NEWEST_RUN + ".h2.time.@datetime"));
+        assertEquals(systemPage.getString(system + ".dd[3]"), activityPage.getString(NEWEST_RUN + ".dl.dd[1]"));
     }
 
     @Test

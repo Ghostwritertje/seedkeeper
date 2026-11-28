@@ -11,18 +11,30 @@ final class GroupsTable {
 
     private GroupsTable() {}
 
-    /** The group's name, then each muted line under it: what the group is, and the tracker message, if any. */
+    /**
+     * The group's name, then each muted line under it: what the group is, and the tracker message, if any; without
+     * the verdict that small screens show under them ({@link #verdictUnderName(int)}).
+     */
     static String heading(int group) {
-        return GROUPS + "[" + group + "].tr[0].th.'*'.collect { it.text() }";
+        return GROUPS + "[" + group + "].tr[0].th.'*'.findAll { it.name() != 'p' }.collect { it.text() }";
+    }
+
+    /**
+     * The verdict under the group's name, for small screens, where the verdict and reason columns are hidden: the
+     * verdict's code, the verdict, then the reason.
+     */
+    static String verdictUnderName(int group) {
+        return GROUPS + "[" + group + "].tr[0].th.p[0]"
+                + ".with { p -> [p.mark.@'data-verdict'.text(), p.mark.text(), p.localText().join('').trim()] }";
     }
 
     /**
      * The text of every cell of the header row after the name, up to the form that sets a keep override; a cell's
-     * own text only, without the lines under it.
+     * own text only, without the lines under it; a cell that holds a {@code <time>}, the forecast, gives its text.
      */
     static String cells(int group) {
         return GROUPS + "[" + group + "].tr[0].td.findAll { it.form.size() == 0 }"
-                + ".collect { it.localText().join('').trim() }";
+                + ".collect { it.time.size() > 0 ? it.time.text() : it.localText().join('').trim() }";
     }
 
     /** The line under the reason (the third cell after the name): the secondary reasons; empty when none. */
