@@ -69,12 +69,7 @@ class HomeTest {
                 .statusCode(200)
                 .body("html.head.title", is("Overview · seedkeeper"))
                 .body("html.body.main.h1", is("Overview"));
-        Authenticated.asUser()
-                .when()
-                .get("/groups")
-                .then()
-                .statusCode(200)
-                .body("html.body.aside.a[0].@href", is("/"));
+        Authenticated.asUser().when().get("/groups").then().statusCode(200).body("html.body.aside.a[0].@href", is("/"));
     }
 
     @Test
